@@ -1,0 +1,22 @@
+{
+  "name": "sentinel-browser-extension",
+  "version": "1.0.0",
+  "description": "Sentinel Knowledge Collector - Browser extension for capturing X (Twitter) content",
+  "scripts": {
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "copy src\\content.css dist\\content.css",
+    "watch": "tsc --watch",
+    "clean": "rmdir /s /q dist 2>nul || exit 0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.254",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "browser-extension",
+    "twitter",
+    "knowledge-base",
+    "ai"
+  ],
+  "license": "MIT"
+}

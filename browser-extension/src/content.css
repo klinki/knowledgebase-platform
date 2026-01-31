@@ -1,0 +1,151 @@
+/**
+ * Sentinel Content Script Styles
+ * Styles for the injected "Save to Sentinel" button
+ */
+
+/* Button wrapper to match X's action bar layout */
+.sentinel-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  margin-left: 8px;
+}
+
+/* The save button */
+.sentinel-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #71767b;
+  position: relative;
+}
+
+/* Icon inside the button */
+.sentinel-save-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: all 0.2s ease;
+}
+
+/* Hover state - matches X's button hover */
+.sentinel-save-btn:hover {
+  background-color: rgba(29, 155, 240, 0.1);
+  color: #1d9bf0;
+}
+
+.sentinel-save-btn:hover svg {
+  stroke: #1d9bf0;
+}
+
+/* Saving state */
+.sentinel-save-btn.saving {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.sentinel-save-btn.saving svg {
+  animation: pulse 1s infinite;
+}
+
+/* Saved state */
+.sentinel-save-btn.saved {
+  color: #00ba7c;
+}
+
+.sentinel-save-btn.saved svg {
+  fill: rgba(0, 186, 124, 0.1);
+  stroke: #00ba7c;
+}
+
+/* Disabled state */
+.sentinel-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Tooltip */
+.sentinel-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  background: #1a1a2e;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 10000;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Tooltip arrow */
+.sentinel-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #1a1a2e;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .sentinel-save-btn {
+    color: #71767b;
+  }
+
+  .sentinel-save-btn:hover {
+    background-color: rgba(29, 155, 240, 0.1);
+    color: #1d9bf0;
+  }
+}
+
+/* Ensure button is visible on all X layouts */
+[role="group"] .sentinel-btn-wrapper {
+  flex-shrink: 0;
+}
+
+/* Hide button on promoted tweets (optional) */
+article[data-testid="tweet"]:has([data-testid="socialContext"]:contains("Promoted")) .sentinel-btn-wrapper {
+  display: none;
+}
