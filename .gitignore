@@ -1,0 +1,59 @@
+# .NET / ASP.NET Core
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+.vs/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+
+# Visual Studio
+.vscode/
+.idea/
+*.sln.docstates
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# Entity Framework
+*.db
+*.db-journal
+Migrations/
+
+# Testing
+TestResults/
+coverage/
+*.trx
+
+# Docker
+.env
+docker-compose.override.yml
+
+# Node.js (for browser extension)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+*.tsbuildinfo
+
+# Browser Extension
+*.crx
+*.pem
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.swp
+*.swo
+*~
