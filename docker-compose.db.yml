@@ -1,0 +1,15 @@
+# PostgreSQL with pgvector
+FROM pgvector/pgvector:pg16
+
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+ENV POSTGRES_DB=sentinel_knowledgebase
+
+EXPOSE 5432
+
+# Initialize pgvector extension
+RUN mkdir -p /docker-entrypoint-initdb.d
+RUN echo "CREATE EXTENSION IF NOT EXISTS vector;" > /docker-entrypoint-initdb.d/01-init.sql
+
+# Copy initialization script
+COPY init.sql /docker-entrypoint-initdb.d/

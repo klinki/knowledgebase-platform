@@ -1,0 +1,52 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+
+# NuGet packages
+packages/
+*.nupkg
+!**/nuget.config
+
+# Build results
+[Bb]in/
+[Oo]bj/
+.project
+.classpath
+.settings
+
+# .NET Core
+.dotnet/
+.dotnet-tools/
+
+# IDEs
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test Results
+coverage/
+*.trx
+*.coverage
+
+# SQL Server
+*.mdf
+*.ldf
+
+# Environment
+.env
+*.local

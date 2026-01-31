@@ -83,3 +83,53 @@ Sentinel is a platform designed to bypass the limitations of the X (Twitter) API
 - **Latency:** Capture to DB storage in under 3 seconds.
 - **Accuracy:** AI-generated tags match user intent 85% of the time.
 - **Reliability:** Extension successfully renders the button on 95% of loaded tweets.
+
+## Sentinel Knowledgebase - Backend API
+
+ASP.NET Core backend for the Sentinel Knowledgebase platform.
+
+### Tech Stack
+
+- **Framework:** ASP.NET Core 8.0
+- **Database:** PostgreSQL + pgvector
+- **ORM:** Entity Framework Core
+- **Testing:** xUnit with Testcontainers
+
+### Project Structure
+
+```text
+src/
+├── SentinelKnowledgebase.Api/          # API Layer
+├── SentinelKnowledgebase.Application/  # Application Services
+├── SentinelKnowledgebase.Domain/       # Domain Entities
+└── SentinelKnowledgebase.Infrastructure/ # Data Access
+tests/
+├── SentinelKnowledgebase.IntegrationTests/
+└── SentinelKnowledgebase.UnitTests/
+```
+
+### API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/capture` | Accept new capture |
+| GET | `/api/v1/capture/{id}` | Get processed insight |
+| POST | `/api/v1/search/semantic` | Semantic search |
+| POST | `/api/v1/search/tags` | Search by tags |
+
+### Quick Start
+
+```bash
+# Build
+dotnet build
+
+# Run with Docker
+docker-compose up -d
+
+# Run tests
+dotnet test
+```
+
+### Configuration
+
+Set `OPENAI_API_KEY` environment variable for AI processing.
