@@ -9,7 +9,7 @@ const API_BASE_URL = 'http://localhost:3000'; // Update this with your backend U
 /**
  * Handle messages from content scripts
  */
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === 'SAVE_TWEET') {
     handleSaveTweet(request.data)
       .then((result) => sendResponse(result))
