@@ -3,8 +3,24 @@
  * Injects "Save to Sentinel" buttons into X (Twitter) tweets and handles data extraction
  */
 
-// Track processed tweets to avoid duplicate buttons
+import { MAX_PROCESSED_TWEETS } from './constants.js';
+
+// Track processed tweets to avoid duplicate buttons (with size limit to prevent memory leak)
 const processedTweets = new Set<string>();
+
+/**
+ * Add a tweet ID to the processed set with LRU eviction
+ */
+function addProcessedTweet(tweetId: string): void {
+  if (processedTweets.size >= MAX_PROCESSED_TWEETS) {
+    // Remove oldest entry (first in Set)
+    const first = processedTweets.values().next().value;
+    if (first) {
+      processedTweets.delete(first);
+    }
+  }
+  processedTweets.add(tweetId);
+}
 
 // Sentinel button SVG icon
 const SENTINEL_ICON = `
@@ -253,7 +269,7 @@ function injectSaveButton(tweetElement: HTMLElement): void {
 
   // Check if already processed
   if (processedTweets.has(tweetId)) return;
-  processedTweets.add(tweetId);
+  addProcessedTweet(tweetId);
 
   // Find the action bar (reply, retweet, like buttons)
   const actionBar = tweetElement.querySelector('[role="group"]');
@@ -295,28 +311,38 @@ function initContentScript(): void {
   processVisibleTweets();
 
   // Set up MutationObserver to handle dynamically loaded tweets
+  let processing = false;
   const observer = new MutationObserver((mutations) => {
-    let shouldProcess = false;
+    // Throttle processing to avoid performance issues
+    if (processing) return;
+    processing = true;
 
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof HTMLElement) {
-          // Check if the added node is a tweet or contains tweets
-          if (node.matches('article[data-testid="tweet"]') ||
-              node.querySelector('article[data-testid="tweet"]')) {
-            shouldProcess = true;
+    requestAnimationFrame(() => {
+      let shouldProcess = false;
+
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            // Check if the added node is a tweet or contains tweets
+            if (node.matches('article[data-testid="tweet"]') ||
+                node.querySelector('article[data-testid="tweet"]')) {
+              shouldProcess = true;
+            }
           }
-        }
+        });
       });
-    });
 
-    if (shouldProcess) {
-      processVisibleTweets();
-    }
+      if (shouldProcess) {
+        processVisibleTweets();
+      }
+      processing = false;
+    });
   });
 
-  // Observe the main timeline container
-  const timeline = document.querySelector('main') || document.body;
+  // Observe the main timeline container (try more specific selectors first)
+  const timeline = document.querySelector('[data-testid="primaryColumn"]')
+    || document.querySelector('main')
+    || document.body;
   observer.observe(timeline, {
     childList: true,
     subtree: true

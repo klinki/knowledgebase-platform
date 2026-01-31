@@ -3,15 +3,14 @@
  * Allows users to configure their API key and settings
  */
 
+import { DEFAULT_API_URL } from './constants.js';
+
 // DOM Elements
 const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const apiUrlInput = document.getElementById('apiUrl') as HTMLInputElement;
 const saveButton = document.getElementById('saveBtn') as HTMLButtonElement;
 const statusMessage = document.getElementById('status') as HTMLDivElement;
 const testConnectionBtn = document.getElementById('testConnection') as HTMLButtonElement;
-
-// Default API URL
-const DEFAULT_API_URL = 'http://localhost:3000';
 
 /**
  * Load saved settings from storage

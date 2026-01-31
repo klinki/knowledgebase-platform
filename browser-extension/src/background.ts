@@ -3,8 +3,7 @@
  * Handles API communication and storage
  */
 
-// API configuration
-const API_BASE_URL = 'http://localhost:3000'; // Update this with your backend URL
+import { DEFAULT_API_URL } from './constants.js';
 
 /**
  * Handle messages from content scripts
@@ -27,8 +26,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
  */
 async function handleSaveTweet(tweetData: TweetData): Promise<{ success: boolean; error?: string }> {
   try {
-    // Get the API key from storage
-    const { apiKey } = await chrome.storage.local.get('apiKey');
+    // Get both API key and URL from storage
+    const { apiKey, apiUrl } = await chrome.storage.local.get(['apiKey', 'apiUrl']);
+    const baseUrl = apiUrl || DEFAULT_API_URL;
 
     if (!apiKey) {
       console.error('[Sentinel] API key not configured');
@@ -39,7 +39,7 @@ async function handleSaveTweet(tweetData: TweetData): Promise<{ success: boolean
     }
 
     // Send to backend API
-    const response = await fetch(`${API_BASE_URL}/api/v1/capture`, {
+    const response = await fetch(`${baseUrl}/api/v1/capture`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,9 +73,12 @@ chrome.runtime.onInstalled.addListener((details) => {
   console.log('[Sentinel] Extension installed/updated:', details.reason);
 
   // Set default values if needed
-  chrome.storage.local.get('apiKey').then((result) => {
+  chrome.storage.local.get(['apiKey', 'apiUrl']).then((result) => {
     if (!result.apiKey) {
       console.log('[Sentinel] No API key configured yet');
+    }
+    if (!result.apiUrl) {
+      console.log('[Sentinel] Using default API URL:', DEFAULT_API_URL);
     }
   });
 });
