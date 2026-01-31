@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: sentinel-db
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinelpassword
+      POSTGRES_DB: sentinel
+    ports:
+      - "5432:5432"
+    volumes:
+      - sentinel_db_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Sentinel.Api/Dockerfile
+    container_name: sentinel-api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__SentinelDb: Host=db;Port=5432;Database=sentinel;Username=sentinel;Password=sentinelpassword
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  sentinel_db_data:
