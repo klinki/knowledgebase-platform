@@ -2,42 +2,11 @@
 
 ## Overview
 
-This document provides a high-level implementation plan for the Sentinel backend using .NET 8, ASP.NET Core, EF Core with PostgreSQL/pgvector, and xUnit for testing.
+High-level implementation plan for the Sentinel backend using .NET 8, ASP.NET Core, EF Core with PostgreSQL/pgvector, and xUnit for testing.
 
-## Architecture Overview
+## Architecture
 
-```mermaid
-flowchart TB
-    subgraph Client["Browser Extension"]
-        EXT[TypeScript Extension]
-    end
-
-    subgraph API["ASP.NET Core API"]
-        CTRL[Controllers]
-        SVC[Services]
-        REPO[Repositories]
-    end
-
-    subgraph Services["Processing Services"]
-        CLEAN[DeNoiserService]
-        LLM[OpenAIService]
-        EMBED[EmbeddingService]
-    end
-
-    subgraph Data["Data Layer"]
-        EF[EF Core]
-        DB[(PostgreSQL + pgvector)]
-    end
-
-    EXT -->|POST /api/v1/capture| CTRL
-    CTRL --> SVC
-    SVC --> CLEAN
-    CLEAN --> LLM
-    LLM --> EMBED
-    EMBED --> REPO
-    REPO --> EF
-    EF --> DB
-```
+Browser Extension → ASP.NET Core API → Services → EF Core → PostgreSQL + pgvector
 
 ## Technology Stack
 
@@ -52,72 +21,221 @@ flowchart TB
 | Testing | xUnit, FluentAssertions, Testcontainers |
 | Documentation | Swagger/OpenAPI |
 
-## Project Structure (Clean Architecture)
+## Project Structure
 
-```
-sentinel-backend/
-├── src/
-│   ├── Sentinel.API/                    # ASP.NET Core Web API
-│   │   ├── Controllers/                 # API controllers
-│   │   ├── Middleware/                  # Custom middleware
-│   │   ├── appsettings.json
-│   │   ├── Program.cs
-│   │   └── Sentinel.API.csproj
-│   │
-│   ├── Sentinel.Application/            # Business logic, services, DTOs
-│   │   ├── DTOs/                        # Request/response models
-│   │   ├── Interfaces/                  # Service contracts
-│   │   ├── Services/                    # Business logic implementation
-│   │   ├── Validators/                  # FluentValidation validators
-│   │   └── Sentinel.Application.csproj
-│   │
-│   ├── Sentinel.Domain/                 # Domain entities and enums
-│   │   ├── Entities/                    # RawCapture, ProcessedInsight
-│   │   ├── Enums/                       # ProcessingStatus, Sentiment
-│   │   └── Sentinel.Domain.csproj
-│   │
-│   └── Sentinel.Infrastructure/         # Data access, external APIs
-│       ├── Data/                        # DbContext, migrations
-│       ├── Repositories/                # Repository implementations
-│       ├── External/OpenAI/             # OpenAI service wrapper
-│       └── Sentinel.Infrastructure.csproj
-│
-├── tests/
-│   ├── Sentinel.IntegrationTests/       # xUnit integration tests
-│   │   ├── Controllers/                 # API endpoint tests
-│   │   ├── Fixtures/                    # Test fixtures (Testcontainers)
-│   │   └── Sentinel.IntegrationTests.csproj
-│   │
-│   └── Sentinel.UnitTests/              # xUnit unit tests
-│       ├── Services/                    # Service logic tests
-│       └── Sentinel.UnitTests.csproj
-│
-├── docker-compose.yml                   # PostgreSQL + API services
-├── Dockerfile                           # API container image
-└── Sentinel.sln
-```
+Clean Architecture with 4 layers:
+
+1. **Sentinel.Domain** - Entities, enums
+2. **Sentinel.Application** - Services, DTOs, validators, interfaces
+3. **Sentinel.Infrastructure** - Data access, external APIs, repositories
+4. **Sentinel.API** - Controllers, middleware, configuration
+
+Plus test projects:
+- **Sentinel.IntegrationTests** - API endpoint tests with Testcontainers
+- **Sentinel.UnitTests** - Service logic tests
 
 ## Core Components
 
 ### Domain Entities
 
-**RawCapture**: Stores the original captured content
-- Id, SourceType, SourceId, SourceUrl, Author, Content, CapturedAt
-
-**ProcessedInsight**: Stores LLM-extracted insights
-- Id, RawCaptureId (FK), Summary, CoreInsight, Sentiment, Tags, Embedding (vector)
-- Status: Pending → Processing → Completed/Failed
+- **RawCapture** - Original captured content (tweet, article)
+- **ProcessedInsight** - LLM-extracted insights with vector embedding
+- **ProcessingStatus** - Pending, Processing, Completed, Failed
 
 ### API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/v1/capture | Accept new capture (returns 202 Accepted) |
-| GET | /api/v1/capture/{id} | Get processed insight by ID |
-| POST | /api/v1/search/semantic | Semantic search using embeddings |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | /api/v1/capture | Accept new capture |
+| GET | /api/v1/capture/{id} | Get processed insight |
+| POST | /api/v1/search/semantic | Semantic search |
 | POST | /api/v1/search/tags | Search by tags |
 
 ### Services
+
+- **ICaptureService** - Orchestrates capture and processing pipeline
+- **IDeNoiserService** - Cleans content (removes thread markers, tracking params)
+- **IOpenAIService** - LLM integration for extraction and embeddings
+
+### Data Access
+
+- **SentinelDbContext** - EF Core with pgvector support
+- **Repositories** - RawCapture and ProcessedInsight with vector similarity search
+
+## Implementation Phases
+
+### Phase 1: Project Setup
+Initialize solution, add NuGet packages, configure Docker Compose with PostgreSQL
+
+### Phase 2: Domain Layer
+Create entities and enums
+
+### Phase 3: Data Access Layer
+Configure EF Core, create repositories, apply migrations
+
+### Phase 4: Application Services
+Implement DTOs, validators, and business logic services
+
+Processing Pipeline:
+1. Validate input
+2. Store RawCapture
+3. De-noise content
+4. Extract insights via OpenAI
+5. Generate embedding
+6. Store ProcessedInsight
+
+### Phase 5: API Layer
+Implement controllers, configure DI, add Swagger
+
+### Phase 6: Integration Tests
+Test API endpoints using xUnit with Testcontainers for PostgreSQL
+
+### Phase 7: Unit Tests
+Test service logic using xUnit with mocks
+
+### Phase 8: Deployment
+Containerize with Docker, configure environment variables
+
+## Verification
+
+| Phase | Verification |
+|-------|-------------|
+| 1 | dotnet build succeeds |
+| 2 | dotnet build succeeds |
+| 3 | Database tables created |
+| 4 | Unit tests pass |
+| 5 | API starts, Swagger accessible |
+| 6 | Integration tests pass |
+| 7 | Unit tests pass |
+| 8 | Docker services start |
+
+## Next Steps
+
+- CI/CD pipeline setup
+- Authentication implementation
+- Rate limiting
+- Health checks
+- Production logging
+- Frontend dashboard (Phase 4)
+
+## Overview
+
+High-level implementation plan for the Sentinel backend using .NET 8, ASP.NET Core, EF Core with PostgreSQL/pgvector, and xUnit for testing.
+
+## Architecture
+
+Browser Extension → ASP.NET Core API → Services → EF Core → PostgreSQL + pgvector
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | .NET 8, ASP.NET Core |
+| Database | PostgreSQL + pgvector extension |
+| ORM | Entity Framework Core |
+| AI/LLM | Azure.AI.OpenAI SDK |
+| Validation | FluentValidation |
+| Logging | Serilog |
+| Testing | xUnit, FluentAssertions, Testcontainers |
+| Documentation | Swagger/OpenAPI |
+
+## Project Structure
+
+Clean Architecture with 4 layers:
+
+1. **Sentinel.Domain** - Entities, enums
+2. **Sentinel.Application** - Services, DTOs, validators, interfaces
+3. **Sentinel.Infrastructure** - Data access, external APIs, repositories
+4. **Sentinel.API** - Controllers, middleware, configuration
+
+Plus test projects:
+- **Sentinel.IntegrationTests** - API endpoint tests with Testcontainers
+- **Sentinel.UnitTests** - Service logic tests
+
+## Core Components
+
+### Domain Entities
+
+- **RawCapture** - Original captured content (tweet, article)
+- **ProcessedInsight** - LLM-extracted insights with vector embedding
+- **ProcessingStatus** - Pending, Processing, Completed, Failed
+
+### API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | /api/v1/capture | Accept new capture |
+| GET | /api/v1/capture/{id} | Get processed insight |
+| POST | /api/v1/search/semantic | Semantic search |
+| POST | /api/v1/search/tags | Search by tags |
+
+### Services
+
+- **ICaptureService** - Orchestrates capture and processing pipeline
+- **IDeNoiserService** - Cleans content (removes thread markers, tracking params)
+- **IOpenAIService** - LLM integration for extraction and embeddings
+
+### Data Access
+
+- **SentinelDbContext** - EF Core with pgvector support
+- **Repositories** - RawCapture and ProcessedInsight with vector similarity search
+
+## Implementation Phases
+
+### Phase 1: Project Setup
+Initialize solution, add NuGet packages, configure Docker Compose with PostgreSQL
+
+### Phase 2: Domain Layer
+Create entities and enums
+
+### Phase 3: Data Access Layer
+Configure EF Core, create repositories, apply migrations
+
+### Phase 4: Application Services
+Implement DTOs, validators, and business logic services
+
+Processing Pipeline:
+1. Validate input
+2. Store RawCapture
+3. De-noise content
+4. Extract insights via OpenAI
+5. Generate embedding
+6. Store ProcessedInsight
+
+### Phase 5: API Layer
+Implement controllers, configure DI, add Swagger
+
+### Phase 6: Integration Tests
+Test API endpoints using xUnit with Testcontainers for PostgreSQL
+
+### Phase 7: Unit Tests
+Test service logic using xUnit with mocks
+
+### Phase 8: Deployment
+Containerize with Docker, configure environment variables
+
+## Verification
+
+| Phase | Verification |
+|-------|-------------|
+| 1 | dotnet build succeeds |
+| 2 | dotnet build succeeds |
+| 3 | Database tables created |
+| 4 | Unit tests pass |
+| 5 | API starts, Swagger accessible |
+| 6 | Integration tests pass |
+| 7 | Unit tests pass |
+| 8 | Docker services start |
+
+## Next Steps
+
+- CI/CD pipeline setup
+- Authentication implementation
+- Rate limiting
+- Health checks
+- Production logging
+- Frontend dashboard (Phase 4)
+
 
 **ICaptureService**: Orchestrates the capture and processing pipeline
 - CaptureAsync(): Validates, stores, triggers async processing
