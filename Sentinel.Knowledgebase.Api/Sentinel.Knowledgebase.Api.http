@@ -1,0 +1,6 @@
+@Sentinel.Knowledgebase.Api_HostAddress = http://localhost:5259
+
+GET {{Sentinel.Knowledgebase.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
