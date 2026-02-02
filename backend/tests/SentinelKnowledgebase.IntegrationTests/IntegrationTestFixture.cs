@@ -38,7 +38,7 @@ public class IntegrationTestFixture : IAsyncLifetime
                     
                     services.AddDbContext<ApplicationDbContext>(options =>
                     {
-                        options.UseNpgsql(_container.GetConnectionString());
+                        options.UseNpgsql(_container.GetConnectionString(), o => o.UseVector());
                     });
                 });
             });

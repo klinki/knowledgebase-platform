@@ -30,7 +30,7 @@ public class SearchService : ISearchService
             var embedding = await _unitOfWork.EmbeddingVectors.GetByProcessedInsightIdAsync(insight.Id);
             if (embedding != null)
             {
-                var similarity = CalculateCosineSimilarity(queryEmbedding, embedding.Vector);
+                var similarity = CalculateCosineSimilarity(queryEmbedding, embedding.Vector.ToArray());
                 if (similarity >= request.Threshold)
                 {
                     results.Add(new SemanticSearchResultDto

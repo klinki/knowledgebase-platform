@@ -1,5 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
+using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -52,7 +53,7 @@ public class SearchServiceTests
             .Returns(insights);
         
         _unitOfWork.EmbeddingVectors.GetByProcessedInsightIdAsync(Arg.Any<Guid>())
-            .Returns(new EmbeddingVector { Vector = queryEmbedding });
+            .Returns(new EmbeddingVector { Vector = new Vector(queryEmbedding) });
         
         var result = await _service.SemanticSearchAsync(request);
         

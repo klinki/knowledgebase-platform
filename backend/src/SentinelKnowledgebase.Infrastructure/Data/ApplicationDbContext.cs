@@ -19,6 +19,8 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         
+        modelBuilder.HasPostgresExtension("vector"); // Ensure the extension is enabled in DB
+
         modelBuilder.Entity<RawCapture>(entity =>
         {
             entity.HasKey(e => e.Id);

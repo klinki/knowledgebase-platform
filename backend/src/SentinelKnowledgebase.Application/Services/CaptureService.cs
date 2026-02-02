@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
+using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
@@ -111,7 +111,7 @@ public class CaptureService : ICaptureService
             {
                 Id = Guid.NewGuid(),
                 ProcessedInsightId = processedInsight.Id,
-                Vector = embedding
+                Vector = new Vector(embedding)
             };
             
             await _unitOfWork.EmbeddingVectors.AddAsync(embeddingVector);

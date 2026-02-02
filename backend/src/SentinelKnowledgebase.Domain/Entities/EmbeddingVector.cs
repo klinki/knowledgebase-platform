@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Pgvector;
 
 namespace SentinelKnowledgebase.Domain.Entities;
 
@@ -13,10 +14,10 @@ public class EmbeddingVector
     
     [ForeignKey(nameof(ProcessedInsightId))]
     public ProcessedInsight ProcessedInsight { get; set; } = null!;
-    
+
     [Required]
     [Column(TypeName = "vector(1536)")]
-    public float[] Vector { get; set; } = Array.Empty<float>();
-    
+    public Vector Vector { get; set; } = new Vector(Array.Empty<float>());
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
