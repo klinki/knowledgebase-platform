@@ -16,8 +16,7 @@ public class IntegrationTestFixture : IAsyncLifetime
     
     public async Task InitializeAsync()
     {
-        _container = new PostgreSqlBuilder()
-            .WithImage("pgvector/pgvector:pg16")
+        _container = new PostgreSqlBuilder("pgvector/pgvector:pg18")
             .WithDatabase("sentinel_knowledgebase")
             .WithUsername("postgres")
             .WithPassword("postgres")
