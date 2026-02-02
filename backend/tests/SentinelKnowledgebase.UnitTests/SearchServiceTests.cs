@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -11,15 +11,15 @@ namespace SentinelKnowledgebase.UnitTests;
 
 public class SearchServiceTests
 {
-    private readonly Mock<IUnitOfWork> _mockUnitOfWork;
-    private readonly Mock<IContentProcessor> _mockContentProcessor;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IContentProcessor _contentProcessor;
     private readonly SearchService _service;
     
     public SearchServiceTests()
     {
-        _mockUnitOfWork = new Mock<IUnitOfWork>();
-        _mockContentProcessor = new Mock<IContentProcessor>();
-        _service = new SearchService(_mockUnitOfWork.Object, _mockContentProcessor.Object);
+        _unitOfWork = Substitute.For<IUnitOfWork>();
+        _contentProcessor = Substitute.For<IContentProcessor>();
+        _service = new SearchService(_unitOfWork, _contentProcessor);
     }
     
     [Fact]
@@ -33,8 +33,8 @@ public class SearchServiceTests
         };
         
         var queryEmbedding = new float[] { 0.1f, 0.2f, 0.3f };
-        _mockContentProcessor.Setup(x => x.GenerateEmbeddingAsync(request.Query))
-            .ReturnsAsync(queryEmbedding);
+        _contentProcessor.GenerateEmbeddingAsync(request.Query)
+            .Returns(queryEmbedding);
         
         var insights = new List<ProcessedInsight>
         {
@@ -48,11 +48,11 @@ public class SearchServiceTests
             }
         };
         
-        _mockUnitOfWork.Setup(x => x.ProcessedInsights.GetAllAsync())
-            .ReturnsAsync(insights);
+        _unitOfWork.ProcessedInsights.GetAllAsync()
+            .Returns(insights);
         
-        _mockUnitOfWork.Setup(x => x.EmbeddingVectors.GetByProcessedInsightIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(new EmbeddingVector { Vector = queryEmbedding });
+        _unitOfWork.EmbeddingVectors.GetByProcessedInsightIdAsync(Arg.Any<Guid>())
+            .Returns(new EmbeddingVector { Vector = queryEmbedding });
         
         var result = await _service.SemanticSearchAsync(request);
         
@@ -70,12 +70,12 @@ public class SearchServiceTests
         };
         
         var queryEmbedding = new float[] { 0.1f, 0.2f, 0.3f };
-        _mockContentProcessor.Setup(x => x.GenerateEmbeddingAsync(request.Query))
-            .ReturnsAsync(queryEmbedding);
+        _contentProcessor.GenerateEmbeddingAsync(request.Query)
+            .Returns(queryEmbedding);
         
         var insights = new List<ProcessedInsight>();
-        _mockUnitOfWork.Setup(x => x.ProcessedInsights.GetAllAsync())
-            .ReturnsAsync(insights);
+        _unitOfWork.ProcessedInsights.GetAllAsync()
+            .Returns(insights);
         
         var result = await _service.SemanticSearchAsync(request);
         
@@ -104,8 +104,8 @@ public class SearchServiceTests
             }
         };
         
-        _mockUnitOfWork.Setup(x => x.ProcessedInsights.GetAllAsync())
-            .ReturnsAsync(insights);
+        _unitOfWork.ProcessedInsights.GetAllAsync()
+            .Returns(insights);
         
         var result = await _service.SearchByTagsAsync(request);
         
@@ -135,8 +135,8 @@ public class SearchServiceTests
             }
         };
         
-        _mockUnitOfWork.Setup(x => x.ProcessedInsights.GetAllAsync())
-            .ReturnsAsync(insights);
+        _unitOfWork.ProcessedInsights.GetAllAsync()
+            .Returns(insights);
         
         var result = await _service.SearchByTagsAsync(request);
         

@@ -1,6 +1,6 @@
 using FluentAssertions;
 using FluentValidation;
-using Moq;
+using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -13,15 +13,15 @@ namespace SentinelKnowledgebase.UnitTests;
 
 public class CaptureServiceTests
 {
-    private readonly Mock<IUnitOfWork> _mockUnitOfWork;
-    private readonly Mock<IContentProcessor> _mockContentProcessor;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IContentProcessor _contentProcessor;
     private readonly CaptureService _service;
     
     public CaptureServiceTests()
     {
-        _mockUnitOfWork = new Mock<IUnitOfWork>();
-        _mockContentProcessor = new Mock<IContentProcessor>();
-        _service = new CaptureService(_mockUnitOfWork.Object, _mockContentProcessor.Object);
+        _unitOfWork = Substitute.For<IUnitOfWork>();
+        _contentProcessor = Substitute.For<IContentProcessor>();
+        _service = new CaptureService(_unitOfWork, _contentProcessor);
     }
     
     [Fact]
@@ -37,17 +37,17 @@ public class CaptureServiceTests
         
         var mockTag = new Tag { Id = Guid.NewGuid(), Name = "test" };
         
-        _mockUnitOfWork.Setup(x => x.Tags.GetByNameAsync("test"))
-            .ReturnsAsync((Tag?)null);
+        _unitOfWork.Tags.GetByNameAsync("test")
+            .Returns((Tag?)null);
         
-        _mockUnitOfWork.Setup(x => x.Tags.AddAsync(It.IsAny<Tag>()))
-            .ReturnsAsync(mockTag);
+        _unitOfWork.Tags.AddAsync(Arg.Any<Tag>())
+            .Returns(mockTag);
         
-        _mockUnitOfWork.Setup(x => x.RawCaptures.AddAsync(It.IsAny<RawCapture>()))
-            .ReturnsAsync((RawCapture rc) => rc);
+        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
+            .Returns(callInfo => callInfo.Arg<RawCapture>());
         
-        _mockUnitOfWork.Setup(x => x.SaveChangesAsync())
-            .ReturnsAsync(1);
+        _unitOfWork.SaveChangesAsync()
+            .Returns(1);
         
         var result = await _service.CreateCaptureAsync(request);
         
@@ -61,8 +61,8 @@ public class CaptureServiceTests
     public async Task GetCaptureByIdAsync_ShouldReturnNullForNonexistent()
     {
         var nonexistentId = Guid.NewGuid();
-        _mockUnitOfWork.Setup(x => x.RawCaptures.GetByIdAsync(nonexistentId))
-            .ReturnsAsync((RawCapture?)null);
+        _unitOfWork.RawCaptures.GetByIdAsync(nonexistentId)
+            .Returns((RawCapture?)null);
         
         var result = await _service.GetCaptureByIdAsync(nonexistentId);
         
@@ -84,8 +84,8 @@ public class CaptureServiceTests
             Tags = new List<Tag>()
         };
         
-        _mockUnitOfWork.Setup(x => x.RawCaptures.GetByIdAsync(captureId))
-            .ReturnsAsync(rawCapture);
+        _unitOfWork.RawCaptures.GetByIdAsync(captureId)
+            .Returns(rawCapture);
         
         var result = await _service.GetCaptureByIdAsync(captureId);
         
@@ -103,8 +103,8 @@ public class CaptureServiceTests
             new() { Id = Guid.NewGuid(), SourceUrl = "https://example2.com", ContentType = ContentType.Tweet, Status = CaptureStatus.Completed, Tags = new List<Tag>() }
         };
         
-        _mockUnitOfWork.Setup(x => x.RawCaptures.GetAllAsync())
-            .ReturnsAsync(captures);
+        _unitOfWork.RawCaptures.GetAllAsync()
+            .Returns(captures);
         
         var result = await _service.GetAllCapturesAsync();
         
@@ -116,13 +116,13 @@ public class CaptureServiceTests
     {
         var captureId = Guid.NewGuid();
         
-        _mockUnitOfWork.Setup(x => x.RawCaptures.DeleteAsync(captureId))
-            .Verifiable();
-        _mockUnitOfWork.Setup(x => x.SaveChangesAsync())
-            .ReturnsAsync(1);
+        _unitOfWork.RawCaptures.DeleteAsync(captureId)
+            .Returns(Task.CompletedTask);
+        _unitOfWork.SaveChangesAsync()
+            .Returns(1);
         
         await _service.DeleteCaptureAsync(captureId);
         
-        _mockUnitOfWork.Verify(x => x.RawCaptures.DeleteAsync(captureId), Times.Once);
+        await _unitOfWork.RawCaptures.Received(1).DeleteAsync(captureId);
     }
 }
