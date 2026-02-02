@@ -1,8 +1,10 @@
 <Solution>
+  <Folder Name="/Tests/">
+    <Project Path="tests/SentinelKnowledgebase.IntegrationTests/SentinelKnowledgebase.IntegrationTests.csproj" />
+    <Project Path="tests/SentinelKnowledgebase.UnitTests/SentinelKnowledgebase.UnitTests.csproj" />
+  </Folder>
   <Project Path="src/SentinelKnowledgebase.Api/SentinelKnowledgebase.Api.csproj" />
   <Project Path="src/SentinelKnowledgebase.Application/SentinelKnowledgebase.Application.csproj" />
   <Project Path="src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj" />
   <Project Path="src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj" />
-  <Project Path="tests/SentinelKnowledgebase.IntegrationTests/SentinelKnowledgebase.IntegrationTests.csproj" />
-  <Project Path="tests/SentinelKnowledgebase.UnitTests/SentinelKnowledgebase.UnitTests.csproj" />
 </Solution>
