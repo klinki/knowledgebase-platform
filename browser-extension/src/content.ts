@@ -4,6 +4,7 @@
  */
 
 import { MAX_PROCESSED_TWEETS } from './constants.js';
+import type { TweetData, AuthorData } from './types/index.js';
 
 // Track processed tweets to avoid duplicate buttons (with size limit to prevent memory leak)
 const processedTweets = new Set<string>();
@@ -354,22 +355,4 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initContentScript);
 } else {
   initContentScript();
-}
-
-// Type definitions
-interface AuthorData {
-  username: string;
-  display_name: string;
-}
-
-interface TweetData {
-  source: string;
-  tweet_id: string;
-  author: AuthorData;
-  content: {
-    text: string;
-    timestamp: string | null;
-    url: string;
-  };
-  captured_at: string;
 }

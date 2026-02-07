@@ -145,7 +145,5 @@
   flex-shrink: 0;
 }
 
-/* Hide button on promoted tweets (optional) */
-article[data-testid="tweet"]:has([data-testid="socialContext"]:contains("Promoted")) .sentinel-btn-wrapper {
-  display: none;
-}
+/* Note: Promoted tweets are hidden via JavaScript in content.ts
+   since the :contains() selector is non-standard */

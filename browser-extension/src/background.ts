@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_API_URL } from './constants.js';
+import type { TweetData } from './types/index.js';
 
 /**
  * Handle messages from content scripts
@@ -82,21 +83,3 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
   });
 });
-
-// Type definitions
-interface AuthorData {
-  username: string;
-  display_name: string;
-}
-
-interface TweetData {
-  source: string;
-  tweet_id: string;
-  author: AuthorData;
-  content: {
-    text: string;
-    timestamp: string | null;
-    url: string;
-  };
-  captured_at: string;
-}

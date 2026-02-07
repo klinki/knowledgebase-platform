@@ -1,22 +1,26 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 
 namespace SentinelKnowledgebase.Api.Controllers;
 
+namespace SentinelKnowledgebase.Api.Controllers;
+
 [ApiController]
 [Route("api/v1/capture")]
+[Authorize]
 public class CaptureController : ControllerBase
 {
     private readonly ICaptureService _captureService;
     private readonly ILogger<CaptureController> _logger;
-    
+
     public CaptureController(ICaptureService captureService, ILogger<CaptureController> logger)
     {
         _captureService = captureService;
         _logger = logger;
     }
-    
+
     [HttpPost]
     [ProducesResponseType(typeof(CaptureResponseDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -27,7 +31,7 @@ public class CaptureController : ControllerBase
         {
             return BadRequest(ModelState);
         }
-        
+
         try
         {
             var response = await _captureService.CreateCaptureAsync(request);
@@ -39,7 +43,7 @@ public class CaptureController : ControllerBase
             return StatusCode(500, "An error occurred while processing the capture");
         }
     }
-    
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CaptureResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -50,18 +54,18 @@ public class CaptureController : ControllerBase
         {
             return NotFound();
         }
-        
+
         return Ok(response);
     }
-    
+
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<CaptureResponseDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAllCaptures()
+    [ProducesResponseType(typeof(PagedResult<CaptureResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllCaptures([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var responses = await _captureService.GetAllCapturesAsync();
+        var responses = await _captureService.GetCapturesPagedAsync(page, pageSize);
         return Ok(responses);
     }
-    
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
