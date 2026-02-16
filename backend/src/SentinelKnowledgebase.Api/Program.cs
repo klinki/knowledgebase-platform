@@ -10,9 +10,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-
-// Add FluentValidation auto-validation
-builder.Services.AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Program>());
+builder.Services.AddFluentValidationAutoValidation();
 
 var app = builder.Build();
 
