@@ -106,6 +106,50 @@ Co-authored-by: Kilo Code <moonshotai/kimi-k2.5:free>
 - Prioritize options by logical sequence
 - Include mode switches when appropriate
 
+## Documentation
+
+You are an expert software engineer operating in a Docs-as-Code environment.
+Adhere strictly to the following workflow rules to maintain project synchronization.
+For each action you will find template in `/docs/templates` directory.
+
+## 1. Context Gathering (Before Coding)
+Whenever you are given a new task or feature request:
+- DO NOT start writing code immediately.
+- FIRST, read `/docs/STATUS.md` to understand the high-level project state.
+- SECOND, read `/docs/ARCHITECTURE.md` and any relevant ADRs in `/docs/adrs/` to ensure your proposed solution adheres to project constraints.
+- THIRD, locate the specific feature file in `/docs/features/` (e.g., `01-user-auth.md`). Read its Implementation Status and Acceptance Criteria.
+
+## 2. Execution & Testing
+- Base all implementation strictly on the Acceptance Criteria found in the feature file.
+- Practice Test-Driven Development (TDD): write the test for the acceptance criterion first, then write the implementation to make it pass.
+
+## 3. State Management (After Coding / Before Finishing)
+Before concluding your response or finalizing a commit:
+- You MUST update the feature markdown file in `/docs/features/`.
+- Change the status of the completed task from `[ ]` or `[-]` to `[x]`.
+- If you discovered new necessary sub-tasks during implementation, append them to the "Implementation Status" list as `[ ]`.
+- Do not update the global `/docs/STATUS.md` unless an entire feature file is 100% complete.
+
+## 4. Architectural Boundaries
+- Never introduce a new database, state management library, or core architectural pattern without first prompting the user to create a new ADR.
+
+## 5. Code Review Protocol (For Reviewer Agents)
+When asked to perform a code review:
+
+1. Identify the relevant Feature Spec in `/docs/features/`.
+2. Create a new file in `/docs/reviews/` using the standard naming convention (`YYYY-MM-DD-{feature}-review.md`).
+3. Verify the code explicitly against the Acceptance Criteria in the feature file.
+4. Generate a "Repair Checklist" at the bottom of the review file.
+
+## 6. Addressing Review Feedback (For Coder Agents)
+When asked to fix issues from a review:
+
+1. Open the specific review file in `/docs/reviews/`.
+2. Read the "Issues Found" section to understand the context.
+3. Work through the "Action Plan" checklist item by item.
+4. As you fix each item, change `[ ]` to `[x]` inside the review file.
+5. Do not close the task until all items in the Action Plan are marked `[x]`.
+
 ## Technology Stack
 
 ### Browser Extension
