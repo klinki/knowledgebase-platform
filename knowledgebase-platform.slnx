@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/SentinelKnowledgebase.Api/SentinelKnowledgebase.Api.csproj" />
+    <Project Path="backend/src/SentinelKnowledgebase.Application/SentinelKnowledgebase.Application.csproj" />
+    <Project Path="backend/src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj" />
+    <Project Path="backend/src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/SentinelKnowledgebase.IntegrationTests/SentinelKnowledgebase.IntegrationTests.csproj" />
+    <Project Path="backend/tests/SentinelKnowledgebase.UnitTests/SentinelKnowledgebase.UnitTests.csproj" />
+  </Folder>
+</Solution>
