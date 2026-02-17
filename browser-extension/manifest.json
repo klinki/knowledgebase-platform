@@ -2,16 +2,21 @@
   "manifest_version": 3,
   "name": "Sentinel Knowledge Collector",
   "version": "1.0.0",
-  "description": "Capture high-signal content from X (Twitter) to your Sentinel knowledge base",
+  "description": "Capture high-signal content from X (Twitter) and web pages to your Sentinel knowledge base",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "bookmarks",
+    "notifications",
+    "scripting",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://x.com/*",
-    "https://twitter.com/*"
+    "https://twitter.com/*",
+    "<all_urls>"
   ],
-  "content_scripts": [
+"content_scripts": [
     {
       "matches": [
         "https://x.com/*",
@@ -22,6 +27,15 @@
       ],
       "css": [
         "dist/content.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/webpage-content.js"
       ],
       "run_at": "document_idle"
     }

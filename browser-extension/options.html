@@ -216,7 +216,7 @@
       <p class="subtitle">Configure your knowledge collector</p>
     </div>
 
-    <form id="settingsForm">
+<form id="settingsForm">
       <div class="form-group">
         <label for="apiKey">API Key</label>
         <input type="password" id="apiKey" placeholder="Enter your Sentinel API key">
@@ -229,6 +229,22 @@
         <p class="help-text">The URL of your Sentinel backend API.</p>
       </div>
 
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="bookmarkCaptureEnabled" checked>
+          Enable bookmark capture
+        </label>
+        <p class="help-text">Automatically offer to save pages when you bookmark them.</p>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="autoConfirmWebpageCapture">
+          Auto-confirm bookmark captures
+        </label>
+        <p class="help-text">Skip confirmation and save immediately. Use with caution.</p>
+      </div>
+
       <div class="button-group">
         <button type="button" id="saveBtn" class="btn-primary">Save Settings</button>
         <button type="button" id="testConnection" class="btn-secondary">Test Connection</button>
@@ -237,13 +253,14 @@
 
     <div id="status" class="status"></div>
 
-    <div class="features">
+<div class="features">
       <h3>What you can do:</h3>
       <ul>
         <li>Save tweets directly from X (Twitter)</li>
+        <li>Capture web pages when you bookmark them</li>
+        <li>Save selected text with right-click menu</li>
         <li>Extract insights automatically with AI</li>
         <li>Search your knowledge base semantically</li>
-        <li>Export insights to Markdown or Notion</li>
       </ul>
     </div>
   </div>

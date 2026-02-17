@@ -8,6 +8,8 @@ import { DEFAULT_API_URL } from './constants.js';
 // DOM Elements
 const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const apiUrlInput = document.getElementById('apiUrl') as HTMLInputElement;
+const bookmarkCaptureEnabledInput = document.getElementById('bookmarkCaptureEnabled') as HTMLInputElement;
+const autoConfirmWebpageCaptureInput = document.getElementById('autoConfirmWebpageCapture') as HTMLInputElement;
 const saveButton = document.getElementById('saveBtn') as HTMLButtonElement;
 const statusMessage = document.getElementById('status') as HTMLDivElement;
 const testConnectionBtn = document.getElementById('testConnection') as HTMLButtonElement;
@@ -17,7 +19,7 @@ const testConnectionBtn = document.getElementById('testConnection') as HTMLButto
  */
 async function loadSettings(): Promise<void> {
   try {
-    const result = await chrome.storage.local.get(['apiKey', 'apiUrl']);
+    const result = await chrome.storage.local.get(['apiKey', 'apiUrl', 'bookmarkCaptureEnabled', 'autoConfirmWebpageCapture']);
 
     if (result.apiKey) {
       apiKeyInput.value = result.apiKey;
@@ -27,6 +29,16 @@ async function loadSettings(): Promise<void> {
       apiUrlInput.value = result.apiUrl;
     } else {
       apiUrlInput.value = DEFAULT_API_URL;
+    }
+
+    if (result.bookmarkCaptureEnabled !== undefined) {
+      bookmarkCaptureEnabledInput.checked = result.bookmarkCaptureEnabled;
+    } else {
+      bookmarkCaptureEnabledInput.checked = true;
+    }
+
+    if (result.autoConfirmWebpageCapture !== undefined) {
+      autoConfirmWebpageCaptureInput.checked = result.autoConfirmWebpageCapture;
     }
   } catch (error) {
     console.error('[Sentinel] Failed to load settings:', error);
@@ -40,6 +52,8 @@ async function loadSettings(): Promise<void> {
 async function saveSettings(): Promise<void> {
   const apiKey = apiKeyInput.value.trim();
   const apiUrl = apiUrlInput.value.trim() || DEFAULT_API_URL;
+  const bookmarkCaptureEnabled = bookmarkCaptureEnabledInput.checked;
+  const autoConfirmWebpageCapture = autoConfirmWebpageCaptureInput.checked;
 
   if (!apiKey) {
     showStatus('Please enter an API key', 'error');
@@ -49,7 +63,9 @@ async function saveSettings(): Promise<void> {
   try {
     await chrome.storage.local.set({
       apiKey,
-      apiUrl
+      apiUrl,
+      bookmarkCaptureEnabled,
+      autoConfirmWebpageCapture
     });
 
     showStatus('Settings saved successfully!', 'success');
