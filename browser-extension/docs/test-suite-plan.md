@@ -165,20 +165,20 @@ Full test suite for the Sentinel browser extension using:
 
 ---
 
-## Phase 5: CI/CD
+## Phase 5: CI/CD ✓
 
 **Goal:** Integrate tests into GitHub Actions.
 
 ### Checklist
 
-- [ ] Create .github/workflows/test.yml
-  - [ ] Unit test job
-  - [ ] E2E test job
-  - [ ] Coverage reporting
+- [x] Create .github/workflows/test.yml
+  - [x] Unit test job
+  - [x] E2E test job
+  - [x] Coverage reporting
 
-- [ ] Update AGENTS.md with test commands
+- [x] Update AGENTS.md with test commands
 
-- [ ] Commit Phase 5
+- [x] Commit Phase 5
 
 ---
 

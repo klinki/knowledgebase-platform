@@ -176,3 +176,36 @@ When asked to fix issues from a review:
 - Always run `npm run build` before committing TypeScript changes
 - Test extension in Chrome developer mode before marking complete
 - Update this document if new conventions are established
+
+## Testing Commands
+
+### Browser Extension Tests
+
+Run from the `browser-extension` directory:
+
+```bash
+# Unit and integration tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run E2E tests with Playwright
+npm run test:e2e
+
+# Run E2E tests with UI
+npm run test:e2e:ui
+
+# Run all tests (unit + E2E)
+npm run test:all
+```
+
+### CI/CD
+
+Tests are automatically run in GitHub Actions:
+- Unit and integration tests run on every push/PR
+- E2E tests run on every push/PR
+- Coverage reports are uploaded as artifacts
