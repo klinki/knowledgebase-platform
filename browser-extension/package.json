@@ -1,6 +1,7 @@
 {
   "name": "sentinel-browser-extension",
   "version": "1.0.0",
+  "type": "module",
   "description": "Sentinel Knowledge Collector - Browser extension for capturing X (Twitter) content",
   "scripts": {
     "build": "tsc && npm run copy-assets",
@@ -19,6 +20,7 @@
     "@types/chrome": "^0.0.254",
     "@vitest/coverage-v8": "^4.0.18",
     "happy-dom": "^20.6.3",
+    "http-server": "^14.1.1",
     "jsdom": "^28.1.0",
     "typescript": "^5.3.3",
     "vitest": "^4.0.18"
