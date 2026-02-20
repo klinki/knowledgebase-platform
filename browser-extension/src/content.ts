@@ -373,3 +373,19 @@ interface TweetData {
   };
   captured_at: string;
 }
+
+// Exports for testing
+export {
+  extractTweetId,
+  extractAuthor,
+  extractText,
+  extractTimestamp,
+  extractUrl,
+  extractTweetData,
+  addProcessedTweet,
+  processedTweets,
+  createSaveButton,
+  injectSaveButton,
+}
+
+export type { AuthorData, TweetData }

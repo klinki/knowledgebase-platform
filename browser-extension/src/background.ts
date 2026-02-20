@@ -524,3 +524,15 @@ interface TweetData {
   };
   captured_at: string;
 }
+
+// Exports for testing
+export {
+  handleSaveTweet,
+  handleSaveWebpage,
+  handleExtractWebpageContent,
+  extractWebpageData,
+  captureWebpage,
+  captureSelection,
+}
+
+export type { AuthorData, TweetData, WebpageData, PendingBookmark }

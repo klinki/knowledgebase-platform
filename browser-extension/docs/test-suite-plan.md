@@ -50,58 +50,62 @@ Full test suite for the Sentinel browser extension using:
 
 ---
 
-## Phase 2: Unit Tests
+## Phase 2: Unit Tests ✓
 
 **Goal:** Create unit tests for core extraction and API functions.
 
 ### Checklist
 
-- [ ] Create tests/unit/content.test.ts
-  - [ ] extractTweetId() tests
-    - [ ] Extract from data-tweet-id attribute
-    - [ ] Extract from time link /status/123
-    - [ ] Extract from any status link
-    - [ ] Return null for invalid elements
-    - [ ] Handle edge cases
-  - [ ] extractAuthor() tests
-    - [ ] Parse username from user links
-    - [ ] Extract display name from span elements
-    - [ ] Handle missing display name
-    - [ ] Return null for invalid elements
-  - [ ] extractText() tests
-    - [ ] Extract from [data-testid="tweetText"]
-    - [ ] Fallback to [lang] elements
-    - [ ] Handle empty content
-  - [ ] extractTimestamp() tests
-    - [ ] Extract from time element datetime attribute
-    - [ ] Return null when not found
-  - [ ] extractUrl() tests
-    - [ ] Extract from status link
-    - [ ] Construct URL from username and tweet ID
-    - [ ] Handle relative URLs
-  - [ ] addProcessedTweet() LRU tests
-    - [ ] Add entries up to limit
-    - [ ] Evict oldest when limit reached
+- [x] Create tests/unit/content.test.ts
+  - [x] extractTweetId() tests
+    - [x] Extract from data-tweet-id attribute
+    - [x] Extract from time link /status/123
+    - [x] Extract from any status link
+    - [x] Return null for invalid elements
+    - [x] Handle edge cases
+  - [x] extractAuthor() tests
+    - [x] Parse username from user links
+    - [x] Extract display name from span elements
+    - [x] Handle missing display name
+    - [x] Return null for invalid elements
+  - [x] extractText() tests
+    - [x] Extract from [data-testid="tweetText"]
+    - [x] Fallback to [lang] elements
+    - [x] Handle empty content
+  - [x] extractTimestamp() tests
+    - [x] Extract from time element datetime attribute
+    - [x] Return null when not found
+  - [x] extractUrl() tests
+    - [x] Extract from status link
+    - [x] Construct URL from username and tweet ID
+    - [x] Handle relative URLs
+  - [x] extractTweetData() tests
+    - [x] Complete extraction from valid element
+    - [x] Handle missing tweet ID
+    - [x] Handle missing author
+    - [x] Handle missing text/timestamp
 
-- [ ] Create tests/unit/background.test.ts
-  - [ ] handleSaveTweet() tests
-    - [ ] Use stored API key and URL
-    - [ ] Fall back to DEFAULT_API_URL
-    - [ ] Handle missing API key
-    - [ ] Handle network errors
-  - [ ] handleSaveWebpage() tests
-    - [ ] Send correct payload structure
-    - [ ] Handle API errors
-  - [ ] API key/URL handling tests
-    - [ ] Retrieve from chrome.storage.local
-    - [ ] Use defaults when not configured
+- [x] Create tests/unit/background.test.ts
+  - [x] handleSaveTweet() tests
+    - [x] Use stored API key and URL
+    - [x] Fall back to DEFAULT_API_URL
+    - [x] Handle missing API key
+    - [x] Handle network errors
+    - [x] Handle API error responses
+  - [x] handleSaveWebpage() tests
+    - [x] Send correct payload structure
+    - [x] Handle API errors
+  - [x] extractWebpageData() tests
+    - [x] Extract metadata from meta tags
+    - [x] Extract main content
+    - [x] Use URL hostname as fallback
 
-- [ ] Create tests/unit/constants.test.ts
-  - [ ] Export validation
+- [x] Create tests/unit/constants.test.ts
+  - [x] Export validation
 
-- [ ] Export functions from content.ts for testing
+- [x] Export functions from content.ts and background.ts for testing
 
-- [ ] Commit Phase 2
+- [x] Commit Phase 2
 
 ---
 
