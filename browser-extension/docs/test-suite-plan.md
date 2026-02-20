@@ -109,30 +109,30 @@ Full test suite for the Sentinel browser extension using:
 
 ---
 
-## Phase 3: Integration Tests
+## Phase 3: Integration Tests ✓
 
 **Goal:** Test message passing and storage integration.
 
 ### Checklist
 
-- [ ] Create tests/integration/message-passing.test.ts
-  - [ ] SAVE_TWEET flow
-    - [ ] Content script sends message
-    - [ ] Background receives and processes
-    - [ ] Verify API call is made
-  - [ ] SAVE_WEBPAGE flow
-    - [ ] Message handling
-    - [ ] API call verification
-  - [ ] EXTRACT_WEBPAGE_CONTENT flow
-    - [ ] Script injection trigger
-    - [ ] Data extraction return
+- [x] Create tests/integration/message-passing.test.ts
+  - [x] SAVE_TWEET flow
+    - [x] Content script sends message
+    - [x] Background receives and processes
+    - [x] Verify API call is made
+  - [x] SAVE_WEBPAGE flow
+    - [x] Message handling
+    - [x] API call verification
+  - [x] Unknown message type handling
 
-- [ ] Create tests/integration/storage.test.ts
-  - [ ] API key storage/retrieval
-  - [ ] API URL storage/retrieval
-  - [ ] Settings persistence
+- [x] Create tests/integration/storage.test.ts
+  - [x] API key storage/retrieval
+  - [x] API URL storage/retrieval
+  - [x] Settings persistence
+  - [x] Multiple keys operations
+  - [x] Clear storage
 
-- [ ] Commit Phase 3
+- [x] Commit Phase 3
 
 ---
 
