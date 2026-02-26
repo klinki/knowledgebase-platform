@@ -1,10 +1,8 @@
 using FluentAssertions;
 using NSubstitute;
-using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
-using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Infrastructure.Repositories;
 using Xunit;
 
@@ -37,23 +35,22 @@ public class SearchServiceTests
         _contentProcessor.GenerateEmbeddingAsync(request.Query)
             .Returns(queryEmbedding);
         
-        var insights = new List<ProcessedInsight>
+        var searchResults = new List<SemanticSearchRecord>
         {
             new()
             {
                 Id = Guid.NewGuid(),
                 Title = "Test Insight",
                 Summary = "Test summary",
-                Tags = new List<Tag>(),
-                RawCapture = new RawCapture { SourceUrl = "https://example.com" }
+                Similarity = 0.95,
+                SourceUrl = "https://example.com",
+                Tags = new List<string>()
             }
         };
         
-        _unitOfWork.ProcessedInsights.GetAllAsync()
-            .Returns(insights);
-        
-        _unitOfWork.EmbeddingVectors.GetByProcessedInsightIdAsync(Arg.Any<Guid>())
-            .Returns(new EmbeddingVector { Vector = new Vector(queryEmbedding) });
+        _unitOfWork.ProcessedInsights
+            .SemanticSearchAsync(queryEmbedding, request.TopK, request.Threshold)
+            .Returns(searchResults);
         
         var result = await _service.SemanticSearchAsync(request);
         
@@ -74,9 +71,9 @@ public class SearchServiceTests
         _contentProcessor.GenerateEmbeddingAsync(request.Query)
             .Returns(queryEmbedding);
         
-        var insights = new List<ProcessedInsight>();
-        _unitOfWork.ProcessedInsights.GetAllAsync()
-            .Returns(insights);
+        _unitOfWork.ProcessedInsights
+            .SemanticSearchAsync(queryEmbedding, request.TopK, request.Threshold)
+            .Returns(Enumerable.Empty<SemanticSearchRecord>());
         
         var result = await _service.SemanticSearchAsync(request);
         
@@ -92,20 +89,20 @@ public class SearchServiceTests
             MatchAll = false
         };
         
-        var insights = new List<ProcessedInsight>
+        var insights = new List<TagSearchRecord>
         {
             new()
             {
                 Id = Guid.NewGuid(),
                 Title = "Test",
                 Summary = "Summary",
-                Tags = new List<Tag> { new Tag { Name = "test" } },
+                Tags = new List<string> { "test" },
                 ProcessedAt = DateTime.UtcNow,
-                RawCapture = new RawCapture { SourceUrl = "https://example.com" }
+                SourceUrl = "https://example.com"
             }
         };
         
-        _unitOfWork.ProcessedInsights.GetAllAsync()
+        _unitOfWork.ProcessedInsights.SearchByTagsAsync(request.Tags, request.MatchAll)
             .Returns(insights);
         
         var result = await _service.SearchByTagsAsync(request);
@@ -123,21 +120,8 @@ public class SearchServiceTests
             MatchAll = true
         };
         
-        var insights = new List<ProcessedInsight>
-        {
-            new()
-            {
-                Id = Guid.NewGuid(),
-                Title = "Test",
-                Summary = "Summary",
-                Tags = new List<Tag> { new Tag { Name = "test" } },
-                ProcessedAt = DateTime.UtcNow,
-                RawCapture = new RawCapture { SourceUrl = "https://example.com" }
-            }
-        };
-        
-        _unitOfWork.ProcessedInsights.GetAllAsync()
-            .Returns(insights);
+        _unitOfWork.ProcessedInsights.SearchByTagsAsync(request.Tags, request.MatchAll)
+            .Returns(Enumerable.Empty<TagSearchRecord>());
         
         var result = await _service.SearchByTagsAsync(request);
         

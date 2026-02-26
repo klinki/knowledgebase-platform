@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Pgvector.EntityFrameworkCore;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure.Repositories;
 
@@ -13,7 +14,7 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.UseVector()));
         
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IRawCaptureRepository, RawCaptureRepository>();
