@@ -1,4 +1,5 @@
 using FluentValidation.AspNetCore;
+using SentinelKnowledgebase.Api.BackgroundProcessing;
 using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Infrastructure;
 
@@ -10,6 +11,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<ICaptureProcessingQueue, CaptureProcessingQueue>();
+builder.Services.AddHostedService<CaptureProcessingBackgroundService>();
 builder.Services.AddFluentValidationAutoValidation();
 
 var app = builder.Build();

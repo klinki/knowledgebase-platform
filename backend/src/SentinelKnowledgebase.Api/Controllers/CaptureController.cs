@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SentinelKnowledgebase.Api.BackgroundProcessing;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 
@@ -9,11 +10,16 @@ namespace SentinelKnowledgebase.Api.Controllers;
 public class CaptureController : ControllerBase
 {
     private readonly ICaptureService _captureService;
+    private readonly ICaptureProcessingQueue _captureProcessingQueue;
     private readonly ILogger<CaptureController> _logger;
     
-    public CaptureController(ICaptureService captureService, ILogger<CaptureController> logger)
+    public CaptureController(
+        ICaptureService captureService,
+        ICaptureProcessingQueue captureProcessingQueue,
+        ILogger<CaptureController> logger)
     {
         _captureService = captureService;
+        _captureProcessingQueue = captureProcessingQueue;
         _logger = logger;
     }
     
@@ -31,6 +37,7 @@ public class CaptureController : ControllerBase
         try
         {
             var response = await _captureService.CreateCaptureAsync(request);
+            await _captureProcessingQueue.QueueAsync(response.Id);
             return Accepted(new { id = response.Id, message = "Capture accepted and processing started" });
         }
         catch (Exception ex)

@@ -48,9 +48,7 @@ public class CaptureService : ICaptureService
         
         await _unitOfWork.RawCaptures.AddAsync(rawCapture);
         await _unitOfWork.SaveChangesAsync();
-        
-        _ = Task.Run(async () => await ProcessCaptureAsync(rawCapture.Id));
-        
+
         return MapToResponse(rawCapture);
     }
     
@@ -72,7 +70,7 @@ public class CaptureService : ICaptureService
         await _unitOfWork.SaveChangesAsync();
     }
     
-    private async Task ProcessCaptureAsync(Guid rawCaptureId)
+    public async Task ProcessCaptureAsync(Guid rawCaptureId)
     {
         try
         {
