@@ -13,11 +13,10 @@ public class TagRepository : ITagRepository
         _context = context;
     }
     
-    public async Task<Tag> AddAsync(Tag tag)
+    public Task<Tag> AddAsync(Tag tag)
     {
         _context.Tags.Add(tag);
-        await _context.SaveChangesAsync();
-        return tag;
+        return Task.FromResult(tag);
     }
     
     public async Task<Tag?> GetByIdAsync(Guid id)
@@ -35,10 +34,10 @@ public class TagRepository : ITagRepository
         return await _context.Tags.ToListAsync();
     }
     
-    public async Task UpdateAsync(Tag tag)
+    public Task UpdateAsync(Tag tag)
     {
         _context.Tags.Update(tag);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
     }
     
     public async Task DeleteAsync(Guid id)
@@ -47,7 +46,6 @@ public class TagRepository : ITagRepository
         if (tag != null)
         {
             _context.Tags.Remove(tag);
-            await _context.SaveChangesAsync();
         }
     }
 }

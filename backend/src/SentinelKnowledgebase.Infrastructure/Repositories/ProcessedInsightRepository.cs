@@ -13,11 +13,10 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         _context = context;
     }
     
-    public async Task<ProcessedInsight> AddAsync(ProcessedInsight processedInsight)
+    public Task<ProcessedInsight> AddAsync(ProcessedInsight processedInsight)
     {
         _context.ProcessedInsights.Add(processedInsight);
-        await _context.SaveChangesAsync();
-        return processedInsight;
+        return Task.FromResult(processedInsight);
     }
     
     public async Task<ProcessedInsight?> GetByIdAsync(Guid id)
@@ -36,10 +35,10 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .ToListAsync();
     }
     
-    public async Task UpdateAsync(ProcessedInsight processedInsight)
+    public Task UpdateAsync(ProcessedInsight processedInsight)
     {
         _context.ProcessedInsights.Update(processedInsight);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
     }
     
     public async Task DeleteAsync(Guid id)
@@ -48,7 +47,6 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         if (processedInsight != null)
         {
             _context.ProcessedInsights.Remove(processedInsight);
-            await _context.SaveChangesAsync();
         }
     }
 }

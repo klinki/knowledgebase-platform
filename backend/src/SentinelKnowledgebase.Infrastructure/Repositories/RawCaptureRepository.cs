@@ -13,11 +13,10 @@ public class RawCaptureRepository : IRawCaptureRepository
         _context = context;
     }
     
-    public async Task<RawCapture> AddAsync(RawCapture rawCapture)
+    public Task<RawCapture> AddAsync(RawCapture rawCapture)
     {
         _context.RawCaptures.Add(rawCapture);
-        await _context.SaveChangesAsync();
-        return rawCapture;
+        return Task.FromResult(rawCapture);
     }
     
     public async Task<RawCapture?> GetByIdAsync(Guid id)
@@ -36,10 +35,10 @@ public class RawCaptureRepository : IRawCaptureRepository
             .ToListAsync();
     }
     
-    public async Task UpdateAsync(RawCapture rawCapture)
+    public Task UpdateAsync(RawCapture rawCapture)
     {
         _context.RawCaptures.Update(rawCapture);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
     }
     
     public async Task DeleteAsync(Guid id)
@@ -48,7 +47,6 @@ public class RawCaptureRepository : IRawCaptureRepository
         if (rawCapture != null)
         {
             _context.RawCaptures.Remove(rawCapture);
-            await _context.SaveChangesAsync();
         }
     }
 }

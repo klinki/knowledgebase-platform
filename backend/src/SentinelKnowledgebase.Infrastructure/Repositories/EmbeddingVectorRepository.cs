@@ -13,11 +13,10 @@ public class EmbeddingVectorRepository : IEmbeddingVectorRepository
         _context = context;
     }
     
-    public async Task<EmbeddingVector> AddAsync(EmbeddingVector embeddingVector)
+    public Task<EmbeddingVector> AddAsync(EmbeddingVector embeddingVector)
     {
         _context.EmbeddingVectors.Add(embeddingVector);
-        await _context.SaveChangesAsync();
-        return embeddingVector;
+        return Task.FromResult(embeddingVector);
     }
     
     public async Task<EmbeddingVector?> GetByProcessedInsightIdAsync(Guid processedInsightId)
@@ -26,10 +25,10 @@ public class EmbeddingVectorRepository : IEmbeddingVectorRepository
             .FirstOrDefaultAsync(e => e.ProcessedInsightId == processedInsightId);
     }
     
-    public async Task UpdateAsync(EmbeddingVector embeddingVector)
+    public Task UpdateAsync(EmbeddingVector embeddingVector)
     {
         _context.EmbeddingVectors.Update(embeddingVector);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
     }
     
     public async Task DeleteAsync(Guid id)
@@ -38,7 +37,6 @@ public class EmbeddingVectorRepository : IEmbeddingVectorRepository
         if (embeddingVector != null)
         {
             _context.EmbeddingVectors.Remove(embeddingVector);
-            await _context.SaveChangesAsync();
         }
     }
 }
