@@ -7,6 +7,9 @@ description: Operational protocol for Git version control, Conventional Commits,
 
 When committing code or documentation, you MUST follow these standards to maintain repository integrity and professional audit logs.
 
+> [!IMPORTANT]
+> **Atomic Commits**: ALWAYS commit only the files you have explicitly modified for the current task. NEVER include unrelated changes or use "catch-all" commands like `git add .` or `git commit -a`. Stage specific files path-by-path to ensure no accidental inclusions.
+
 ## 1. Conventional Commits
 
 All commit messages must adhere to the [Conventional Commits](https://www.conventionalcommits.org/) specification.
