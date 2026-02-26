@@ -23,6 +23,12 @@ public class CaptureResponseDto
     public ProcessedInsightDto? ProcessedInsight { get; set; }
 }
 
+public class CaptureAcceptedDto
+{
+    public Guid Id { get; set; }
+    public string Message { get; set; } = string.Empty;
+}
+
 public class ProcessedInsightDto
 {
     public Guid Id { get; set; }

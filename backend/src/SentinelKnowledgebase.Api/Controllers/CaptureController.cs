@@ -24,7 +24,7 @@ public class CaptureController : ControllerBase
     }
     
     [HttpPost]
-    [ProducesResponseType(typeof(CaptureResponseDto), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(CaptureAcceptedDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> CreateCapture([FromBody] CaptureRequestDto request)
@@ -38,7 +38,11 @@ public class CaptureController : ControllerBase
         {
             var response = await _captureService.CreateCaptureAsync(request);
             await _captureProcessingQueue.QueueAsync(response.Id);
-            return Accepted(new { id = response.Id, message = "Capture accepted and processing started" });
+            return Accepted(new CaptureAcceptedDto
+            {
+                Id = response.Id,
+                Message = "Capture accepted and processing started"
+            });
         }
         catch (Exception ex)
         {

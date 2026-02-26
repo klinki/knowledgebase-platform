@@ -35,8 +35,9 @@ public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
         
-        var content = await response.Content.ReadFromJsonAsync<JsonElement>();
-        content.GetProperty("id").GetGuid().Should().NotBe(Guid.Empty);
+        var content = await response.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
+        content.Should().NotBeNull();
+        content!.Id.Should().NotBe(Guid.Empty);
     }
     
     [Fact]
