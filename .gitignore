@@ -50,3 +50,6 @@ coverage/
 # Environment
 .env
 *.local
+
+# git AI
+prompts.db
