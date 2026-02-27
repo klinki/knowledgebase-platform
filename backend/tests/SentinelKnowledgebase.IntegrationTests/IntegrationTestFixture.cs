@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Infrastructure.Data;
@@ -27,6 +28,16 @@ public class IntegrationTestFixture : IAsyncLifetime
         var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseEnvironment("Testing");
+
+                builder.ConfigureAppConfiguration((_, configBuilder) =>
+                {
+                    configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:DefaultConnection"] = _container.GetConnectionString()
+                    });
+                });
+
                 builder.ConfigureServices(services =>
                 {
                     var descriptor = services.SingleOrDefault(

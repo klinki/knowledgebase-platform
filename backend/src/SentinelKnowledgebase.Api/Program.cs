@@ -1,4 +1,6 @@
 using FluentValidation.AspNetCore;
+using Hangfire;
+using Hangfire.PostgreSql;
 using OpenTelemetry.Metrics;
 using Serilog;
 using SentinelKnowledgebase.Api.BackgroundProcessing;
@@ -41,6 +43,16 @@ builder.Services
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHangfireServer();
+}
 builder.Services.AddSingleton<ICaptureProcessingQueue, CaptureProcessingQueue>();
 builder.Services.AddHostedService<CaptureProcessingBackgroundService>();
 builder.Services.AddFluentValidationAutoValidation();
@@ -55,6 +67,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHangfireDashboard("/hangfire");
 }
 
 app.UseSerilogRequestLogging();
