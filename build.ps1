@@ -1,6 +1,6 @@
 param (
     [Parameter(Mandatory=$false)]
-    [ValidateSet("All", "Backend", "Frontend", "Clean")]
+    [ValidateSet("All", "Backend", "Frontend", "Clean", "Run")]
     [string]$Target = "All"
 )
 
@@ -45,6 +45,36 @@ function Clean-All {
     }
 }
 
+function Run-Environment {
+    Write-Header "Starting Development Environment"
+    
+    Write-Host "Ensuring Docker containers are running..."
+    Push-Location backend
+    try {
+        docker-compose up -d
+        if ($LASTEXITCODE -ne 0) { throw "Docker-compose failed" }
+    }
+    finally {
+        Pop-Location
+    }
+
+    Write-Host "Building Frontend..."
+    Build-Frontend
+
+    Write-Host "Launching Browser with Extension..."
+    Push-Location browser-extension
+    try {
+        if (!(Test-Path node_modules)) {
+            npm install
+        }
+        npx playwright install chromium
+        node launch-browser.js
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 try {
     switch ($Target) {
         "All" {
@@ -63,6 +93,9 @@ try {
         "Clean" {
             Clean-All
             Write-Host "`nCleaning completed!" -ForegroundColor Green
+        }
+        "Run" {
+            Run-Environment
         }
     }
 }
