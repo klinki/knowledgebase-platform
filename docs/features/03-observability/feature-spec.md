@@ -22,12 +22,12 @@ Establish a robust observability framework for the Sentinel Knowledgebase backen
 
 ## Implementation Status
 ### Phase 1: Infrastructure & Logging
-- [ ] [TODO] Add following NuGet packages:
+- [x] [DONE] Add following NuGet packages:
     - `Serilog.AspNetCore`
     - `Serilog.Sinks.Seq`
     - `Serilog.Sinks.Console`
-- [ ] [TODO] Configure Serilog in `Program.cs` using `appsettings.json` configuration.
-- [ ] [TODO] Replace standard `ILogger` usage with structured logging patterns where applicable.
+- [x] [DONE] Configure Serilog in `Program.cs` using `appsettings.json` configuration.
+- [x] [DONE] Replace standard `ILogger` usage with structured logging patterns where applicable.
 
 ### Phase 2: OpenTelemetry Metrics
 - [ ] [TODO] Add NuGet packages:

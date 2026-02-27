@@ -38,6 +38,11 @@ public class CaptureController : ControllerBase
         {
             var response = await _captureService.CreateCaptureAsync(request);
             await _captureProcessingQueue.QueueAsync(response.Id);
+            _logger.LogInformation(
+                "Capture {CaptureId} accepted for source {SourceUrl}",
+                response.Id,
+                request.SourceUrl);
+
             return Accepted(new CaptureAcceptedDto
             {
                 Id = response.Id,
@@ -46,7 +51,7 @@ public class CaptureController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create capture");
+            _logger.LogError(ex, "Failed to create capture for source {SourceUrl}", request.SourceUrl);
             return StatusCode(500, "An error occurred while processing the capture");
         }
     }
@@ -85,7 +90,7 @@ public class CaptureController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete capture {Id}", id);
+            _logger.LogError(ex, "Failed to delete capture {CaptureId}", id);
             return NotFound();
         }
     }
