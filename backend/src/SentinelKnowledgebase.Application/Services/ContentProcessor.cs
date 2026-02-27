@@ -75,8 +75,9 @@ public class ContentProcessor : IContentProcessor
             _httpClient.DefaultRequestHeaders.Authorization = 
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
             
+            var embeddingsUrl = _configuration["OpenAI:EmbeddingsUrl"] ?? "https://api.openai.com/v1/embeddings";
             var response = await _httpClient.PostAsJsonAsync(
-                "https://api.openai.com/v1/embeddings", requestBody);
+                embeddingsUrl, requestBody);
             
             if (response.IsSuccessStatusCode)
             {
@@ -145,8 +146,9 @@ Respond with valid JSON only.";
             temperature = 0.3
         };
         
+        var chatCompletionsUrl = _configuration["OpenAI:ChatCompletionsUrl"] ?? "https://api.openai.com/v1/chat/completions";
         var response = await _httpClient.PostAsJsonAsync(
-            "https://api.openai.com/v1/chat/completions", requestBody);
+            chatCompletionsUrl, requestBody);
         
         if (response.IsSuccessStatusCode)
         {
