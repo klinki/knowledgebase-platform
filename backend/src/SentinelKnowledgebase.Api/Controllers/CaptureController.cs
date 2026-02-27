@@ -1,5 +1,5 @@
+using Hangfire;
 using Microsoft.AspNetCore.Mvc;
-using SentinelKnowledgebase.Api.BackgroundProcessing;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 
@@ -10,16 +10,16 @@ namespace SentinelKnowledgebase.Api.Controllers;
 public class CaptureController : ControllerBase
 {
     private readonly ICaptureService _captureService;
-    private readonly ICaptureProcessingQueue _captureProcessingQueue;
+    private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<CaptureController> _logger;
     
     public CaptureController(
         ICaptureService captureService,
-        ICaptureProcessingQueue captureProcessingQueue,
+        IBackgroundJobClient backgroundJobClient,
         ILogger<CaptureController> logger)
     {
         _captureService = captureService;
-        _captureProcessingQueue = captureProcessingQueue;
+        _backgroundJobClient = backgroundJobClient;
         _logger = logger;
     }
     
@@ -37,16 +37,17 @@ public class CaptureController : ControllerBase
         try
         {
             var response = await _captureService.CreateCaptureAsync(request);
-            await _captureProcessingQueue.QueueAsync(response.Id);
+            var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
             _logger.LogInformation(
-                "Capture {CaptureId} accepted for source {SourceUrl}",
+                "Capture {CaptureId} accepted for source {SourceUrl}; Hangfire job {JobId} enqueued",
                 response.Id,
-                request.SourceUrl);
+                request.SourceUrl,
+                jobId);
 
             return Accepted(new CaptureAcceptedDto
             {
                 Id = response.Id,
-                Message = "Capture accepted and processing started"
+                Message = "Capture accepted and processing enqueued"
             });
         }
         catch (Exception ex)

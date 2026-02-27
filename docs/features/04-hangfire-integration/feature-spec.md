@@ -24,9 +24,9 @@ Replace the current in-memory background processing (hosted services + Channels)
 - [x] [DONE] Map Hangfire Dashboard middleware.
 
 ### Phase 2: Refactoring
-- [ ] [TODO] Update `CaptureController` to use `IBackgroundJobClient` for enqueuing captures.
-- [ ] [TODO] Ensure `CaptureService.ProcessCaptureAsync` is compatible with Hangfire execution (e.g., handles its own scopes if necessary, though Hangfire usually handles this).
-- [ ] [TODO] Remove `ICaptureProcessingQueue`, `CaptureProcessingQueue`, and `CaptureProcessingBackgroundService`.
+- [x] [DONE] Update `CaptureController` to use `IBackgroundJobClient` for enqueuing captures.
+- [x] [DONE] Ensure `CaptureService.ProcessCaptureAsync` is compatible with Hangfire execution (e.g., handles its own scopes if necessary, though Hangfire usually handles this).
+- [x] [DONE] Remove `ICaptureProcessingQueue`, `CaptureProcessingQueue`, and `CaptureProcessingBackgroundService`.
 
 ### Phase 3: Verification
 - [ ] [TODO] Verify job persistence by stopping the app while a job is enqueued.
