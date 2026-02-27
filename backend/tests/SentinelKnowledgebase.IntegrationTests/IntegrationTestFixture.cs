@@ -12,6 +12,7 @@ namespace SentinelKnowledgebase.IntegrationTests;
 public class IntegrationTestFixture : IAsyncLifetime
 {
     private PostgreSqlContainer _container = null!;
+    private WebApplicationFactory<Program> _factory = null!;
     public HttpClient HttpClient = null!;
     public ApplicationDbContext DbContext = null!;
     
@@ -24,17 +25,31 @@ public class IntegrationTestFixture : IAsyncLifetime
             .Build();
         
         await _container.StartAsync();
-        
-        var factory = new WebApplicationFactory<Program>()
+
+        _factory = CreateApplicationFactory();
+        HttpClient = _factory.CreateClient();
+        var scope = _factory.Services.CreateScope();
+        DbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await DbContext.Database.EnsureDeletedAsync();
+        await DbContext.Database.EnsureCreatedAsync();
+    }
+    
+    public WebApplicationFactory<Program> CreateApplicationFactory(string environment = "Testing")
+    {
+        return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.UseEnvironment("Testing");
+                builder.UseEnvironment(environment);
 
                 builder.ConfigureAppConfiguration((_, configBuilder) =>
                 {
                     configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                     {
-                        ["ConnectionStrings:DefaultConnection"] = _container.GetConnectionString()
+                        ["ConnectionStrings:DefaultConnection"] = _container.GetConnectionString(),
+                        ["Hangfire:RetryAttempts"] = "3",
+                        ["Hangfire:RetryDelaysInSeconds:0"] = "1",
+                        ["Hangfire:RetryDelaysInSeconds:1"] = "1",
+                        ["Hangfire:RetryDelaysInSeconds:2"] = "1"
                     });
                 });
 
@@ -53,15 +68,12 @@ public class IntegrationTestFixture : IAsyncLifetime
                     });
                 });
             });
-        
-        HttpClient = factory.CreateClient();
-        var scope = factory.Services.CreateScope();
-        DbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await DbContext.Database.EnsureCreatedAsync();
     }
-    
+
     public async Task DisposeAsync()
     {
+        HttpClient.Dispose();
+        _factory.Dispose();
         await _container.DisposeAsync();
     }
 }

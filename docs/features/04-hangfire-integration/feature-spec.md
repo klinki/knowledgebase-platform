@@ -29,8 +29,8 @@ Replace the current in-memory background processing (hosted services + Channels)
 - [x] [DONE] Remove `ICaptureProcessingQueue`, `CaptureProcessingQueue`, and `CaptureProcessingBackgroundService`.
 
 ### Phase 3: Verification
-- [ ] [TODO] Verify job persistence by stopping the app while a job is enqueued.
-- [ ] [TODO] Verify retry logic by simulating a transient failure in `ProcessCaptureAsync`.
+- [x] [DONE] Verify job persistence by stopping the app while a job is enqueued.
+- [x] [DONE] Verify retry logic by simulating a transient failure in `ProcessCaptureAsync`.
 
 ## Verification Plan
 - [ ] **Job Execution**: Queue a capture and verify it completes successfully via the Hangfire Dashboard.
