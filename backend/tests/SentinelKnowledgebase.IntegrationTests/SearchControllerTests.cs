@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using System.Net.Http.Json;
 using Xunit;

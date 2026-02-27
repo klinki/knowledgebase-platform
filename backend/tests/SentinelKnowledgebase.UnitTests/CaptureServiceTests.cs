@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using FluentValidation;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;

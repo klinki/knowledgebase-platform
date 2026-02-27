@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;

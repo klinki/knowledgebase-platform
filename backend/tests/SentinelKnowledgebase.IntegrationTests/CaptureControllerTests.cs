@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Domain.Enums;
 using System.Net.Http.Json;
