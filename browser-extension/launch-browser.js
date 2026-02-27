@@ -5,7 +5,14 @@ import { existsSync, mkdirSync } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pathToExtension = join(__dirname, 'dist');
+const manifestPath = join(pathToExtension, 'manifest.json');
 const userDataDir = join(__dirname, '.playwright-user-data');
+
+if (!existsSync(manifestPath)) {
+  console.error(`Error: Extension manifest not found at ${manifestPath}`);
+  console.error('Please run the build command first: npm run build');
+  process.exit(1);
+}
 
 if (!existsSync(userDataDir)) {
   mkdirSync(userDataDir);

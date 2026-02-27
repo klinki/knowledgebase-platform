@@ -5,9 +5,9 @@
   "description": "Sentinel Knowledge Collector - Browser extension for capturing X (Twitter) content",
   "scripts": {
     "build": "tsc && npm run copy-assets",
-    "copy-assets": "copy src\\content.css dist\\content.css",
+    "copy-assets": "node scripts/copy-assets.js",
     "watch": "tsc --watch",
-    "clean": "rmdir /s /q dist 2>nul || exit 0",
+    "clean": "node scripts/clean.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

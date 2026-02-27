@@ -67,6 +67,11 @@ function Run-Environment {
         if (!(Test-Path node_modules)) {
             npm install
         }
+        Write-Host "Verifying extension build..."
+        if (!(Test-Path dist/manifest.json)) {
+            throw "Extension manifest not found in dist. Build might have failed."
+        }
+        
         npx playwright install chromium
         node launch-browser.js
     }
