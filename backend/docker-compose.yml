@@ -21,7 +21,7 @@ services:
 
   api:
     build:
-      context: ./src/SentinelKnowledgebase.Api
+      context: .
       dockerfile: Dockerfile
     container_name: sentinel-api
     environment:
