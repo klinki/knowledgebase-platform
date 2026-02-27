@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using NSubstitute;
 using SentinelKnowledgebase.Application.Services;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Enums;
 using Xunit;
 
@@ -22,7 +24,8 @@ public class ContentProcessorTests
             .Build();
         
         var httpClient = new HttpClient();
-        _processor = new ContentProcessor(config, httpClient);
+        var monitoringService = Substitute.For<IMonitoringService>();
+        _processor = new ContentProcessor(config, httpClient, monitoringService);
     }
     
     [Fact]

@@ -30,14 +30,14 @@ Establish a robust observability framework for the Sentinel Knowledgebase backen
 - [x] [DONE] Replace standard `ILogger` usage with structured logging patterns where applicable.
 
 ### Phase 2: OpenTelemetry Metrics
-- [ ] [TODO] Add NuGet packages:
+- [x] [DONE] Add NuGet packages:
     - `OpenTelemetry.Extensions.Hosting`
     - `OpenTelemetry.Instrumentation.AspNetCore`
     - `OpenTelemetry.Instrumentation.Http`
     - `OpenTelemetry.Instrumentation.Runtime`
     - `OpenTelemetry.Exporter.OpenTelemetryProtocol`
-- [ ] [TODO] Configure OpenTelemetry for Metrics in `Program.cs`.
-- [ ] [TODO] Implement a `MonitoringService` or similar to track custom business metrics (Capture throughput, AI Costs).
+- [x] [DONE] Configure OpenTelemetry for Metrics in `Program.cs`.
+- [x] [DONE] Implement a `MonitoringService` or similar to track custom business metrics (Capture throughput, AI Costs).
 
 ### Phase 3: Health Checks
 - [ ] [TODO] Configure ASP.NET Core Health Checks.

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
@@ -12,11 +13,16 @@ public class CaptureService : ICaptureService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
+    private readonly IMonitoringService _monitoringService;
     
-    public CaptureService(IUnitOfWork unitOfWork, IContentProcessor contentProcessor)
+    public CaptureService(
+        IUnitOfWork unitOfWork,
+        IContentProcessor contentProcessor,
+        IMonitoringService monitoringService)
     {
         _unitOfWork = unitOfWork;
         _contentProcessor = contentProcessor;
+        _monitoringService = monitoringService;
     }
     
     public async Task<CaptureResponseDto> CreateCaptureAsync(CaptureRequestDto request)
@@ -72,10 +78,17 @@ public class CaptureService : ICaptureService
     
     public async Task ProcessCaptureAsync(Guid rawCaptureId)
     {
+        var stopwatch = Stopwatch.StartNew();
+        var processingStatus = "failed";
+
         try
         {
             var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId);
-            if (rawCapture == null) return;
+            if (rawCapture == null)
+            {
+                processingStatus = "not_found";
+                return;
+            }
             
             rawCapture.Status = CaptureStatus.Processing;
             await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
@@ -119,6 +132,9 @@ public class CaptureService : ICaptureService
             await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
             
             await _unitOfWork.SaveChangesAsync();
+
+            processingStatus = "completed";
+            _monitoringService.IncrementProcessedCaptures();
         }
         catch (Exception)
         {
@@ -129,6 +145,11 @@ public class CaptureService : ICaptureService
                 await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
                 await _unitOfWork.SaveChangesAsync();
             }
+        }
+        finally
+        {
+            stopwatch.Stop();
+            _monitoringService.RecordCaptureProcessingDuration(stopwatch.Elapsed.TotalMilliseconds, processingStatus);
         }
     }
     

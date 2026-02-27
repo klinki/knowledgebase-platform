@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Enums;
@@ -11,11 +12,13 @@ public class ContentProcessor : IContentProcessor
 {
     private readonly IConfiguration _configuration;
     private readonly HttpClient _httpClient;
+    private readonly IMonitoringService _monitoringService;
     
-    public ContentProcessor(IConfiguration configuration, HttpClient httpClient)
+    public ContentProcessor(IConfiguration configuration, HttpClient httpClient, IMonitoringService monitoringService)
     {
         _configuration = configuration;
         _httpClient = httpClient;
+        _monitoringService = monitoringService;
     }
     
     public string DenoiseContent(string content)
@@ -51,34 +54,50 @@ public class ContentProcessor : IContentProcessor
     
     public async Task<float[]> GenerateEmbeddingAsync(string text)
     {
-        if (string.IsNullOrEmpty(_configuration["OpenAI:ApiKey"]))
+        var stopwatch = Stopwatch.StartNew();
+
+        try
         {
+            if (string.IsNullOrEmpty(_configuration["OpenAI:ApiKey"]))
+            {
+                return GenerateRandomEmbedding();
+            }
+            
+            var embeddingModel = _configuration["OpenAI:EmbeddingModel"] ?? "text-embedding-3-small";
+            var apiKey = _configuration["OpenAI:ApiKey"];
+            
+            var requestBody = new
+            {
+                model = embeddingModel,
+                input = text
+            };
+            
+            _httpClient.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+            
+            var response = await _httpClient.PostAsJsonAsync(
+                "https://api.openai.com/v1/embeddings", requestBody);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadFromJsonAsync<OpenAIEmbeddingResponse>();
+                var usage = responseContent?.usage;
+                if (usage != null)
+                {
+                    _monitoringService.RecordAiTokenUsage(usage.prompt_tokens, 0, usage.total_tokens, "embedding");
+                }
+
+                var embedding = responseContent?.data?[0]?.embedding;
+                return embedding != null ? embedding.ToArray() : GenerateRandomEmbedding();
+            }
+            
             return GenerateRandomEmbedding();
         }
-        
-        var embeddingModel = _configuration["OpenAI:EmbeddingModel"] ?? "text-embedding-3-small";
-        var apiKey = _configuration["OpenAI:ApiKey"];
-        
-        var requestBody = new
+        finally
         {
-            model = embeddingModel,
-            input = text
-        };
-        
-        _httpClient.DefaultRequestHeaders.Authorization = 
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-        
-        var response = await _httpClient.PostAsJsonAsync(
-            "https://api.openai.com/v1/embeddings", requestBody);
-        
-        if (response.IsSuccessStatusCode)
-        {
-            var responseContent = await response.Content.ReadFromJsonAsync<OpenAIEmbeddingResponse>();
-            var embedding = responseContent?.data?[0]?.embedding;
-            return embedding != null ? embedding.ToArray() : GenerateRandomEmbedding();
+            stopwatch.Stop();
+            _monitoringService.RecordEmbeddingGenerationLatency(stopwatch.Elapsed.TotalMilliseconds);
         }
-        
-        return GenerateRandomEmbedding();
     }
     
     private string GeneratePrompt(string content, ContentType contentType)
@@ -132,6 +151,16 @@ Respond with valid JSON only.";
         if (response.IsSuccessStatusCode)
         {
             var responseContent = await response.Content.ReadFromJsonAsync<OpenAIChatResponse>();
+            var usage = responseContent?.usage;
+            if (usage != null)
+            {
+                _monitoringService.RecordAiTokenUsage(
+                    usage.prompt_tokens,
+                    usage.completion_tokens,
+                    usage.total_tokens,
+                    "chat_completion");
+            }
+
             var content = responseContent?.choices?[0].message?.content;
             
             if (!string.IsNullOrEmpty(content))
@@ -204,6 +233,7 @@ Respond with valid JSON only.";
     private class OpenAIEmbeddingResponse
     {
         public List<EmbeddingData>? data { get; set; }
+        public OpenAiUsage? usage { get; set; }
     }
     
     private class EmbeddingData
@@ -214,6 +244,14 @@ Respond with valid JSON only.";
     private class OpenAIChatResponse
     {
         public List<ChatChoice>? choices { get; set; }
+        public OpenAiUsage? usage { get; set; }
+    }
+
+    private class OpenAiUsage
+    {
+        public int prompt_tokens { get; set; }
+        public int completion_tokens { get; set; }
+        public int total_tokens { get; set; }
     }
     
     private class ChatChoice

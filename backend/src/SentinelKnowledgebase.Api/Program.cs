@@ -1,7 +1,9 @@
 using FluentValidation.AspNetCore;
+using OpenTelemetry.Metrics;
 using Serilog;
 using SentinelKnowledgebase.Api.BackgroundProcessing;
 using SentinelKnowledgebase.Application;
+using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,24 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services
+    .AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter(MonitoringService.MeterName)
+            .AddOtlpExporter(options =>
+            {
+                var endpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+                if (!string.IsNullOrWhiteSpace(endpoint))
+                {
+                    options.Endpoint = new Uri(endpoint);
+                }
+            });
+    });
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

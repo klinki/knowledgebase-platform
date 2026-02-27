@@ -15,13 +15,15 @@ public class CaptureServiceTests
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
+    private readonly IMonitoringService _monitoringService;
     private readonly CaptureService _service;
     
     public CaptureServiceTests()
     {
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _contentProcessor = Substitute.For<IContentProcessor>();
-        _service = new CaptureService(_unitOfWork, _contentProcessor);
+        _monitoringService = Substitute.For<IMonitoringService>();
+        _service = new CaptureService(_unitOfWork, _contentProcessor, _monitoringService);
     }
     
     [Fact]

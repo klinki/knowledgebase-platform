@@ -14,6 +14,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ICaptureService, CaptureService>();
         services.AddScoped<ISearchService, SearchService>();
+        services.AddSingleton<IMonitoringService, MonitoringService>();
         services.AddScoped<IContentProcessor, ContentProcessor>();
         
         services.AddValidatorsFromAssemblyContaining<CaptureRequestValidator>();
