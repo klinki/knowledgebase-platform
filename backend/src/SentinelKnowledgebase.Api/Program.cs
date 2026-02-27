@@ -2,8 +2,10 @@ using FluentValidation.AspNetCore;
 using OpenTelemetry.Metrics;
 using Serilog;
 using SentinelKnowledgebase.Api.BackgroundProcessing;
+using SentinelKnowledgebase.Api.HealthChecks;
 using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Application.Services;
+using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,6 +44,10 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<ICaptureProcessingQueue, CaptureProcessingQueue>();
 builder.Services.AddHostedService<CaptureProcessingBackgroundService>();
 builder.Services.AddFluentValidationAutoValidation();
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("postgresql")
+    .AddCheck<CaptureProcessingQueueHealthCheck>("capture_processing_queue");
 
 var app = builder.Build();
 
@@ -57,6 +63,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
 

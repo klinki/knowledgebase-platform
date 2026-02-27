@@ -40,9 +40,9 @@ Establish a robust observability framework for the Sentinel Knowledgebase backen
 - [x] [DONE] Implement a `MonitoringService` or similar to track custom business metrics (Capture throughput, AI Costs).
 
 ### Phase 3: Health Checks
-- [ ] [TODO] Configure ASP.NET Core Health Checks.
-- [ ] [TODO] Add checks for PostgreSQL connection.
-- [ ] [TODO] Add a custom check for the `CaptureProcessingQueue` state.
+- [x] [DONE] Configure ASP.NET Core Health Checks.
+- [x] [DONE] Add checks for PostgreSQL connection.
+- [x] [DONE] Add a custom check for the `CaptureProcessingQueue` state.
 
 ## Verification Plan
 - [ ] **Logging Test**: Trigger a log event and verify its appearance in both Console and Seq UI.
