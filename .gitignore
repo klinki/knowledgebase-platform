@@ -42,6 +42,9 @@ Thumbs.db
 coverage/
 *.trx
 *.coverage
+.playwright-user-data
+test-results
+playwright-report
 
 # SQL Server
 *.mdf
@@ -53,3 +56,4 @@ coverage/
 
 # git AI
 prompts.db
+
