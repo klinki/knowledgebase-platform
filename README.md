@@ -7,26 +7,26 @@ Sentinel is an advanced knowledge curation platform that bypasses traditional AP
 ```mermaid
 graph TD
     User((User))
-    
+
     subgraph Browser
         Content["Web Pages (X, Articles)"]
         Ext["Browser Extension (Harvester)"]
     end
-    
+
     subgraph "Web Application"
         Dash["Angular Dashboard (Sentinel Vault)"]
     end
-    
+
     subgraph "Backend (ASP.NET Core)"
         API["Search & Ingestion API"]
         Job["Hangfire Background Workers"]
     end
-    
+
     subgraph "AI & Storage"
         LLM["OpenAI (GPT-4o / Embeddings)"]
         DB[(PostgreSQL + pgvector)]
     end
-    
+
     User --> Ext
     User --> Dash
     Ext -- "Extract Content" --> Content
@@ -41,6 +41,7 @@ graph TD
 ## Project Overview
 
 The project consists of three main components working in concert:
+
 1. **Chrome Extension**: Acts as the data harvester, injecting capture tools directly into web platforms.
 2. **.NET 10 Backend**: Manages ingestion, AI-driven processing, and semantic storage.
 3. **Angular Dashboard**: A premium web portal for managing your "Personal Knowledge Vault" with semantic search and tag clouds.
@@ -56,48 +57,105 @@ The project consists of three main components working in concert:
 ## Tech Stack
 
 ### Backend
+
 - **Framework**: .NET 10.0 (ASP.NET Core)
 - **Database**: PostgreSQL with `pgvector` extension
 - **Background Jobs**: Hangfire (PostgreSQL storage)
 - **Observability**: Serilog (Seq Sink), OpenTelemetry (Metrics), Health Checks
 
 ### AI Layer
+
 - **Processing**: OpenAI `gpt-4o` / `gpt-4o-mini`
 - **Embeddings**: OpenAI `text-embedding-3-small` (1536-dimensional vectors)
 
 ### Frontend
+
 - **Angular Dashboard**: v21 (Modern Zoneless mode), Signals, SCSS, Playwright E2E.
 - **Browser Extension**: Manifest V3, TypeScript, Chrome Storage & Scripting APIs.
 
 ## Quick Start
 
 ### Prerequisites
+
 - .NET 10 SDK
 - Node.js & npm
 - Docker Desktop
 - OpenAI API Key
 
-### 1. Start Infrastructure
-Launch the database, Seq (logging), and other services using Docker:
-```bash
-docker-compose up -d
+### Recommended: One-Command Dev Startup
+
+From the repository root:
+
+```powershell
+.\build.ps1 -Target Setup
+.\build.ps1 -Target Dev
 ```
 
-### 2. Run the Backend
-Set your OpenAI API Key and connection strings:
-```bash
-cd backend
-dotnet run --project src/SentinelKnowledgebase.Api
+This starts:
+
+- Backend infrastructure (`docker compose up -d` from `backend/`)
+- Backend API (`dotnet watch run --project src/SentinelKnowledgebase.Api`)
+- Angular frontend (`npm run start` in `frontend/`)
+- Browser extension watch build (`npm run watch` in `browser-extension/`)
+
+Optional: launch Chromium with the extension loaded:
+
+```powershell
+.\build.ps1 -Target Dev -LaunchExtensionBrowser
 ```
 
-### 3. Run the Dashboard
-```bash
-cd frontend
-npm install
-npm run start
+### Build Script Targets
+
+From the repository root:
+
+```powershell
+.\build.ps1 -Target Setup
+.\build.ps1 -Target Build
+.\build.ps1 -Target Backend
+.\build.ps1 -Target WebFrontend
+.\build.ps1 -Target Extension
+.\build.ps1 -Target InfraUp
+.\build.ps1 -Target InfraDown
+.\build.ps1 -Target Clean
+.\build.ps1 -Target ExtensionBrowser
 ```
 
-### 4. Explore
+### Manual Startup (Alternative)
+
+If you prefer to run services manually:
+
+1. Start infrastructure
+
+    ```bash
+    cd backend
+    docker compose up -d
+    ```
+
+2. Run backend API
+
+    ```bash
+    cd backend
+    dotnet watch run --project src/SentinelKnowledgebase.Api
+    ```
+
+3. Run Angular dashboard
+
+    ```bash
+    cd frontend
+    npm install
+    npm run start
+    ```
+
+4. Build extension in watch mode
+
+    ```bash
+    cd browser-extension
+    npm install
+    npm run watch
+    ```
+
+### Explore
+
 - **Web Dashboard**: `http://localhost:4200`
 - **OpenAPI Document**: `https://localhost:5001/openapi/v1.json`
 - **Scalar API Reference**: `https://localhost:5001/scalar/v1`
