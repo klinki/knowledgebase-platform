@@ -10,7 +10,7 @@ describe('constants', () => {
   describe('DEFAULT_API_URL', () => {
     it('is defined and is a valid URL', () => {
       expect(DEFAULT_API_URL).toBeDefined()
-      expect(DEFAULT_API_URL).toBe('http://localhost:3000')
+      expect(DEFAULT_API_URL).toBe('http://localhost:5000')
     })
 
     it('is a valid URL format', () => {

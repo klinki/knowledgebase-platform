@@ -135,7 +135,7 @@ describe('Message Passing Integration', () => {
 
       expect(sendResponse).toHaveBeenCalledWith({ success: true })
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:3000/api/v1/capture/webpage',
+        `${DEFAULT_API_URL}/api/v1/capture`,
         expect.objectContaining({ method: 'POST' })
       )
     })

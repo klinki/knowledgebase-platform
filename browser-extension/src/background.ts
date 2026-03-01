@@ -5,6 +5,8 @@
 
 import { DEFAULT_API_URL } from './constants.js';
 
+const MAX_RAW_CONTENT_LENGTH = 10000;
+
 interface WebpageData {
   source: 'webpage';
   url: string;
@@ -29,6 +31,14 @@ interface PendingBookmark {
   url: string;
   title: string;
   timestamp: number;
+}
+
+interface CaptureRequestPayload {
+  sourceUrl: string;
+  contentType: 'Tweet' | 'Article' | 'Code' | 'Note' | 'Other';
+  rawContent: string;
+  metadata: string;
+  tags?: string[];
 }
 
 /**
@@ -78,14 +88,8 @@ async function handleSaveTweet(tweetData: TweetData): Promise<{ success: boolean
       };
     }
 
-    const response = await fetch(`${baseUrl}/api/v1/capture`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(tweetData)
-    });
+    const capturePayload = mapTweetToCaptureRequest(tweetData);
+    const response = await postCapture(baseUrl, apiKey, capturePayload);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -121,14 +125,8 @@ async function handleSaveWebpage(webpageData: WebpageData): Promise<{ success: b
       };
     }
 
-    const response = await fetch(`${baseUrl}/api/v1/capture/webpage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(webpageData)
-    });
+    const capturePayload = mapWebpageToCaptureRequest(webpageData);
+    const response = await postCapture(baseUrl, apiKey, capturePayload);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -311,6 +309,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
 // Bookmark event listener
 chrome.bookmarks.onCreated.addListener(async (_id, bookmark) => {
+  console.log('[Sentinel] Bookmark created:', bookmark);
+
   if (!bookmark.url || bookmark.url.startsWith('javascript:') || 
       bookmark.url.startsWith('chrome://') || bookmark.url.startsWith('file://')) {
     return;
@@ -334,12 +334,11 @@ chrome.bookmarks.onCreated.addListener(async (_id, bookmark) => {
       captureWebpage(bookmark.url, bookmark.title || '');
     }
   } else {
-    // Show confirmation notification
     if (!bookmark.url) return;
-    
+
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icons/icon48.svg',
+      iconUrl: chrome.runtime.getURL('icons/icon48.png'),
       title: 'Save to Sentinel?',
       message: `Save "${bookmark.title}" to your knowledge base?`,
       buttons: [
@@ -348,15 +347,20 @@ chrome.bookmarks.onCreated.addListener(async (_id, bookmark) => {
       ],
       requireInteraction: true
     }, (notificationId) => {
+      if (chrome.runtime.lastError) {
+        console.error('[Sentinel] Notification error:', chrome.runtime.lastError.message);
+      }
+      
       if (notificationId && bookmark.url) {
         // Store pending bookmark info
-        const pendingBookmarks: Record<string, PendingBookmark> = {};
-        pendingBookmarks[notificationId] = {
-          url: bookmark.url,
-          title: bookmark.title || '',
-          timestamp: Date.now()
-        };
-        chrome.storage.local.set({ pendingBookmarks });
+        chrome.storage.local.get('pendingBookmarks', ({ pendingBookmarks = {} }) => {
+          pendingBookmarks[notificationId] = {
+            url: bookmark.url!,
+            title: bookmark.title || '',
+            timestamp: Date.now()
+          };
+          chrome.storage.local.set({ pendingBookmarks });
+        });
       }
     });
   }
@@ -477,14 +481,8 @@ async function captureSelection(url: string, title: string, selection: string): 
       };
     }
 
-    const response = await fetch(`${baseUrl}/api/v1/capture/webpage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(selectionData)
-    });
+    const capturePayload = mapSelectionToCaptureRequest(selectionData);
+    const response = await postCapture(baseUrl, apiKey, capturePayload);
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
@@ -523,6 +521,98 @@ interface TweetData {
     url: string;
   };
   captured_at: string;
+}
+
+interface SelectionData {
+  source: 'webpage_selection';
+  url: string;
+  title: string;
+  content: {
+    text: string;
+    excerpt: string;
+  };
+  context: {
+    surrounding_text: string | null;
+    selection_only: boolean;
+  };
+  captured_at: string;
+}
+
+function normalizeRawContent(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= MAX_RAW_CONTENT_LENGTH) {
+    return trimmed;
+  }
+
+  return trimmed.substring(0, MAX_RAW_CONTENT_LENGTH);
+}
+
+function mapTweetToCaptureRequest(tweetData: TweetData): CaptureRequestPayload {
+  const rawContent = tweetData.content.text || `${tweetData.author.display_name} (${tweetData.author.username})`;
+
+  return {
+    sourceUrl: tweetData.content.url,
+    contentType: 'Tweet',
+    rawContent: normalizeRawContent(rawContent),
+    metadata: JSON.stringify({
+      source: tweetData.source,
+      tweetId: tweetData.tweet_id,
+      author: tweetData.author,
+      timestamp: tweetData.content.timestamp,
+      capturedAt: tweetData.captured_at
+    }),
+    tags: ['twitter']
+  };
+}
+
+function mapWebpageToCaptureRequest(webpageData: WebpageData): CaptureRequestPayload {
+  const rawContent = webpageData.content.text || webpageData.description || webpageData.title || webpageData.url;
+
+  return {
+    sourceUrl: webpageData.url,
+    contentType: 'Article',
+    rawContent: normalizeRawContent(rawContent),
+    metadata: JSON.stringify({
+      source: webpageData.source,
+      title: webpageData.title,
+      author: webpageData.author,
+      publishDate: webpageData.publish_date,
+      description: webpageData.description,
+      content: {
+        html: webpageData.content.html,
+        excerpt: webpageData.content.excerpt
+      },
+      metadata: webpageData.metadata,
+      capturedAt: webpageData.captured_at
+    })
+  };
+}
+
+function mapSelectionToCaptureRequest(selectionData: SelectionData): CaptureRequestPayload {
+  return {
+    sourceUrl: selectionData.url,
+    contentType: 'Note',
+    rawContent: normalizeRawContent(selectionData.content.text),
+    metadata: JSON.stringify({
+      source: selectionData.source,
+      title: selectionData.title,
+      excerpt: selectionData.content.excerpt,
+      context: selectionData.context,
+      capturedAt: selectionData.captured_at
+    }),
+    tags: ['selection']
+  };
+}
+
+function postCapture(baseUrl: string, apiKey: string, payload: CaptureRequestPayload): Promise<Response> {
+  return fetch(`${baseUrl}/api/v1/capture`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
 }
 
 // Exports for testing

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { handleSaveTweet, handleSaveWebpage, extractWebpageData } from '../../src/background.js'
 import { chromeMock, mockStorageLocal } from '../../src/test-utils/setup.js'
 import { mockFetchResponse, resetChromeMocks } from '../../src/test-utils/helpers.js'
+import { DEFAULT_API_URL } from '../../src/constants.js'
 
 describe('handleSaveTweet', () => {
   const mockTweetData = {
@@ -62,7 +63,7 @@ describe('handleSaveTweet', () => {
 
     expect(result).toEqual({ success: true })
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/v1/capture',
+      `${DEFAULT_API_URL}/api/v1/capture`,
       expect.any(Object)
     )
   })
@@ -123,7 +124,10 @@ describe('handleSaveTweet', () => {
     const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
     const body = JSON.parse(fetchCall[1].body)
 
-    expect(body).toEqual(mockTweetData)
+    expect(body.sourceUrl).toBe(mockTweetData.content.url)
+    expect(body.contentType).toBe('Tweet')
+    expect(body.rawContent).toBe(mockTweetData.content.text)
+    expect(body.metadata).toBeTypeOf('string')
   })
 })
 
@@ -169,7 +173,7 @@ describe('handleSaveWebpage', () => {
 
     expect(result).toEqual({ success: true })
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/v1/capture/webpage',
+      `${DEFAULT_API_URL}/api/v1/capture`,
       expect.objectContaining({
         method: 'POST',
       })

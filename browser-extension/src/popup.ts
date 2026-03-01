@@ -2,6 +2,7 @@
  * Sentinel Popup Script
  * Handles interactions in the extension popup
  */
+import { DEFAULT_API_URL } from './constants.js';
 
 /**
  * Initialize the popup
@@ -22,7 +23,7 @@ function initPopup(): void {
   // View dashboard (will be implemented in Phase 4)
   viewDashboardBtn?.addEventListener('click', () => {
     chrome.storage.local.get('apiUrl').then((result) => {
-      const dashboardUrl = result.apiUrl || 'http://localhost:3000';
+      const dashboardUrl = result.apiUrl || DEFAULT_API_URL;
       chrome.tabs.create({ url: dashboardUrl });
     });
   });

@@ -3,7 +3,7 @@
  */
 
 /** Default API URL when not configured by user */
-export const DEFAULT_API_URL = 'http://localhost:3000';
+export const DEFAULT_API_URL = 'http://localhost:5000';
 
 /** Maximum number of processed tweet IDs to track (prevents memory leak) */
 export const MAX_PROCESSED_TWEETS = 1000;
