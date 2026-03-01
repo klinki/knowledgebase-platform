@@ -2,17 +2,56 @@
 
 Sentinel is an advanced knowledge curation platform that bypasses traditional API limitations using a browser-resident agent. It enables users to capture high-signal content (Tweets, Web Articles, Selections) directly from their browsing session, processes it using state-of-the-art LLMs, and stores it in a searchable, vector-indexed vault.
 
+## System Architecture
+
+```mermaid
+graph TD
+    User((User))
+    
+    subgraph Browser
+        Content["Web Pages (X, Articles)"]
+        Ext["Browser Extension (Harvester)"]
+    end
+    
+    subgraph "Web Application"
+        Dash["Angular Dashboard (Sentinel Vault)"]
+    end
+    
+    subgraph "Backend (ASP.NET Core)"
+        API["Search & Ingestion API"]
+        Job["Hangfire Background Workers"]
+    end
+    
+    subgraph "AI & Storage"
+        LLM["OpenAI (GPT-4o / Embeddings)"]
+        DB[(PostgreSQL + pgvector)]
+    end
+    
+    User --> Ext
+    User --> Dash
+    Ext -- "Extract Content" --> Content
+    Ext -- "Submit Content" --> API
+    Dash -- "Semantic Search" --> API
+    API -- "Queue Jobs" --> Job
+    Job -- "Process & Embed" --> LLM
+    Job -- "Store/Retrieve" --> DB
+    API -- "Query" --> DB
+```
+
 ## Project Overview
 
-The project consists of a **Chrome Extension** that acts as the data harvester and a robust **.NET 10 Backend** that manages the ingestion, processing, and semantic retrieval of information.
+The project consists of three main components working in concert:
+1. **Chrome Extension**: Acts as the data harvester, injecting capture tools directly into web platforms.
+2. **.NET 10 Backend**: Manages ingestion, AI-driven processing, and semantic storage.
+3. **Angular Dashboard**: A premium web portal for managing your "Personal Knowledge Vault" with semantic search and tag clouds.
 
 ### Core Features
 
 - **Seamless Capture**: Inject "Save to Sentinel" buttons directly into web platforms (X.com, etc.).
 - **AI-Powered Insights**: Automated de-noising, summary extraction, and actionable insight generation using OpenAI Models.
 - **Semantic Search**: Meaning-based retrieval using vector embeddings stored in PostgreSQL.
+- **Premium Vault**: A modern web dashboard with glassmorphism UI and real-time reactive filtering.
 - **Reliable Processing**: Persistent background job management with Hangfire.
-- **Full Observability**: Structured logging with Serilog/Seq and metrics via OpenTelemetry.
 
 ## Tech Stack
 
@@ -21,19 +60,20 @@ The project consists of a **Chrome Extension** that acts as the data harvester a
 - **Database**: PostgreSQL with `pgvector` extension
 - **Background Jobs**: Hangfire (PostgreSQL storage)
 - **Observability**: Serilog (Seq Sink), OpenTelemetry (Metrics), Health Checks
-- **Testing**: xUnit, FluentAssertions, NSubstitute, Testcontainers (PostgreSQL)
 
 ### AI Layer
 - **Processing**: OpenAI `gpt-4o` / `gpt-4o-mini`
 - **Embeddings**: OpenAI `text-embedding-3-small` (1536-dimensional vectors)
 
 ### Frontend
-- **Browser Extension**: Manifest V3, TypeScript, Chrome Storage & Scripting APIs
+- **Angular Dashboard**: v21 (Modern Zoneless mode), Signals, SCSS, Playwright E2E.
+- **Browser Extension**: Manifest V3, TypeScript, Chrome Storage & Scripting APIs.
 
 ## Quick Start
 
 ### Prerequisites
 - .NET 10 SDK
+- Node.js & npm
 - Docker Desktop
 - OpenAI API Key
 
@@ -43,17 +83,18 @@ Launch the database, Seq (logging), and other services using Docker:
 docker-compose up -d
 ```
 
-### 2. Configure the Backend
-Set your OpenAI API Key and connection strings in `backend/src/SentinelKnowledgebase.Api/appsettings.json` or via environment variables:
-```bash
-$env:OPENAI__ApiKey = "your-key-here"
-```
-
-### 3. Run the Application
+### 2. Run the Backend
+Set your OpenAI API Key and connection strings:
 ```bash
 cd backend
-dotnet build
 dotnet run --project src/SentinelKnowledgebase.Api
+```
+
+### 3. Run the Dashboard
+```bash
+cd frontend
+npm install
+npm run start
 ```
 
 ### 4. Explore
