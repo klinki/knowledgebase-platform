@@ -5,6 +5,7 @@
     <Project Path="backend/src/SentinelKnowledgebase.Application/SentinelKnowledgebase.Application.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj" />
+    <Project Path="backend/src/SentinelKnowledgebase.Worker/SentinelKnowledgebase.Worker.csproj" />
   </Folder>
   <Folder Name="/backend/tests/">
     <Project Path="backend/tests/SentinelKnowledgebase.IntegrationTests/SentinelKnowledgebase.IntegrationTests.csproj" />

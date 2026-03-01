@@ -27,9 +27,24 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres
       - OpenAI__ApiKey=${OPENAI_API_KEY}
+      - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
     ports:
       - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: sentinel-worker
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres
+      - OpenAI__ApiKey=${OPENAI_API_KEY}
+      - DOTNET_ENVIRONMENT=Development
     depends_on:
       postgres:
         condition: service_healthy

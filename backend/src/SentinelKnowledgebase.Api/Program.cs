@@ -9,6 +9,7 @@ using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,7 +35,34 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddSchemaTransformer((schema, context, _) =>
+    {
+        var enumType = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+        if (!enumType.IsEnum)
+        {
+            return Task.CompletedTask;
+        }
+
+        schema.Type = Microsoft.OpenApi.JsonSchemaType.String;
+        schema.Format = null;
+        var enumValues = schema.Enum;
+        if (enumValues is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        enumValues.Clear();
+
+        foreach (var enumName in Enum.GetNames(enumType))
+        {
+            enumValues.Add(JsonValue.Create(enumName)!);
+        }
+
+        return Task.CompletedTask;
+    });
+});
 builder.Services
     .AddOpenTelemetry()
     .WithMetrics(metrics =>
@@ -69,10 +97,6 @@ builder.Services.AddHangfire(configuration => configuration
     })
     .UsePostgreSqlStorage(options =>
         options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
-if (!builder.Environment.IsEnvironment("Testing"))
-{
-    builder.Services.AddHangfireServer();
-}
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services
     .AddHealthChecks()
@@ -85,6 +109,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+    app.MapGet("/", () => Results.Redirect("/scalar/"));
     app.UseHangfireDashboard("/hangfire");
 }
 

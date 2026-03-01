@@ -13,6 +13,19 @@ While sufficient for early development, this approach had several limitations:
 
 ## Decision
 We decided to replace the in-memory queue system with **Hangfire** using **PostgreSQL** as the persistent storage backend.
+We also run Hangfire workers in a **dedicated worker process** (`SentinelKnowledgebase.Worker`) instead of starting workers inside the API process.
+
+### Initialization Model (Updated March 1, 2026)
+
+- **API (`SentinelKnowledgebase.Api`)**
+  - Configures Hangfire storage (`AddHangfire(...)`) for job enqueueing and dashboard access.
+  - Does **not** call `AddHangfireServer()`.
+  - Remains responsive even if Hangfire worker startup or storage checks are slow.
+
+- **Worker (`SentinelKnowledgebase.Worker`)**
+  - Configures the same Hangfire storage/retry policy as API.
+  - Calls `AddHangfireServer()` and executes background jobs.
+  - Can be scaled independently from API instances.
 
 ### Comparison: Hosted Services vs. Hangfire
 
@@ -37,3 +50,6 @@ The primary driver for this transition was **Reliability**. For a knowledgebase 
 - **Dependency**: The project now depends on `Hangfire.AspNetCore` and `Hangfire.PostgreSql`.
 - **Resource Management**: Background workers consume database connections; connection pool sizes must be monitored.
 - **Observability Alignment**: Health checks moved from checking an in-memory channel to checking Hangfire storage availability (`HangfireStorageHealthCheck`).
+- **Process Split**: The API and Hangfire worker are now separate deployable processes/containers.
+- **Startup Reliability**: API startup is no longer blocked by Hangfire server initialization or transient worker-storage startup delays.
+- **Operational Complexity**: Deployments must ensure both `api` and `worker` services are running.

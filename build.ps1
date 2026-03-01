@@ -166,7 +166,11 @@ function Start-DevEnvironment {
 
     Start-DevProcess -Title "Backend API" `
         -WorkingDirectory (Join-Path $Root "backend") `
-        -Command "$env:ASPNETCORE_ENVIRONMENT='Development'; $env:DOTNET_ENVIRONMENT='Development'; dotnet watch run --project src/SentinelKnowledgebase.Api"
+        -Command '$env:ASPNETCORE_ENVIRONMENT="Development"; $env:DOTNET_ENVIRONMENT="Development"; dotnet watch run --project src/SentinelKnowledgebase.Api'
+
+    Start-DevProcess -Title "Backend Worker" `
+        -WorkingDirectory (Join-Path $Root "backend") `
+        -Command '$env:DOTNET_ENVIRONMENT="Development"; dotnet watch run --project src/SentinelKnowledgebase.Worker'
 
     Start-DevProcess -Title "Web Frontend" `
         -WorkingDirectory (Join-Path $Root "frontend") `
@@ -184,6 +188,7 @@ function Start-DevEnvironment {
 
     Write-Host "`nDev environment started in separate terminals." -ForegroundColor Green
     Write-Host "- Backend API: dotnet watch"
+    Write-Host "- Backend Worker: dotnet watch"
     Write-Host "- Web Frontend: npm run start (Angular)"
     Write-Host "- Browser Extension: npm run watch"
     if ($LaunchExtensionBrowser) {

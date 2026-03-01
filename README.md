@@ -95,6 +95,7 @@ This starts:
 
 - Backend infrastructure (`docker compose up -d` from `backend/`)
 - Backend API (`dotnet watch run --project src/SentinelKnowledgebase.Api`)
+- Backend Worker (`dotnet watch run --project src/SentinelKnowledgebase.Worker`)
 - Angular frontend (`npm run start` in `frontend/`)
 - Browser extension watch build (`npm run watch` in `browser-extension/`)
 
@@ -138,7 +139,14 @@ If you prefer to run services manually:
     dotnet watch run --project src/SentinelKnowledgebase.Api
     ```
 
-3. Run Angular dashboard
+3. Run backend worker
+
+    ```bash
+    cd backend
+    dotnet watch run --project src/SentinelKnowledgebase.Worker
+    ```
+
+4. Run Angular dashboard
 
     ```bash
     cd frontend
@@ -146,7 +154,7 @@ If you prefer to run services manually:
     npm run start
     ```
 
-4. Build extension in watch mode
+5. Build extension in watch mode
 
     ```bash
     cd browser-extension
