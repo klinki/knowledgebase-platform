@@ -8,12 +8,15 @@ Detailed coding standards, conventions, and workflows are isolated into specific
 ### Coding Standards
 - [C# and .NET Conventions](.agents/docs/csharp-conventions.md)
 - [Testing Patterns](.agents/docs/testing-patterns.md)
-- [Git Workflow and Commits](.agents/docs/git-workflow.md)
 
 ### Agent Workflows & Protocols
 - [Communication Preferences](.agents/docs/communication-guidelines.md)
 - [Docs-as-Code Workflow](.agents/docs/docs-as-code-workflow.md)
-- [Code Review Protocol](.agents/docs/code-review-protocol.md)
+
+### Skills
+- Git Workflow and Conventions: `.agents/skills/git-workflow/SKILL.md`
+- Code Review Protocol: `.agents/skills/code-review-protocol/SKILL.md`
+- Feature Planning and Scaffolding: `.agents/skills/feature-planning/SKILL.md`
 
 
 ## Code Style Guidelines
@@ -61,8 +64,8 @@ Detailed coding standards, conventions, and workflows are isolated into specific
 - ES2024 target
 - ESNext modules with bundler resolution
 
-### Backend (Future Phases)
-- Node.js with Fastify/Express
+### Backend
+- .NET 10 (ASP.NET Core API + Worker)
 - PostgreSQL with pgvector
 - OpenAI API for LLM processing
 
