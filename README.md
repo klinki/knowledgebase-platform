@@ -93,7 +93,7 @@ From the repository root:
 
 This starts:
 
-- Backend infrastructure (`docker compose up -d` from `backend/`)
+- Backend infrastructure only (`docker compose up -d` from `backend/`, starts `postgres`)
 - Backend API (`dotnet watch run --project src/SentinelKnowledgebase.Api`)
 - Backend Worker (`dotnet watch run --project src/SentinelKnowledgebase.Worker`)
 - Angular frontend (`npm run start` in `frontend/`)
@@ -161,6 +161,13 @@ If you prefer to run services manually:
     npm install
     npm run watch
     ```
+
+### Full Docker Backend (API + Worker + Postgres)
+
+```bash
+cd backend
+docker compose --profile app up -d
+```
 
 ### Explore
 
