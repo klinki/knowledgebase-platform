@@ -1,14 +1,14 @@
 ---
-description: Testing strategies, naming conventions, and file structures for Inviser.
+description: Testing strategies, naming conventions, and file structures for Sentinel Knowledgebase.
 ---
 
 # Testing Patterns
 
-These are the conventions that should be followed when dealing with automated tests for Inviser.
+These are the conventions that should be followed when dealing with automated tests for Sentinel Knowledgebase.
 
 ## Project Structure
-- Unit tests go in `*.UnitTest` projects.
-- Integration tests go in `*.IntegrationTest` projects.
+- Unit tests go in `*.UnitTests` projects.
+- Integration tests go in `*.IntegrationTests` projects.
 
 ## Naming Conventions
 - Tests should have highly descriptive naming conventions separated by `_`.

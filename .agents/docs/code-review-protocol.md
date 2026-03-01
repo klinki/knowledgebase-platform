@@ -10,14 +10,14 @@ When functioning as a Code Reviewer or when addressing existing review feedback,
 When asked to perform a code review:
 
 1. Identify the relevant Feature Spec in `/docs/features/`.
-2. Create a new file in `/docs/reviews/` using the standard naming convention (`YYYY-MM-DD-{feature}-review.md`).
+2. Create a new file in the feature-local reviews folder `/docs/features/{feature}/reviews/` using the standard naming convention (`YYYY-MM-DD-{feature}-review.md`).
 3. Verify the code explicitly against the Acceptance Criteria in the feature file.
 4. Generate a "Repair Checklist" at the bottom of the review file outlining actionable items.
 
 ## Addressing Review Feedback (For Coder Agents)
 When asked to fix issues from a review:
 
-1. Open the specific review file in `/docs/reviews/`.
+1. Open the specific review file in `/docs/features/{feature}/reviews/`.
 2. Read the "Issues Found" section to understand the context.
 3. Work through the "Action Plan" checklist item by item.
 4. As you fix each item, change `[ ]` to `[x]` inside the review file.

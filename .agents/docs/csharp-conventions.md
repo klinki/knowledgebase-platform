@@ -1,10 +1,10 @@
 ---
-description: C# (.NET) Development Conventions and Guidelines for Inviser
+description: C# (.NET) Development Conventions and Guidelines for Sentinel Knowledgebase
 ---
 
 # C# (.NET) Development Conventions
 
-These are the conventions that should be followed when working with C# code in the Inviser project. They focus on maintaining clean, consistent, and predictable .NET APIs and business logic.
+These are the conventions that should be followed when working with C# code in the Sentinel Knowledgebase project. They focus on maintaining clean, consistent, and predictable .NET APIs and business logic.
 
 ## Naming Conventions
 - **Classes/Methods/Properties**: `PascalCase` (`UserService`, `GetUserById`)
@@ -30,11 +30,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
-using Inviser.Controllers.Dto;
-using Inviser.GeneratedModels;
-using Inviser.Services;
+using SentinelKnowledgebase.Application.DTOs;
+using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Application.Services;
 
-namespace Inviser.Controllers;
+namespace SentinelKnowledgebase.Api.Controllers;
 
 // Code here
 ```

@@ -1,5 +1,5 @@
 ---
-description: Docs-as-Code workflow and architectural rules for Inviser.
+description: Docs-as-Code workflow and architectural rules for Sentinel Knowledgebase.
 ---
 
 # Docs-as-Code Workflow
@@ -11,7 +11,7 @@ rules to maintain project synchronization. For each action, you will find a temp
 Whenever you are given a new task or feature request:
 - DO NOT start writing code immediately.
 - FIRST, read `/docs/STATUS.md` to understand the high-level project state.
-- SECOND, read `/docs/ARCHITECTURE.md` and any relevant ADRs in `/docs/adrs/` to ensure your proposed solution adheres 
+- SECOND, read `/docs/ARCHITECTURE.md` and any relevant ADRs in `/docs/adrs/` to ensure your proposed solution adheres
   to project constraints.
 - THIRD, locate the specific feature file in `/docs/features/` (e.g., `01-user-auth.md`). Read its Implementation Status 
   and Acceptance Criteria.

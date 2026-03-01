@@ -1,5 +1,5 @@
 ---
-description: Communication preferences for AI agents working on Inviser.
+description: Communication preferences for AI agents working on Sentinel Knowledgebase.
 ---
 
 # Communication Preferences
