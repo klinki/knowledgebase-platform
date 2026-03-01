@@ -193,20 +193,15 @@ Content-Type: application/json
 ### Payload Structure
 ```json
 {
-  "source": "twitter",
-  "tweet_id": "1234567890",
-  "author": {
-    "username": "@handle",
-    "display_name": "Display Name"
-  },
-  "content": {
-    "text": "Tweet text content...",
-    "timestamp": "2026-01-31T12:00:00Z",
-    "url": "https://x.com/handle/status/1234567890"
-  },
-  "captured_at": "2026-01-31T12:30:00Z"
+  "sourceUrl": "https://x.com/handle/status/1234567890",
+  "contentType": "Tweet",
+  "rawContent": "Tweet text content...",
+  "metadata": "{\"source\":\"twitter\",\"tweetId\":\"1234567890\",\"author\":{\"username\":\"@handle\",\"display_name\":\"Display Name\"},\"timestamp\":\"2026-01-31T12:00:00Z\",\"capturedAt\":\"2026-01-31T12:30:00Z\"}",
+  "tags": ["twitter"]
 }
 ```
+
+Note: Extension-side source-specific fields are normalized in the background worker before POSTing to the API DTO contract.
 
 ## Success Criteria
 

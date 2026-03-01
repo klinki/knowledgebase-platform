@@ -162,6 +162,8 @@ If you prefer to run services manually:
     npm run watch
     ```
 
+Extension default API URL is `http://localhost:5000` (configurable in extension options).
+
 ### Full Docker Backend (API + Worker + Postgres)
 
 ```bash
