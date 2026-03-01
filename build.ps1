@@ -166,7 +166,7 @@ function Start-DevEnvironment {
 
     Start-DevProcess -Title "Backend API" `
         -WorkingDirectory (Join-Path $Root "backend") `
-        -Command "dotnet watch run --project src/SentinelKnowledgebase.Api"
+        -Command "$env:ASPNETCORE_ENVIRONMENT='Development'; $env:DOTNET_ENVIRONMENT='Development'; dotnet watch run --project src/SentinelKnowledgebase.Api"
 
     Start-DevProcess -Title "Web Frontend" `
         -WorkingDirectory (Join-Path $Root "frontend") `
