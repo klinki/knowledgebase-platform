@@ -13,12 +13,6 @@ Detailed coding standards, conventions, and workflows are isolated into specific
 - [Communication Preferences](.agents/docs/communication-guidelines.md)
 - [Docs-as-Code Workflow](.agents/docs/docs-as-code-workflow.md)
 
-### Skills
-- Git Workflow and Conventions: `.agents/skills/git-workflow/SKILL.md`
-- Code Review Protocol: `.agents/skills/code-review-protocol/SKILL.md`
-- Feature Planning and Scaffolding: `.agents/skills/feature-planning/SKILL.md`
-
-
 ## Code Style Guidelines
 
 ### TypeScript

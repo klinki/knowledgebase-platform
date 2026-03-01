@@ -17,7 +17,7 @@ Whenever you are given a new task or feature request:
   and Acceptance Criteria.
 
 ## 2. Execution & Testing
-- Base all implementation strictly on the Acceptance Criteria found in the feature file.
+- Base all implementations strictly on the Acceptance Criteria found in the feature file.
 - Practice Test-Driven Development (TDD): write the test for the acceptance criterion first, then write 
   the implementation to make it pass.
 
