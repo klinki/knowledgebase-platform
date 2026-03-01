@@ -47,18 +47,15 @@ builder.Services.AddOpenApi(options =>
 
         schema.Type = Microsoft.OpenApi.JsonSchemaType.String;
         schema.Format = null;
-        var enumValues = schema.Enum;
-        if (enumValues is null)
-        {
-            return Task.CompletedTask;
-        }
-
+        var enumValues = schema.Enum ?? new List<JsonNode>();
         enumValues.Clear();
 
         foreach (var enumName in Enum.GetNames(enumType))
         {
             enumValues.Add(JsonValue.Create(enumName)!);
         }
+
+        schema.Enum = enumValues;
 
         return Task.CompletedTask;
     });
