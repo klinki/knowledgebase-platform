@@ -57,7 +57,9 @@ dotnet run --project src/SentinelKnowledgebase.Api
 ```
 
 ### 4. Explore
-- **Swagger API**: `https://localhost:5001/swagger`
+- **Web Dashboard**: `http://localhost:4200`
+- **OpenAPI Document**: `https://localhost:5001/openapi/v1.json`
+- **Scalar API Reference**: `https://localhost:5001/scalar/v1`
 - **Hangfire Dashboard**: `https://localhost:5001/hangfire` (Job monitoring)
 - **Health Checks**: `https://localhost:5001/health`
 - **Seq (Logs)**: `http://localhost:5341` (Local logging UI)

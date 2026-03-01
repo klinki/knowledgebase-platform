@@ -3,11 +3,13 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using OpenTelemetry.Metrics;
 using Serilog;
+using Scalar.AspNetCore;
 using SentinelKnowledgebase.Api.HealthChecks;
 using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, services, loggerConfiguration) =>
@@ -18,7 +20,11 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .Enrich.FromLogContext();
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -28,8 +34,7 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 builder.Services
     .AddOpenTelemetry()
     .WithMetrics(metrics =>
@@ -78,8 +83,8 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
     app.UseHangfireDashboard("/hangfire");
 }
 

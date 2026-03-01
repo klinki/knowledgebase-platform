@@ -22,9 +22,9 @@ To modernize the API documentation by leveraging native .NET 10 OpenAPI capabili
 
 ## Implementation Status
 - [x] Initial Scaffolding
-- [ ] Remove Swashbuckle Packages [ ]
-- [ ] Add .NET OpenAPI and Scalar Packages [ ]
-- [ ] Update `Program.cs` Configuration (with String Enum support) [ ]
-- [ ] Verify OpenAPI Document Generation [ ]
-- [ ] Verify Scalar UI Integration [ ]
-- [ ] Update README documentation [ ]
+- [x] Remove Swashbuckle Packages [x]
+- [x] Add .NET OpenAPI and Scalar Packages [x]
+- [x] Update `Program.cs` Configuration (with String Enum support) [x]
+- [x] Verify OpenAPI Document Generation [x]
+- [x] Verify Scalar UI Integration [x]
+- [x] Update README documentation [x]
