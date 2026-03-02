@@ -7,5 +7,6 @@
   <Project Path="src/SentinelKnowledgebase.Application/SentinelKnowledgebase.Application.csproj" />
   <Project Path="src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj" />
   <Project Path="src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj" />
+  <Project Path="src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj" />
   <Project Path="src/SentinelKnowledgebase.Worker/SentinelKnowledgebase.Worker.csproj" />
 </Solution>
