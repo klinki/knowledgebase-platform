@@ -524,7 +524,7 @@ interface TweetData {
 }
 
 interface SelectionData {
-  source: 'webpage_selection';
+  source: string;
   url: string;
   title: string;
   content: {
