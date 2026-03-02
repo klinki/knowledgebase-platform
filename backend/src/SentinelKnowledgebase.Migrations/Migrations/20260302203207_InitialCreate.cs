@@ -101,7 +101,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ProcessedInsightId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProcessedInsightId1 = table.Column<Guid>(type: "uuid", nullable: false),
                     Vector = table.Column<Vector>(type: "vector(1536)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
@@ -111,12 +110,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     table.ForeignKey(
                         name: "FK_EmbeddingVectors_ProcessedInsights_ProcessedInsightId",
                         column: x => x.ProcessedInsightId,
-                        principalTable: "ProcessedInsights",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_EmbeddingVectors_ProcessedInsights_ProcessedInsightId1",
-                        column: x => x.ProcessedInsightId1,
                         principalTable: "ProcessedInsights",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -151,11 +144,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                 table: "EmbeddingVectors",
                 column: "ProcessedInsightId",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_EmbeddingVectors_ProcessedInsightId1",
-                table: "EmbeddingVectors",
-                column: "ProcessedInsightId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProcessedInsights_RawCaptureId",

@@ -48,7 +48,7 @@ public class ApplicationDbContext : DbContext
                 .WithMany(t => t.ProcessedInsights);
             
             entity.HasOne(e => e.EmbeddingVector)
-                .WithOne()
+                .WithOne(e => e.ProcessedInsight)
                 .HasForeignKey<EmbeddingVector>(e => e.ProcessedInsightId);
         });
         

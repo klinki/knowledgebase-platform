@@ -68,9 +68,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Property<Guid>("ProcessedInsightId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ProcessedInsightId1")
-                        .HasColumnType("uuid");
-
                     b.Property<Vector>("Vector")
                         .IsRequired()
                         .HasColumnType("vector(1536)");
@@ -79,8 +76,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
 
                     b.HasIndex("ProcessedInsightId")
                         .IsUnique();
-
-                    b.HasIndex("ProcessedInsightId1");
 
                     b.ToTable("EmbeddingVectors");
                 });
