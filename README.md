@@ -171,6 +171,29 @@ cd backend
 docker compose --profile app up -d
 ```
 
+### Production Deployment (Docker + Caddy)
+
+This repository now includes production deployment assets for CI/CD:
+
+- `deploy/docker-compose.prod.yml` (Postgres + API + Worker + Web/Caddy)
+- `deploy/scripts/deploy.sh` (server-side rollout script)
+- `frontend/Dockerfile` + `frontend/Caddyfile` (Angular static hosting + reverse proxy to API)
+- `.github/workflows/deploy.yml` and `bitbucket-pipelines.yml` (image build/push + SSH deploy)
+
+Server bootstrap (one-time):
+
+1. Clone repo on your server (example: `/opt/sentinel`).
+2. Copy `deploy/.env.production.example` to `deploy/.env.production`.
+3. Fill in secrets (`OPENAI_API_KEY`, DB password, registry credentials, domain).
+4. Run:
+
+   ```bash
+   cd /opt/sentinel
+   IMAGE_TAG=latest ./deploy/scripts/deploy.sh
+   ```
+
+Each CI deployment then updates `IMAGE_TAG` to commit SHA and re-runs the same script.
+
 ### Explore
 
 - **Web Dashboard**: `http://localhost:4200`

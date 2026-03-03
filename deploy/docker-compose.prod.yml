@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sentinel-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sentinel_knowledgebase}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-api:${IMAGE_TAG:-latest}
+    container_name: sentinel-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      OpenAI__ApiKey: ${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-worker:${IMAGE_TAG:-latest}
+    container_name: sentinel-worker
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      OpenAI__ApiKey: ${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-web:${IMAGE_TAG:-latest}
+    container_name: sentinel-web
+    environment:
+      CADDY_SITE: ${CADDY_SITE}
+      CADDY_EMAIL: ${CADDY_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

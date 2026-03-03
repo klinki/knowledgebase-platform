@@ -1,0 +1,80 @@
+image: atlassian/default-image:4
+
+options:
+  docker: true
+
+definitions:
+  services:
+    docker:
+      memory: 3072
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Build and Push Images
+          services:
+            - docker
+          script:
+            - export REGISTRY="${REGISTRY:-ghcr.io}"
+            - export IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-$BITBUCKET_REPO_OWNER}"
+            - export IMAGE_NAMESPACE="$(echo "$IMAGE_NAMESPACE" | tr '[:upper:]' '[:lower:]')"
+            - echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USERNAME" --password-stdin
+            - docker build -f backend/Dockerfile -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:$BITBUCKET_COMMIT" -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:latest" backend
+            - docker build -f backend/Dockerfile.worker -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:$BITBUCKET_COMMIT" -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:latest" backend
+            - docker build -f frontend/Dockerfile -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:$BITBUCKET_COMMIT" -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:latest" frontend
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:$BITBUCKET_COMMIT"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:latest"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:$BITBUCKET_COMMIT"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:latest"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:$BITBUCKET_COMMIT"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:latest"
+
+      - step:
+          name: Deploy
+          deployment: production
+          script:
+            - pipe: atlassian/ssh-run:0.8.1
+              variables:
+                SSH_USER: $DEPLOY_SSH_USER
+                SERVER: $DEPLOY_SSH_HOST
+                COMMAND: >
+                  cd $DEPLOY_PATH &&
+                  git fetch --all --prune &&
+                  git checkout main &&
+                  git pull --ff-only &&
+                  IMAGE_TAG=$BITBUCKET_COMMIT ./deploy/scripts/deploy.sh
+    master:
+      - step:
+          name: Build and Push Images
+          services:
+            - docker
+          script:
+            - export REGISTRY="${REGISTRY:-ghcr.io}"
+            - export IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-$BITBUCKET_REPO_OWNER}"
+            - export IMAGE_NAMESPACE="$(echo "$IMAGE_NAMESPACE" | tr '[:upper:]' '[:lower:]')"
+            - echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USERNAME" --password-stdin
+            - docker build -f backend/Dockerfile -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:$BITBUCKET_COMMIT" -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:latest" backend
+            - docker build -f backend/Dockerfile.worker -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:$BITBUCKET_COMMIT" -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:latest" backend
+            - docker build -f frontend/Dockerfile -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:$BITBUCKET_COMMIT" -t "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:latest" frontend
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:$BITBUCKET_COMMIT"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-api:latest"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:$BITBUCKET_COMMIT"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-worker:latest"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:$BITBUCKET_COMMIT"
+            - docker push "$REGISTRY/$IMAGE_NAMESPACE/sentinel-web:latest"
+
+      - step:
+          name: Deploy
+          deployment: production
+          script:
+            - pipe: atlassian/ssh-run:0.8.1
+              variables:
+                SSH_USER: $DEPLOY_SSH_USER
+                SERVER: $DEPLOY_SSH_HOST
+                COMMAND: >
+                  cd $DEPLOY_PATH &&
+                  git fetch --all --prune &&
+                  git checkout master &&
+                  git pull --ff-only &&
+                  IMAGE_TAG=$BITBUCKET_COMMIT ./deploy/scripts/deploy.sh

@@ -1,0 +1,8 @@
+bin
+obj
+tests/**/bin
+tests/**/obj
+.git
+.github
+docker-compose*.yml
+npm-debug.log*
