@@ -1,0 +1,34 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.7",
+  "base_commit_sha": "ce8d423bb59e9539d04c3f44e5d2ff298fa76b0b",
+  "prompts": {
+    "3a12866c3d58f860": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cb2de-2f00-7760-a2b1-3ebdbf8b275f",
+        "model": "unknown"
+      },
+      "human_author": "David Klingenberg <dklingenberg@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "770c3da07d51cdfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cab0d-dee0-7960-9779-604bb10cb7a0",
+        "model": "unknown"
+      },
+      "human_author": "David Klingenberg <dklingenberg@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
