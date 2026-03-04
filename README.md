@@ -194,6 +194,28 @@ Server bootstrap (one-time):
 
 Each CI deployment then updates `IMAGE_TAG` to commit SHA and re-runs the same script.
 
+### Local Remote Deploy (Linux/WSL)
+
+If you want to run the same deployment flow manually from your own machine:
+
+1. Copy `deploy/.env.remote.example` to `deploy/.env.remote` and fill SSH values.
+2. Verify SSH + remote prerequisites:
+
+   ```bash
+   ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --verify-only
+   ```
+
+3. Run deployment with a tag (for example a commit SHA):
+
+   ```bash
+   ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha>
+   ```
+
+This mirrors the CI deployment behavior:
+- SSH to server
+- `git fetch`, `git checkout`, `git pull`
+- execute `deploy/scripts/deploy.sh` remotely with `IMAGE_TAG`
+
 ### Explore
 
 - **Web Dashboard**: `http://localhost:4200`

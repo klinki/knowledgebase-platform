@@ -47,3 +47,20 @@
 4. Configure Bitbucket variables:
    - `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_PATH`
 5. If only one default branch is used, simplify pipeline branch filters to either `main` or `master`.
+
+## Local Manual Deploy (Linux/WSL)
+
+Use `deploy/scripts/remote-deploy.sh` to run the same remote deployment flow locally:
+
+1. Copy `deploy/.env.remote.example` to `deploy/.env.remote`.
+2. Fill SSH connection details (`DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_PATH`, key file, branch).
+3. Verify remote connectivity and prerequisites:
+   - `./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --verify-only`
+4. Deploy chosen image tag:
+   - `./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha>`
+
+This mirrors CI behavior by executing remotely:
+- `git fetch --all --prune`
+- `git checkout <branch>`
+- `git pull --ff-only`
+- `IMAGE_TAG=<tag> ./deploy/scripts/deploy.sh`

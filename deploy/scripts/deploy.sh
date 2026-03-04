@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Server-side deployment script.
+# Run this on the deployment host where Docker and the repo are already present.
+# It reads production env vars, logs into the registry, pulls IMAGE_TAG images,
+# and updates the running compose stack.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${DEPLOY_DIR}/docker-compose.prod.yml}"
@@ -16,6 +21,7 @@ set -a
 source "${ENV_FILE}"
 set +a
 
+# Required runtime settings (must exist in .env.production).
 required_vars=(
   REGISTRY
   REGISTRY_USERNAME
@@ -33,6 +39,7 @@ for var_name in "${required_vars[@]}"; do
   fi
 done
 
+# Auth + rollout using immutable image tag.
 echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY}" -u "${REGISTRY_USERNAME}" --password-stdin
 
 echo "Pulling images for tag ${IMAGE_TAG}..."
