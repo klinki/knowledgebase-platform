@@ -39,7 +39,7 @@ All commit messages must adhere to the [Conventional Commits](https://www.conven
 
 **Rules for Descriptions:**
 - **Imperative Mood**: Use "add", "fix", "change" (not "added", "fixing", "changed").
-- **Case**: Use lowercase for the starting letter.
+- **Case**: Use uppercase for the starting letter.
 - **Punctuation**: Do not end with a period.
 - **Length**: Keep the subject line under 72 characters.
 
