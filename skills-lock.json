@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "markdown-documentation": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "computedHash": "eefb1e461b3791b45a0dc9a56fb2e04c6bdf4a2f76413d65c851b8bd94f0dcc4"
+    }
+  }
+}
