@@ -21,6 +21,7 @@ Options:
   --port <port>             SSH port (default: 22).
   --remote-env-file <file>  Remote env file path (default: deploy/.env.production).
   --verify-only             Only verify SSH/prerequisites, do not deploy.
+  --dry-run                 Print remote deploy commands and exit.
   --config <file>           Optional local env file to source before parsing args.
   -h, --help                Show this help.
 
@@ -28,6 +29,7 @@ Examples:
   ./deploy/scripts/remote-deploy.sh --host 203.0.113.10 --user deploy --path /opt/sentinel --branch main --image-tag abcd123
   ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag abcd123
   ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --verify-only
+  ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag abcd123 --dry-run
 EOF
 }
 
@@ -40,6 +42,7 @@ key_file="${DEPLOY_SSH_KEY_FILE:-$HOME/.ssh/id_ed25519}"
 port="${DEPLOY_SSH_PORT:-22}"
 remote_env_file="${REMOTE_ENV_FILE:-deploy/.env.production}"
 verify_only="false"
+dry_run=""
 config_file=""
 
 while [[ $# -gt 0 ]]; do
@@ -53,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --port) port="$2"; shift 2 ;;
     --remote-env-file) remote_env_file="$2"; shift 2 ;;
     --verify-only) verify_only="true"; shift ;;
+    --dry-run) dry_run="true"; shift ;;
     --config) config_file="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -82,6 +86,8 @@ if [[ -n "$config_file" ]]; then
   remote_env_file="${remote_env_file:-${REMOTE_ENV_FILE:-deploy/.env.production}}"
 fi
 
+dry_run="${dry_run:-${DRY_RUN:-false}}"
+
 if [[ -z "$host" || -z "$user" || -z "$deploy_path" ]]; then
   echo "Missing required parameters: --host, --user, --path"
   usage
@@ -101,6 +107,9 @@ echo "Image tag: ${image_tag}"
 if [[ "$verify_only" == "true" ]]; then
   echo "Mode: verify-only"
 fi
+if [[ "$dry_run" == "true" ]]; then
+  echo "Mode: dry-run"
+fi
 
 ssh -i "$key_file" -p "$port" \
   -o BatchMode=yes \
@@ -110,6 +119,7 @@ ssh -i "$key_file" -p "$port" \
   DEPLOY_BRANCH="$branch" \
   IMAGE_TAG="$image_tag" \
   VERIFY_ONLY="$verify_only" \
+  DRY_RUN="$dry_run" \
   REMOTE_ENV_FILE="$remote_env_file" \
   'bash -s' <<'EOF'
 set -euo pipefail
@@ -137,6 +147,18 @@ fi
 
 if [[ "$VERIFY_ONLY" == "true" ]]; then
   echo "Verification succeeded."
+  echo "Remote current branch: $(git rev-parse --abbrev-ref HEAD)"
+  echo "Remote commit: $(git rev-parse --short HEAD)"
+  exit 0
+fi
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo "Dry run: remote deployment steps"
+  echo "cd \"$DEPLOY_PATH\""
+  echo "git fetch --all --prune"
+  echo "git checkout \"$DEPLOY_BRANCH\""
+  echo "git pull --ff-only"
+  echo "IMAGE_TAG=\"$IMAGE_TAG\" ENV_FILE=\"$REMOTE_ENV_FILE\" bash ./deploy/scripts/deploy.sh"
   echo "Remote current branch: $(git rev-parse --abbrev-ref HEAD)"
   echo "Remote commit: $(git rev-parse --short HEAD)"
   exit 0

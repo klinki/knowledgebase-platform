@@ -14,6 +14,8 @@ Provide a production-ready deployment pipeline using Docker images, with support
 - [x] Deployment environment variable template is documented.
 - [x] README includes deployment usage notes.
 - [x] Local Linux/WSL remote deployment helper is available.
+- [x] Formal release process is automated with Release Please.
+- [x] Changelog generation is automated from Conventional Commits.
 
 ## Architecture Notes
 
@@ -32,5 +34,10 @@ Provide a production-ready deployment pipeline using Docker images, with support
 - [x] Added `bitbucket-pipelines.yml`.
 - [x] Added `deploy/scripts/remote-deploy.sh`.
 - [x] Added `deploy/.env.remote.example`.
+- [x] Added `--dry-run` mode to `deploy/scripts/remote-deploy.sh`.
+- [x] Added `.github/workflows/release-please.yml`.
+- [x] Added `release-please-config.json`.
+- [x] Added `release-please-manifest.json`.
+- [x] Updated deploy workflow to trigger on `v*` release tags and keep manual dispatch.
 - [x] Updated production frontend API URL for proxy-based routing.
 - [x] Updated `README.md` deployment section.

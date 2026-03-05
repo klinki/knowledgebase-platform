@@ -2,10 +2,11 @@
 
 ## Recommended Deployment Model
 
-1. Build and push immutable Docker images tagged by commit SHA in CI.
-2. Deploy by SSH to the server and run one script (`deploy/scripts/deploy.sh`) with `IMAGE_TAG=<sha>`.
-3. Keep runtime secrets on the server in `deploy/.env.production` (avoid logging secrets in CI).
-4. Roll back by rerunning the deploy script with a previously known-good `IMAGE_TAG`.
+1. Use Release Please to manage versioning and release PRs from Conventional Commits.
+2. Build and push immutable Docker images tagged by release tag (`vX.Y.Z`) in CI.
+3. Deploy by SSH to the server and run one script (`deploy/scripts/deploy.sh`) with `IMAGE_TAG=<release-tag>`.
+4. Keep runtime secrets on the server in `deploy/.env.production` (avoid logging secrets in CI).
+5. Roll back by rerunning the deploy script with a previously known-good release tag.
 
 ## What Is Implemented
 
@@ -21,7 +22,11 @@
   - `frontend/.dockerignore`
 - CI pipelines:
   - `.github/workflows/deploy.yml`
+  - `.github/workflows/release-please.yml`
   - `bitbucket-pipelines.yml`
+- Release Please config:
+  - `release-please-config.json`
+  - `release-please-manifest.json`
 - Backend Docker build context optimization:
   - `backend/.dockerignore`
 - Frontend production API routing adjustment:
@@ -58,9 +63,19 @@ Use `deploy/scripts/remote-deploy.sh` to run the same remote deployment flow loc
    - `./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --verify-only`
 4. Deploy chosen image tag:
    - `./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha>`
+5. Optional dry run (no deploy):
+   - `./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha> --dry-run`
 
 This mirrors CI behavior by executing remotely:
 - `git fetch --all --prune`
 - `git checkout <branch>`
 - `git pull --ff-only`
 - `IMAGE_TAG=<tag> ./deploy/scripts/deploy.sh`
+
+## Release Flow
+
+1. Merge Conventional Commit PRs into the default branch.
+2. Release Please updates or opens a release PR with version bump and changelog entries.
+3. Merge release PR to create `v*` tag and GitHub release.
+4. Deploy workflow runs on `v*` tag pushes and deploys that immutable release image tag.
+5. `workflow_dispatch` remains available for manual deployments.

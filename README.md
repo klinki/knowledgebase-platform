@@ -179,6 +179,21 @@ This repository now includes production deployment assets for CI/CD:
 - `deploy/scripts/deploy.sh` (server-side rollout script)
 - `frontend/Dockerfile` + `frontend/Caddyfile` (Angular static hosting + reverse proxy to API)
 - `.github/workflows/deploy.yml` and `bitbucket-pipelines.yml` (image build/push + SSH deploy)
+- `.github/workflows/release-please.yml` + release-please config files (versioning + changelog)
+
+### Release Process (GitHub)
+
+Releases are formalized with Release Please and Conventional Commits:
+
+1. Merge feature/fix PRs into `main` or `master` using Conventional Commit subjects.
+2. Release Please updates or opens a release PR with:
+   - version bump
+   - `CHANGELOG.md` updates generated from commit history
+3. Merge the release PR when ready.
+4. Release Please creates a Git tag like `v1.2.3`.
+5. `deploy.yml` triggers on `v*` tags, builds images tagged with the release tag, and deploys.
+
+Manual deployment remains available through `workflow_dispatch` in `deploy.yml`.
 
 Server bootstrap (one-time):
 
@@ -210,6 +225,12 @@ If you want to run the same deployment flow manually from your own machine:
    ```bash
    ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha>
    ```
+
+Optional: preview remote commands without executing deploy:
+
+```bash
+./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha> --dry-run
+```
 
 This mirrors the CI deployment behavior:
 - SSH to server
