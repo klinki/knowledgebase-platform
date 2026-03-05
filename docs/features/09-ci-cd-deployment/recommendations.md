@@ -49,6 +49,7 @@
    - `chmod +x deploy/scripts/deploy.sh`
 3. Configure GitHub secrets:
    - `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`
+   - optional: `DEPLOY_SSH_PASSPHRASE` (if SSH key is encrypted)
 4. Configure Bitbucket variables:
    - `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_PATH`
 5. If only one default branch is used, simplify pipeline branch filters to either `main` or `master`.
@@ -77,5 +78,5 @@ This mirrors CI behavior by executing remotely:
 1. Merge Conventional Commit PRs into the default branch.
 2. Release Please updates or opens a release PR with version bump and changelog entries.
 3. Merge release PR to create `v*` tag and GitHub release.
-4. Deploy workflow runs on `v*` tag pushes and deploys that immutable release image tag.
+4. Deploy workflow runs on `v*` tag pushes, uploads deploy artifacts (`deploy.sh` and compose file) to the server, and deploys that immutable release image tag.
 5. `workflow_dispatch` remains available for manual deployments.
