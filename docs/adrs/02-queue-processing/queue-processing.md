@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Initially, the Sentinel Knowledgebase backend used in-memory background processing for content ingestion and analysis. This was implemented using ASP.NET Core `BackgroundService` (Hosted Services) and `System.Threading.Channels` as an internal queue. 
+Initially, the Sentinel Knowledgebase backend used in-memory background processing for content ingestion and analysis. This was implemented using ASP.NET Core `BackgroundService` (Hosted Services) and `System.Threading.Channels` as an internal queue.
 
 While sufficient for early development, this approach had several limitations:
 1. **Lack of Persistence**: Enqueued jobs were lost upon application restart or crash.
@@ -38,6 +38,7 @@ We also run Hangfire workers in a **dedicated worker process** (`SentinelKnowled
 | **Complexity** | Low (Built-in) | Moderate (External dependency) |
 
 ## Reasoning
+
 The primary driver for this transition was **Reliability**. For a knowledgebase platform where users expect their captured content to be processed eventually, losing tasks during deployment or minor failures was unacceptable.
 
 1. **Persistence**: Jobs survive server restarts, ensuring no data loss.
@@ -46,6 +47,7 @@ The primary driver for this transition was **Reliability**. For a knowledgebase 
 4. **Simplification of Core Logic**: Moving queue management to a dedicated library allowed us to focus on the `CaptureService` domain logic rather than infrastructure boilerplate.
 
 ## Consequences
+
 - **Storage Requirement**: High-availability PostgreSQL is now required for both domain data and background job state.
 - **Dependency**: The project now depends on `Hangfire.AspNetCore` and `Hangfire.PostgreSql`.
 - **Resource Management**: Background workers consume database connections; connection pool sizes must be monitored.

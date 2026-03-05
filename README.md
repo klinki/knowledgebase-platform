@@ -191,7 +191,7 @@ Releases are formalized with Release Please and Conventional Commits:
    - `CHANGELOG.md` updates generated from commit history
 3. Merge the release PR when ready.
 4. Release Please creates a Git tag like `v1.2.3`.
-5. `deploy.yml` triggers on `v*` tags, builds images tagged with the release tag, and deploys.
+5. `deploy.yml` triggers on `v*` tags, builds images tagged with the release tag, uploads deployment artifacts to the server, and deploys.
 
 Manual deployment remains available through `workflow_dispatch` in `deploy.yml`.
 
