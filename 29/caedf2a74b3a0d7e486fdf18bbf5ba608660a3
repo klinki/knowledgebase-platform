@@ -1,0 +1,38 @@
+browser-extension/tsconfig.json
+  770c3da07d51cdfe 15-17
+browser-extension/manifest.json
+  770c3da07d51cdfe 52,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "29caedf2a74b3a0d7e486fdf18bbf5ba608660a3",
+  "prompts": {
+    "1a626d61463cc076": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cb2dd-36eb-7392-8539-dbde08f74c1f",
+        "model": "gpt-5.4"
+      },
+      "human_author": "David Klingenberg <dklingenberg@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "770c3da07d51cdfe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cab0d-dee0-7960-9779-604bb10cb7a0",
+        "model": "unknown"
+      },
+      "human_author": "David Klingenberg <dklingenberg@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
