@@ -29,7 +29,6 @@ required_vars=(
   IMAGE_NAMESPACE
   POSTGRES_PASSWORD
   OPENAI_API_KEY
-  CADDY_SITE
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -41,6 +40,11 @@ done
 
 # Auth + rollout using immutable image tag.
 echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY}" -u "${REGISTRY_USERNAME}" --password-stdin
+
+# Shared reverse-proxy network for multi-app hosts.
+if ! docker network inspect shared-proxy >/dev/null 2>&1; then
+  docker network create shared-proxy >/dev/null
+fi
 
 echo "Pulling images for tag ${IMAGE_TAG}..."
 IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" pull

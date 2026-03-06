@@ -173,13 +173,30 @@ docker compose --profile app up -d
 
 ### Production Deployment (Docker + Caddy)
 
-This repository now includes production deployment assets for CI/CD:
+This repository now includes production deployment assets for CI/CD and multi-app hosts:
 
-- `deploy/docker-compose.prod.yml` (Postgres + API + Worker + Web/Caddy)
+- `deploy/docker-compose.prod.yml` (Postgres + API + Worker + Web app only)
 - `deploy/scripts/deploy.sh` (server-side rollout script)
-- `frontend/Dockerfile` + `frontend/Caddyfile` (Angular static hosting + reverse proxy to API)
+- `frontend/Dockerfile` + `frontend/Caddyfile` (Angular static hosting)
 - `.github/workflows/deploy.yml` and `bitbucket-pipelines.yml` (image build/push + SSH deploy)
 - `.github/workflows/release-please.yml` + release-please config files (versioning + changelog)
+
+For multiple apps on the same server, use a shared edge proxy:
+
+- `deploy/proxy/docker-compose.proxy.yml`
+- `deploy/proxy/Caddyfile`
+- `deploy/proxy/sites/*.caddy`
+
+Bootstrap shared proxy once:
+
+```bash
+cd /opt/apps/proxy
+cp <repo>/deploy/proxy/.env.proxy.example .env
+mkdir -p sites
+cp <repo>/deploy/proxy/sites/sentinel.caddy.example sites/sentinel.caddy
+docker network create shared-proxy || true
+docker compose -f <repo>/deploy/proxy/docker-compose.proxy.yml --env-file .env up -d
+```
 
 ### Release Process (GitHub)
 
@@ -199,7 +216,7 @@ Server bootstrap (one-time):
 
 1. Clone repo on your server (example: `/opt/sentinel`).
 2. Copy `deploy/.env.production.example` to `deploy/.env.production`.
-3. Fill in secrets (`OPENAI_API_KEY`, DB password, registry credentials, domain).
+3. Fill in secrets (`OPENAI_API_KEY`, DB password, registry credentials).
 4. Run:
 
    ```bash

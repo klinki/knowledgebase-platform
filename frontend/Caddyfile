@@ -1,18 +1,6 @@
-{
-    email {$CADDY_EMAIL:}
-}
-
-{$CADDY_SITE:localhost} {
+:80 {
     encode gzip zstd
-
-    @api path /api/* /health /openapi/* /scalar* /hangfire*
-    handle @api {
-        reverse_proxy api:5000
-    }
-
-    handle {
-        root * /srv
-        try_files {path} /index.html
-        file_server
-    }
+    root * /srv
+    try_files {path} /index.html
+    file_server
 }

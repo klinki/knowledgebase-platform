@@ -12,6 +12,10 @@
 
 - Production stack definition:
   - `deploy/docker-compose.prod.yml`
+- Shared edge proxy stack for multi-app hosts:
+  - `deploy/proxy/docker-compose.proxy.yml`
+  - `deploy/proxy/Caddyfile`
+  - `deploy/proxy/sites/sentinel.caddy.example`
 - Server-side deployment script:
   - `deploy/scripts/deploy.sh`
 - Production env template:
@@ -45,14 +49,15 @@
 ## Follow-up Setup Steps
 
 1. On the server, copy `deploy/.env.production.example` to `deploy/.env.production` and fill real values.
-2. Ensure deploy script is executable on Linux host:
+2. Bootstrap the shared proxy stack (`deploy/proxy/*`) and `shared-proxy` Docker network once.
+3. Ensure deploy script is executable on Linux host:
    - `chmod +x deploy/scripts/deploy.sh`
-3. Configure GitHub secrets:
+4. Configure GitHub secrets:
    - `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`
    - optional: `DEPLOY_SSH_PASSPHRASE` (if SSH key is encrypted)
-4. Configure Bitbucket variables:
+5. Configure Bitbucket variables:
    - `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_PATH`
-5. If only one default branch is used, simplify pipeline branch filters to either `main` or `master`.
+6. If only one default branch is used, simplify pipeline branch filters to either `main` or `master`.
 
 ## Local Manual Deploy (Linux/WSL)
 

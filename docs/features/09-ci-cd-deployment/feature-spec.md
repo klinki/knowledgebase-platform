@@ -16,6 +16,7 @@ Provide a production-ready deployment pipeline using Docker images, with support
 - [x] Local Linux/WSL remote deployment helper is available.
 - [x] Formal release process is automated with Release Please.
 - [x] Changelog generation is automated from Conventional Commits.
+- [x] Production stack supports multi-app deployment host via shared reverse proxy.
 
 ## Architecture Notes
 
@@ -58,5 +59,7 @@ Notes:
 - [x] Added `release-please-manifest.json`.
 - [x] Updated deploy workflow to trigger on `v*` release tags and keep manual dispatch.
 - [x] Updated deploy workflow to upload deploy artifacts and remove remote git pull/checkout.
+- [x] Added shared proxy stack under `deploy/proxy/` for multi-app hosts.
+- [x] Updated app compose to attach `api` and `web` services to external `shared-proxy` network.
 - [x] Updated production frontend API URL for proxy-based routing.
 - [x] Updated `README.md` deployment section.
