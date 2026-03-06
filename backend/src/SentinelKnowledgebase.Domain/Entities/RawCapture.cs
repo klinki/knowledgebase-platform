@@ -4,6 +4,9 @@ using SentinelKnowledgebase.Domain.Enums;
 
 namespace SentinelKnowledgebase.Domain.Entities;
 
+/// <summary>
+/// This is a raw capture as it came from the REST API
+/// </summary>
 public class RawCapture
 {
     [Key]

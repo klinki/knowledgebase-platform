@@ -3,6 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SentinelKnowledgebase.Domain.Entities;
 
+/// <summary>
+/// Tag entity used for categorization of insights.
+/// </summary>
 public class Tag
 {
     [Key]
