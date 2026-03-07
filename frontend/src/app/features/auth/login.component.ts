@@ -152,16 +152,23 @@ export class LoginComponent implements OnInit {
   approvalComplete = signal(false);
   approvalMessage = signal<string | null>(null);
   userCode: string | null = null;
+  returnUrl: string | null = null;
 
   async ngOnInit(): Promise<void> {
     this.userCode = this.route.snapshot.queryParamMap.get('userCode');
+    this.returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+
+    const status = await this.authService.ensureSessionResolved();
+    if (status !== 'authenticated') {
+      return;
+    }
 
     if (this.userCode) {
-      const isAuthenticated = await this.authService.ensureAuthenticated();
-      if (isAuthenticated) {
-        await this.completeDeviceApproval();
-      }
+      await this.completeDeviceApproval();
+      return;
     }
+
+    await this.navigateAfterLogin();
   }
 
   async onSubmit(): Promise<void> {
@@ -178,7 +185,7 @@ export class LoginComponent implements OnInit {
         return;
       }
 
-      await this.router.navigate(['/dashboard']);
+      await this.navigateAfterLogin();
     } catch {
       this.error.set('Authentication failed. Check your email and password.');
     } finally {
@@ -198,5 +205,15 @@ export class LoginComponent implements OnInit {
     } catch {
       this.error.set('Device approval failed. Start the sign-in flow again from the extension.');
     }
+  }
+
+  private async navigateAfterLogin(): Promise<void> {
+    const target = this.returnUrl &&
+      this.returnUrl.startsWith('/') &&
+      !this.returnUrl.startsWith('/login')
+      ? this.returnUrl
+      : '/dashboard';
+
+    await this.router.navigateByUrl(target);
   }
 }

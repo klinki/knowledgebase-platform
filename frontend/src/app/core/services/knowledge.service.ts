@@ -53,8 +53,6 @@ export class KnowledgeService {
       query,
       topK: 10,
       threshold: 0.3
-    }, {
-      withCredentials: true
     }).pipe(
       map(results => results.map(r => ({
         id: r.id,

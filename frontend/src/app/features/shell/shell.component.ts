@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { fadeAnimation } from '../../shared/animations';
 
@@ -151,9 +151,10 @@ import { fadeAnimation } from '../../shared/animations';
 })
 export class ShellComponent {
   authService = inject(AuthService);
+  private router = inject(Router);
 
   async logout(): Promise<void> {
     await this.authService.logout();
-    window.location.assign('/login');
+    await this.router.navigateByUrl('/login');
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { Router } from '@angular/router';
 
 import { environment } from '../../../environments/environment';
 
@@ -11,74 +12,119 @@ export interface User {
   role: string;
 }
 
+export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous';
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private http = inject(HttpClient);
+  private router = inject(Router);
   private apiBaseUrl = `${environment.apiBaseUrl}/auth`;
   private userState = signal<User | null>(null);
-  private loadingState = signal(true);
-  private sessionPromise: Promise<boolean> | null = null;
+  private statusState = signal<AuthStatus>('unknown');
+  private sessionPromise: Promise<AuthStatus> | null = null;
+  private unauthorizedRedirectInProgress = false;
 
   currentUser = computed(() => this.userState());
-  isAuthenticated = computed(() => !!this.userState());
-  isLoading = computed(() => this.loadingState());
+  status = computed(() => this.statusState());
+  isAuthenticated = computed(() => this.statusState() === 'authenticated');
+  isLoading = computed(() => this.statusState() === 'unknown');
 
   constructor() {
-    this.sessionPromise = this.refreshSession();
+    void this.ensureSessionResolved();
   }
 
   async login(email: string, password: string): Promise<User> {
     const user = await firstValueFrom(
-      this.http.post<User>(`${this.apiBaseUrl}/login`, { email, password }, { withCredentials: true })
+      this.http.post<User>(`${this.apiBaseUrl}/login`, { email, password })
     );
 
-    this.userState.set(user);
+    this.setAuthenticated(user);
     return user;
   }
 
   async logout(): Promise<void> {
-    await firstValueFrom(
-      this.http.post(`${this.apiBaseUrl}/logout`, {}, { withCredentials: true })
-    );
-    this.userState.set(null);
+    try {
+      await firstValueFrom(this.http.post(`${this.apiBaseUrl}/logout`, {}));
+    } finally {
+      this.clearSession();
+      this.unauthorizedRedirectInProgress = false;
+    }
   }
 
   async approveDevice(userCode: string): Promise<void> {
     await firstValueFrom(
-      this.http.post(`${this.apiBaseUrl}/device/approve`, { userCode }, { withCredentials: true })
+      this.http.post(`${this.apiBaseUrl}/device/approve`, { userCode })
     );
   }
 
-  async ensureAuthenticated(): Promise<boolean> {
-    if (this.userState()) {
-      return true;
+  async ensureSessionResolved(): Promise<AuthStatus> {
+    const currentStatus = this.statusState();
+    if (currentStatus !== 'unknown') {
+      return currentStatus;
     }
 
-    if (!this.sessionPromise) {
-      this.sessionPromise = this.refreshSession();
+    if (this.sessionPromise) {
+      return this.sessionPromise;
     }
 
+    this.sessionPromise = this.loadCurrentSession();
     return this.sessionPromise;
   }
 
-  async refreshSession(): Promise<boolean> {
-    this.loadingState.set(true);
+  async ensureAuthenticated(): Promise<boolean> {
+    return (await this.ensureSessionResolved()) === 'authenticated';
+  }
 
+  async refreshSession(): Promise<AuthStatus> {
+    this.statusState.set('unknown');
+    return this.ensureSessionResolved();
+  }
+
+  async handleUnauthorized(): Promise<void> {
+    this.clearSession();
+
+    if (this.unauthorizedRedirectInProgress) {
+      return;
+    }
+
+    const currentUrl = this.router.url || '/dashboard';
+    if (currentUrl.startsWith('/login')) {
+      return;
+    }
+
+    this.unauthorizedRedirectInProgress = true;
     try {
-      const user = await firstValueFrom(
-        this.http.get<User>(`${this.apiBaseUrl}/me`, { withCredentials: true })
-      );
-
-      this.userState.set(user);
-      return true;
-    } catch {
-      this.userState.set(null);
-      return false;
+      await this.router.navigate(['/login'], {
+        queryParams: { returnUrl: currentUrl }
+      });
     } finally {
-      this.loadingState.set(false);
+      this.unauthorizedRedirectInProgress = false;
+    }
+  }
+
+  private async loadCurrentSession(): Promise<AuthStatus> {
+    try {
+      const user = await firstValueFrom(this.http.get<User>(`${this.apiBaseUrl}/me`));
+
+      this.setAuthenticated(user);
+      return 'authenticated';
+    } catch {
+      this.clearSession();
+      return 'anonymous';
+    } finally {
       this.sessionPromise = null;
     }
+  }
+
+  private setAuthenticated(user: User): void {
+    this.userState.set(user);
+    this.statusState.set('authenticated');
+  }
+
+  private clearSession(): void {
+    this.userState.set(null);
+    this.statusState.set('anonymous');
   }
 }

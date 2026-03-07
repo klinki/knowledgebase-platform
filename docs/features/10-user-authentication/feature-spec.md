@@ -21,6 +21,7 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - ASP.NET Core Identity is the source of truth for local users, password hashing, roles, and dashboard sign-in.
 - Angular dashboard authentication uses secure cookie-based sessions backed by the API.
 - Browser extension authentication uses a Sentinel-managed device authorization flow that issues short-lived bearer access tokens and refresh tokens.
+- Detailed Angular auth and session hardening planning lives in `frontend-auth.md` for this feature.
 - Initial authorization model is limited to `admin` and `member`.
 - User creation is invite-only in v1, password recovery is admin reset only, and MFA is deferred but should remain design-compatible.
 - External OIDC providers are out of scope for implementation in this feature but should remain a viable future migration path.
@@ -60,6 +61,7 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - [x] Define `admin` and `member` roles and seed/bootstrap the first admin safely.
 - [x] Implement cookie-based dashboard auth endpoints: login, logout, current-user.
 - [x] Replace frontend stub auth state with real session-backed auth integration.
+- [x] Harden Angular auth state with centralized session resolution, credential interception, `returnUrl` handling, and `401` redirects.
 - [x] Add invite-only user creation and admin password reset flow.
 - [x] Add device authorization endpoints for browser extension sign-in.
 - [x] Add access-token and refresh-token issuance, rotation, and revocation for extension sessions.
@@ -68,25 +70,26 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - [x] Restrict Hangfire dashboard to admins.
 - [x] Add integration and frontend/E2E coverage for login, authorization, token refresh, and revocation.
 - [x] Document future OIDC migration considerations without implementing them in this feature.
-- [ ] Run backend integration suite in a Docker-enabled environment to execute the auth integration coverage end to end.
+- [x] Run backend integration suite in a Docker-enabled environment to execute the auth integration coverage end to end.
 
 ## Verification Plan
 
 - [x] Frontend Playwright suite covers login, guard redirects, dashboard access, and mocked session-backed auth flows.
+- [x] Frontend Playwright suite covers session restore, `returnUrl` redirects, and redirect-on-`401` behavior.
 - [x] Browser extension Vitest suite covers authenticated capture requests and refresh-token-based access-token renewal.
 - [x] .NET solution build and backend unit tests pass after the authentication changes.
-- [ ] Valid dashboard login sets an auth cookie and `GET /api/auth/me` returns the signed-in user.
-- [ ] Invalid dashboard login returns `401 Unauthorized`.
-- [ ] Anonymous requests to protected capture and search endpoints return `401 Unauthorized`.
+- [x] Valid dashboard login sets an auth cookie and `GET /api/auth/me` returns the signed-in user.
+- [x] Invalid dashboard login returns `401 Unauthorized`.
+- [x] Anonymous requests to protected capture and search endpoints return `401 Unauthorized`.
 - [ ] `member` access to admin-only endpoints returns `403 Forbidden`.
-- [ ] Invite flow creates a usable account without exposing public registration.
+- [x] Invite flow creates a usable account without exposing public registration.
 - [ ] Admin password reset invalidates prior sessions as designed.
-- [ ] Device flow remains pending until browser approval, then issues access and refresh tokens.
+- [x] Device flow remains pending until browser approval, then issues access and refresh tokens.
 - [ ] Extension refresh token rotation works and old refresh tokens cannot be reused.
 - [ ] Revoked extension tokens stop future authenticated API use.
-- [ ] Frontend route guards redirect anonymous users and restore authenticated state on reload.
+- [x] Frontend route guards redirect anonymous users and restore authenticated state on reload.
 - [ ] Hangfire dashboard is blocked for anonymous and non-admin users.
-- [ ] Execute the Docker-backed backend integration suite in an environment where Docker is available.
+- [x] Execute the Docker-backed backend integration suite in an environment where Docker is available.
 
 ## Assumptions and Defaults
 
