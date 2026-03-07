@@ -95,6 +95,7 @@ From the repository root:
 This starts:
 
 - Backend infrastructure only (`docker compose up -d` from `backend/`, starts `postgres`)
+- Applies backend EF Core migrations against the local development database
 - Backend API (`dotnet watch run --project src/SentinelKnowledgebase.Api`)
 - Backend Worker (`dotnet watch run --project src/SentinelKnowledgebase.Worker`)
 - Angular frontend (`npm run start` in `frontend/`)
@@ -121,6 +122,9 @@ Chromium for both frontend and extension projects.
 
 `Check` verifies `dotnet`, `node`, `npm`, and Docker availability, reports
 likely port conflicts, and prints the expected local URLs for the dev stack.
+
+`Dev` ensures `backend/.env` exists for backend startup, waits for PostgreSQL,
+and runs `dotnet ef database update` before launching the API and worker.
 
 ### Build Script Targets
 

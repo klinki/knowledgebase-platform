@@ -31,6 +31,8 @@ Implement a unified build script that orchestrates building both the backend (.N
       without reinstalling npm dependencies when they already exist.
 - [x] Running `./build.ps1 -Target Dev` supports selectively skipping API,
       worker, frontend, extension watch, or infrastructure startup.
+- [x] Running `./build.ps1 -Target Dev` waits for PostgreSQL and applies EF
+      Core migrations before launching backend processes.
 
 ## Implementation Status
 ### Phase 1: Planning & Setup
@@ -49,6 +51,7 @@ Implement a unified build script that orchestrates building both the backend (.N
 - [x] [DONE] Add environment check target and dev URL reporting.
 - [x] [DONE] Add selective dev startup flags and skip repeated npm installs
       during `Dev`.
+- [x] [DONE] Add automatic backend migration execution to `Dev`.
 
 ### Phase 3: Verification
 - [x] [DONE] Verify Frontend target.
@@ -59,6 +62,8 @@ Implement a unified build script that orchestrates building both the backend (.N
       Chromium and prepares `backend/.env`.
 - [x] [DONE] Verify Dev target honors skip flags and aligns Angular dev API URL
       with the local backend endpoint.
+- [x] [DONE] Verify Dev target applies database migrations before backend
+      startup.
 
 ## Verification Plan
 - [x] **Full Build**: Run `./build.ps1` and verify artifacts.
@@ -69,4 +74,5 @@ Implement a unified build script that orchestrates building both the backend (.N
 - [x] **Setup**: Run `./build.ps1 -Target Setup` and verify it creates
       `backend/.env` from the template and prompts for missing required values.
 - [x] **Dev**: Run `./build.ps1 -Target Dev` and verify it starts the default
-      local environment without reinstalling node dependencies on every run.
+      local environment without reinstalling node dependencies on every run and
+      applies pending database migrations before backend startup.

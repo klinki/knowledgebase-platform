@@ -30,8 +30,10 @@ $OpenApiUrl = "$ApiUrl/openapi/v1.json"
 $HangfireUrl = "$ApiUrl/hangfire"
 $HealthUrl = "$ApiUrl/health"
 $PostgresPort = 5432
+$PostgresHost = "localhost"
 $BackendEnvExamplePath = Join-Path $Root "backend/.env.example"
 $BackendEnvPath = Join-Path $Root "backend/.env"
+$BackendApiDevelopmentSettingsPath = Join-Path $Root "backend/src/SentinelKnowledgebase.Api/appsettings.Development.json"
 
 function Write-Header ([string]$Message) {
     Write-Host "`n=== $Message ===" -ForegroundColor Cyan
@@ -273,6 +275,36 @@ function Test-PortAvailable {
     }
 }
 
+function Wait-ForPort {
+    param(
+        [Parameter(Mandatory = $true)][string]$Host,
+        [Parameter(Mandatory = $true)][int]$Port,
+        [int]$TimeoutSeconds = 60,
+        [int]$RetryDelaySeconds = 2
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $client = [System.Net.Sockets.TcpClient]::new()
+            $connectTask = $client.ConnectAsync($Host, $Port)
+            $connected = $connectTask.Wait([TimeSpan]::FromSeconds(2))
+            if ($connected -and $client.Connected) {
+                $client.Dispose()
+                return
+            }
+
+            $client.Dispose()
+        }
+        catch {
+        }
+
+        Start-Sleep -Seconds $RetryDelaySeconds
+    }
+
+    throw "Timed out waiting for ${Host}:$Port to accept connections."
+}
+
 function Test-DockerAvailable {
     if (-not (Test-CommandAvailable -CommandName "docker")) {
         return $false
@@ -369,6 +401,53 @@ function Setup-All {
     Install-PlaywrightBrowser -ProjectPath (Join-Path $Root "browser-extension") -Label "browser extension"
 }
 
+function Get-BackendDevelopmentConnectionString {
+    if ($env:ConnectionStrings__DefaultConnection) {
+        return $env:ConnectionStrings__DefaultConnection
+    }
+
+    if (-not (Test-Path $BackendApiDevelopmentSettingsPath)) {
+        throw "Missing backend development settings file: $BackendApiDevelopmentSettingsPath"
+    }
+
+    $settings = Get-Content $BackendApiDevelopmentSettingsPath | ConvertFrom-Json
+    $connectionString = $settings.ConnectionStrings.DefaultConnection
+    if ([string]::IsNullOrWhiteSpace($connectionString)) {
+        throw "The backend development connection string is not configured in $BackendApiDevelopmentSettingsPath"
+    }
+
+    return $connectionString
+}
+
+function Apply-BackendMigrations {
+    Write-Header "Applying Backend Database Migrations"
+
+    $connectionString = Get-BackendDevelopmentConnectionString
+    Write-Host "Waiting for PostgreSQL on ${PostgresHost}:$PostgresPort..."
+    Wait-ForPort -Host $PostgresHost -Port $PostgresPort
+
+    $maxAttempts = 5
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            Invoke-InDirectory -Path (Join-Path $Root "backend") -Script {
+                $env:ConnectionStrings__DefaultConnection = $connectionString
+                dotnet ef database update --project src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj --startup-project src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj
+            }
+
+            Write-Success "Database migrations applied."
+            return
+        }
+        catch {
+            if ($attempt -eq $maxAttempts) {
+                throw
+            }
+
+            Write-WarningMessage "Migration attempt $attempt failed. Retrying in 3 seconds..."
+            Start-Sleep -Seconds 3
+        }
+    }
+}
+
 function Start-Infra {
     Write-Header "Starting Backend Infrastructure"
     Invoke-InDirectory -Path (Join-Path $Root "backend") -Script {
@@ -437,11 +516,21 @@ function Run-ExtensionBrowser {
 function Start-DevEnvironment {
     Write-Header "Starting Full Development Environment"
 
+    $startsBackendProcess = -not $SkipApi -or -not $SkipWorker
+
+    if ($startsBackendProcess) {
+        Ensure-BackendEnvFile
+    }
+
     if (-not $SkipInfra) {
         Start-Infra
     }
     else {
         Write-WarningMessage "Skipping Docker infrastructure startup."
+    }
+
+    if ($startsBackendProcess) {
+        Apply-BackendMigrations
     }
 
     if (-not $SkipFrontend) {

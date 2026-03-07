@@ -12,14 +12,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_EmbeddingVectors_ProcessedInsights_ProcessedInsightId1",
-                table: "EmbeddingVectors");
-
-            migrationBuilder.DropColumn(
-                name: "ProcessedInsightId1",
-                table: "EmbeddingVectors");
-
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
@@ -362,20 +354,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "ProcessedInsightId1",
-                table: "EmbeddingVectors",
-                type: "uuid",
-                nullable: true);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_EmbeddingVectors_ProcessedInsights_ProcessedInsightId1",
-                table: "EmbeddingVectors",
-                column: "ProcessedInsightId1",
-                principalTable: "ProcessedInsights",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
         }
     }
 }
