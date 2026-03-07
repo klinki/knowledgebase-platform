@@ -115,7 +115,9 @@ Useful selective startup examples:
 ```
 
 `Setup` installs .NET dependencies, frontend and extension npm dependencies,
-and Playwright Chromium for both frontend and extension projects.
+creates `backend/.env` from `backend/.env.example` when needed, prompts for
+missing required secrets such as `OPENAI_API_KEY`, and installs Playwright
+Chromium for both frontend and extension projects.
 
 `Check` verifies `dotnet`, `node`, `npm`, and Docker availability, reports
 likely port conflicts, and prints the expected local URLs for the dev stack.
@@ -147,6 +149,9 @@ If you prefer to run services manually:
     cd backend
     docker compose up -d
     ```
+
+    If `backend/.env` does not exist yet, copy `backend/.env.example` to
+    `backend/.env` and fill in `OPENAI_API_KEY` before starting the stack.
 
 2. Run backend API
 

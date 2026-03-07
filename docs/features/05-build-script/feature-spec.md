@@ -22,8 +22,9 @@ Implement a unified build script that orchestrates building both the backend (.N
 - [x] The script provides clear, color-coded output.
 - [x] The script handles errors and exits with a non-zero code on failure.
 - [x] Running `./build.ps1 -Target Setup` installs .NET, frontend, and extension
-      dependencies along with Playwright Chromium for both web and extension
-      projects.
+      dependencies, creates `backend/.env` from the template when missing,
+      prompts for required secrets such as `OPENAI_API_KEY`, and installs
+      Playwright Chromium for both web and extension projects.
 - [x] Running `./build.ps1 -Target Check` validates local prerequisites and
       reports expected dev URLs and likely port conflicts.
 - [x] Running `./build.ps1 -Target Dev` starts the standard local environment
@@ -43,6 +44,8 @@ Implement a unified build script that orchestrates building both the backend (.N
 - [x] [DONE] Implement Clean logic.
 - [x] [DONE] Add one-time setup/bootstrap behavior for Playwright and node
       dependencies.
+- [x] [DONE] Add backend `.env` bootstrap and required secret prompting to
+      `Setup`.
 - [x] [DONE] Add environment check target and dev URL reporting.
 - [x] [DONE] Add selective dev startup flags and skip repeated npm installs
       during `Dev`.
@@ -53,7 +56,7 @@ Implement a unified build script that orchestrates building both the backend (.N
 - [x] [DONE] Verify Clean target.
 - [x] [DONE] Verify Check target.
 - [x] [DONE] Verify Setup target installs frontend and extension Playwright
-      Chromium.
+      Chromium and prepares `backend/.env`.
 - [x] [DONE] Verify Dev target honors skip flags and aligns Angular dev API URL
       with the local backend endpoint.
 
@@ -63,5 +66,7 @@ Implement a unified build script that orchestrates building both the backend (.N
 - [x] **Clean**: Run the clean target and verify artifacts are removed.
 - [x] **Check**: Run `./build.ps1 -Target Check` and verify local prerequisite
       reporting.
+- [x] **Setup**: Run `./build.ps1 -Target Setup` and verify it creates
+      `backend/.env` from the template and prompts for missing required values.
 - [x] **Dev**: Run `./build.ps1 -Target Dev` and verify it starts the default
       local environment without reinstalling node dependencies on every run.

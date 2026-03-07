@@ -30,6 +30,8 @@ $OpenApiUrl = "$ApiUrl/openapi/v1.json"
 $HangfireUrl = "$ApiUrl/hangfire"
 $HealthUrl = "$ApiUrl/health"
 $PostgresPort = 5432
+$BackendEnvExamplePath = Join-Path $Root "backend/.env.example"
+$BackendEnvPath = Join-Path $Root "backend/.env"
 
 function Write-Header ([string]$Message) {
     Write-Host "`n=== $Message ===" -ForegroundColor Cyan
@@ -103,6 +105,152 @@ function Install-PlaywrightBrowser {
     Invoke-InDirectory -Path $ProjectPath -Script {
         npx playwright install chromium
     }
+}
+
+function ConvertTo-PlainText {
+    param([Parameter(Mandatory = $true)][System.Security.SecureString]$SecureValue)
+
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureValue)
+    try {
+        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+}
+
+function Get-EnvValue {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    foreach ($line in $Lines) {
+        if ($line -match "^\s*#") {
+            continue
+        }
+
+        if ($line -match "^\s*$([regex]::Escape($Name))=(.*)$") {
+            return $Matches[1].Trim()
+        }
+    }
+
+    return $null
+}
+
+function Set-EnvValue {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Value
+    )
+
+    $escapedName = [regex]::Escape($Name)
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        if ($Lines[$i] -match "^\s*$escapedName=") {
+            $Lines[$i] = "$Name=$Value"
+            return
+        }
+    }
+
+    if ($Lines.Count -gt 0 -and $Lines[$Lines.Count - 1] -ne "") {
+        $Lines.Add("")
+    }
+
+    $Lines.Add("$Name=$Value")
+}
+
+function Write-EnvFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [System.Collections.Generic.List[string]]$Lines
+    )
+
+    Set-Content -Path $Path -Value $Lines
+}
+
+function Test-EnvValueMissing {
+    param(
+        [AllowNull()][string]$Value,
+        [string[]]$PlaceholderValues = @()
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $true
+    }
+
+    foreach ($placeholderValue in $PlaceholderValues) {
+        if ($Value -eq $placeholderValue) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Read-RequiredEnvValue {
+    param(
+        [Parameter(Mandatory = $true)][string]$Prompt,
+        [switch]$Secret
+    )
+
+    while ($true) {
+        $value = if ($Secret) {
+            ConvertTo-PlainText -SecureValue (Read-Host -Prompt $Prompt -AsSecureString)
+        }
+        else {
+            Read-Host -Prompt $Prompt
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value.Trim()
+        }
+
+        Write-WarningMessage "A value is required."
+    }
+}
+
+function Ensure-BackendEnvFile {
+    Write-Header "Preparing Backend Environment Variables"
+
+    if (-not (Test-Path $BackendEnvExamplePath)) {
+        throw "Missing backend env template: $BackendEnvExamplePath"
+    }
+
+    if (-not (Test-Path $BackendEnvPath)) {
+        Copy-Item -Path $BackendEnvExamplePath -Destination $BackendEnvPath
+        Write-Success "Created backend/.env from backend/.env.example."
+    }
+    else {
+        Write-Host "Found existing backend/.env. Preserving current values."
+    }
+
+    $envLines = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in Get-Content $BackendEnvPath) {
+        $envLines.Add([string]$line)
+    }
+    $requiredVariables = @(
+        @{
+            Name = "OPENAI_API_KEY"
+            Prompt = "Enter your OpenAI API key"
+            Secret = $true
+            PlaceholderValues = @("your-api-key-here")
+        }
+    )
+
+    foreach ($variable in $requiredVariables) {
+        $currentValue = Get-EnvValue -Lines $envLines -Name $variable.Name
+        if (-not (Test-EnvValueMissing -Value $currentValue -PlaceholderValues $variable.PlaceholderValues)) {
+            Write-Success "Using existing value for $($variable.Name)."
+            continue
+        }
+
+        $resolvedValue = Read-RequiredEnvValue -Prompt $variable.Prompt -Secret:$variable.Secret
+        Set-EnvValue -Lines $envLines -Name $variable.Name -Value $resolvedValue
+    }
+
+    Write-EnvFile -Path $BackendEnvPath -Lines $envLines
+    Write-Success "Backend environment file is ready at backend/.env."
 }
 
 function Test-CommandAvailable {
@@ -207,6 +355,8 @@ function Build-Extension {
 
 function Setup-All {
     Write-Header "Setting Up Development Dependencies"
+
+    Ensure-BackendEnvFile
 
     Write-Host "Restoring .NET dependencies..."
     & dotnet restore "$Root\knowledgebase-platform.slnx"
