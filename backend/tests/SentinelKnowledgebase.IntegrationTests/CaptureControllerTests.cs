@@ -11,17 +11,35 @@ namespace SentinelKnowledgebase.IntegrationTests;
 public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
 {
     private readonly IntegrationTestFixture _fixture;
-    private readonly HttpClient _httpClient;
     
     public CaptureControllerTests(IntegrationTestFixture fixture)
     {
         _fixture = fixture;
-        _httpClient = fixture.HttpClient;
     }
     
     [Fact]
-    public async Task CreateCapture_ShouldReturn202Accepted()
+    public async Task CreateCapture_ShouldReturn401_WhenAnonymous()
     {
+        using var client = _fixture.CreateClient();
+
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://example.com/article",
+            ContentType = ContentType.Article,
+            RawContent = "This is a test article content with valuable information.",
+            Metadata = JsonSerializer.Serialize(new { author = "Test Author" })
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/capture", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task CreateCapture_ShouldReturn202Accepted_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
         var request = new CaptureRequestDto
         {
             SourceUrl = "https://example.com/article",
@@ -31,7 +49,7 @@ public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
             Tags = new List<string> { "test", "integration" }
         };
         
-        var response = await _httpClient.PostAsJsonAsync("/api/v1/capture", request);
+        var response = await client.PostAsJsonAsync("/api/v1/capture", request);
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
         
@@ -41,17 +59,31 @@ public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
     }
     
     [Fact]
-    public async Task GetCapture_ShouldReturn404ForNonexistent()
+    public async Task GetCapture_ShouldReturn401_WhenAnonymous()
     {
-        var response = await _httpClient.GetAsync($"/api/v1/capture/{Guid.NewGuid()}");
+        using var client = _fixture.CreateClient();
+
+        var response = await client.GetAsync($"/api/v1/capture/{Guid.NewGuid()}");
+        
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetCapture_ShouldReturn404ForNonexistent_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync($"/api/v1/capture/{Guid.NewGuid()}");
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
     }
     
     [Fact]
-    public async Task GetAllCaptures_ShouldReturnEmptyList()
+    public async Task GetAllCaptures_ShouldReturnEmptyList_WhenAuthenticated()
     {
-        var response = await _httpClient.GetAsync("/api/v1/capture");
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/api/v1/capture");
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
         var content = await response.Content.ReadFromJsonAsync<List<CaptureResponseDto>>();
@@ -59,8 +91,10 @@ public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
     }
     
     [Fact]
-    public async Task CreateCapture_WithInvalidUrl_ShouldReturn400()
+    public async Task CreateCapture_WithInvalidUrl_ShouldReturn400_WhenAuthenticated()
     {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
         var request = new CaptureRequestDto
         {
             SourceUrl = "not-a-valid-url",
@@ -68,7 +102,7 @@ public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
             RawContent = "Test content"
         };
         
-        var response = await _httpClient.PostAsJsonAsync("/api/v1/capture", request);
+        var response = await client.PostAsJsonAsync("/api/v1/capture", request);
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
     }

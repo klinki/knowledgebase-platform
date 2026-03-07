@@ -1,4 +1,5 @@
 using Hangfire;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -6,6 +7,7 @@ using SentinelKnowledgebase.Application.Services.Interfaces;
 namespace SentinelKnowledgebase.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/capture")]
 public class CaptureController : ControllerBase
 {

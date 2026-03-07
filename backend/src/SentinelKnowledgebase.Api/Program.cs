@@ -7,6 +7,7 @@ using Scalar.AspNetCore;
 using SentinelKnowledgebase.Api.HealthChecks;
 using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Application.Services;
+using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure;
 using System.Text.Json.Nodes;
@@ -30,9 +31,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 builder.Services.AddOpenApi(options =>
@@ -107,16 +109,27 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference();
     app.MapGet("/", () => Results.Redirect("/scalar/"));
-    app.UseHangfireDashboard("/hangfire");
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var bootstrapper = scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>();
+    await bootstrapper.SeedAsync();
 }
 
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseAuthentication();
 app.UseAuthorization();
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new HangfireDashboardAuthorizationFilter(app.Environment)]
+});
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/api/v1/health");
 
 app.Run();
 

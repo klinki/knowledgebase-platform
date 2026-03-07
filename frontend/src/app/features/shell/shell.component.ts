@@ -28,7 +28,7 @@ import { fadeAnimation } from '../../shared/animations';
         
         <div class="user-footer">
           <div class="user-info">
-            <span class="user-name">{{ authService.currentUser()?.name }}</span>
+            <span class="user-name">{{ authService.currentUser()?.displayName }}</span>
           </div>
           <button (click)="logout()" class="logout-btn">Log out</button>
         </div>
@@ -152,8 +152,8 @@ import { fadeAnimation } from '../../shared/animations';
 export class ShellComponent {
   authService = inject(AuthService);
 
-  logout() {
-    this.authService.logout();
-    window.location.reload();
+  async logout(): Promise<void> {
+    await this.authService.logout();
+    window.location.assign('/login');
   }
 }

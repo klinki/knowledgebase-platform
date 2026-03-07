@@ -6,6 +6,7 @@
 import { DEFAULT_API_URL } from './constants.js';
 
 const MAX_RAW_CONTENT_LENGTH = 10000;
+const ACCESS_TOKEN_REFRESH_BUFFER_MS = 30_000;
 
 interface WebpageData {
   source: 'webpage';
@@ -39,6 +40,18 @@ interface CaptureRequestPayload {
   rawContent: string;
   metadata: string;
   tags?: string[];
+}
+
+interface AuthTokensResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  user: {
+    id: string;
+    email: string;
+    displayName: string;
+    role: string;
+  };
 }
 
 /**
@@ -77,19 +90,20 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
  */
 async function handleSaveTweet(tweetData: TweetData): Promise<{ success: boolean; error?: string }> {
   try {
-    const { apiKey, apiUrl } = await chrome.storage.local.get(['apiKey', 'apiUrl']);
+    const { apiUrl } = await chrome.storage.local.get(['apiUrl']);
     const baseUrl = apiUrl || DEFAULT_API_URL;
+    const accessToken = await getAuthorizationToken(baseUrl);
 
-    if (!apiKey) {
-      console.error('[Sentinel] API key not configured');
+    if (!accessToken) {
+      console.error('[Sentinel] Extension is not authenticated');
       return {
         success: false,
-        error: 'API key not configured. Please set it in the extension options.'
+        error: 'Sentinel sign-in is required. Open the extension settings to connect this browser.'
       };
     }
 
     const capturePayload = mapTweetToCaptureRequest(tweetData);
-    const response = await postCapture(baseUrl, apiKey, capturePayload);
+    const response = await postCapture(baseUrl, accessToken, capturePayload);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -114,19 +128,20 @@ async function handleSaveTweet(tweetData: TweetData): Promise<{ success: boolean
  */
 async function handleSaveWebpage(webpageData: WebpageData): Promise<{ success: boolean; error?: string }> {
   try {
-    const { apiKey, apiUrl } = await chrome.storage.local.get(['apiKey', 'apiUrl']);
+    const { apiUrl } = await chrome.storage.local.get(['apiUrl']);
     const baseUrl = apiUrl || DEFAULT_API_URL;
+    const accessToken = await getAuthorizationToken(baseUrl);
 
-    if (!apiKey) {
-      console.error('[Sentinel] API key not configured');
+    if (!accessToken) {
+      console.error('[Sentinel] Extension is not authenticated');
       return {
         success: false,
-        error: 'API key not configured. Please set it in the extension options.'
+        error: 'Sentinel sign-in is required. Open the extension settings to connect this browser.'
       };
     }
 
     const capturePayload = mapWebpageToCaptureRequest(webpageData);
-    const response = await postCapture(baseUrl, apiKey, capturePayload);
+    const response = await postCapture(baseUrl, accessToken, capturePayload);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -471,18 +486,19 @@ async function captureSelection(url: string, title: string, selection: string): 
       captured_at: new Date().toISOString()
     };
 
-    const { apiKey, apiUrl } = await chrome.storage.local.get(['apiKey', 'apiUrl']);
+    const { apiUrl } = await chrome.storage.local.get(['apiUrl']);
     const baseUrl = apiUrl || DEFAULT_API_URL;
+    const accessToken = await getAuthorizationToken(baseUrl);
 
-    if (!apiKey) {
+    if (!accessToken) {
       return {
         success: false,
-        error: 'API key not configured'
+        error: 'Sentinel sign-in is required. Open the extension settings to connect this browser.'
       };
     }
 
     const capturePayload = mapSelectionToCaptureRequest(selectionData);
-    const response = await postCapture(baseUrl, apiKey, capturePayload);
+    const response = await postCapture(baseUrl, accessToken, capturePayload);
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
@@ -602,6 +618,82 @@ function mapSelectionToCaptureRequest(selectionData: SelectionData): CaptureRequ
     }),
     tags: ['selection']
   };
+}
+
+async function getAuthorizationToken(baseUrl: string): Promise<string | null> {
+  const authState = await chrome.storage.local.get([
+    'accessToken',
+    'refreshToken',
+    'accessTokenExpiresAt',
+    'apiKey'
+  ]);
+
+  if (authState.accessToken && !isAccessTokenExpired(authState.accessTokenExpiresAt)) {
+    return authState.accessToken;
+  }
+
+  if (authState.refreshToken) {
+    const refreshed = await refreshAuthorizationToken(baseUrl, authState.refreshToken);
+    if (refreshed) {
+      return refreshed;
+    }
+  }
+
+  if (authState.apiKey) {
+    return authState.apiKey;
+  }
+
+  return null;
+}
+
+function isAccessTokenExpired(expiresAt: string | undefined): boolean {
+  if (!expiresAt) {
+    return true;
+  }
+
+  return Date.parse(expiresAt) - ACCESS_TOKEN_REFRESH_BUFFER_MS <= Date.now();
+}
+
+async function refreshAuthorizationToken(baseUrl: string, refreshToken: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${baseUrl}/api/auth/token/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ refreshToken })
+    });
+
+    if (!response.ok) {
+      await clearStoredAuthTokens();
+      return null;
+    }
+
+    const payload = await response.json() as AuthTokensResponse;
+    await persistAuthTokens(payload);
+    return payload.accessToken;
+  } catch (error) {
+    console.error('[Sentinel] Failed to refresh auth token:', error);
+    return null;
+  }
+}
+
+async function persistAuthTokens(payload: AuthTokensResponse): Promise<void> {
+  await chrome.storage.local.set({
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    accessTokenExpiresAt: payload.expiresAt,
+    authUser: payload.user
+  });
+}
+
+async function clearStoredAuthTokens(): Promise<void> {
+  await chrome.storage.local.remove([
+    'accessToken',
+    'refreshToken',
+    'accessTokenExpiresAt',
+    'authUser'
+  ]);
 }
 
 function postCapture(baseUrl: string, apiKey: string, payload: CaptureRequestPayload): Promise<Response> {

@@ -68,16 +68,65 @@ describe('handleSaveTweet', () => {
     )
   })
 
-  it('returns error when API key not configured', async () => {
+  it('returns error when extension auth is not configured', async () => {
     mockStorageLocal.data = {}
 
     const result = await handleSaveTweet(mockTweetData)
 
     expect(result).toEqual({
       success: false,
-      error: 'API key not configured. Please set it in the extension options.',
+      error: 'Sentinel sign-in is required. Open the extension settings to connect this browser.',
     })
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('refreshes the access token before saving when the current token is expired', async () => {
+    mockStorageLocal.data = {
+      accessToken: 'expired-token',
+      refreshToken: 'refresh-token',
+      accessTokenExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+      apiUrl: 'http://test-api-server:3000',
+    }
+
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          accessToken: 'new-access-token',
+          refreshToken: 'new-refresh-token',
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          user: {
+            id: 'user-1',
+            email: 'test@example.com',
+            displayName: 'Test User',
+            role: 'member',
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: '123' }),
+      } as Response)
+
+    const result = await handleSaveTweet(mockTweetData)
+
+    expect(result).toEqual({ success: true })
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      'http://test-api-server:3000/api/auth/token/refresh',
+      expect.objectContaining({
+        method: 'POST',
+      })
+    )
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://test-api-server:3000/api/v1/capture',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer new-access-token',
+        }),
+      })
+    )
   })
 
   it('handles network errors gracefully', async () => {
@@ -180,13 +229,13 @@ describe('handleSaveWebpage', () => {
     )
   })
 
-  it('returns error when API key not configured', async () => {
+  it('returns error when extension auth is not configured', async () => {
     mockStorageLocal.data = {}
 
     const result = await handleSaveWebpage(mockWebpageData)
 
     expect(result.success).toBe(false)
-    expect(result.error).toContain('API key not configured')
+    expect(result.error).toContain('Sentinel sign-in is required')
   })
 
   it('handles API errors', async () => {

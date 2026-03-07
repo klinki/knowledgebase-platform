@@ -1,8 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { KnowledgeItem, Tag } from '../../shared/models/knowledge.model';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map, of, catchError, switchMap, debounceTime, distinctUntilChanged } from 'rxjs';
+import { map, of, catchError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
@@ -11,7 +10,7 @@ import { environment } from '../../../environments/environment';
 })
 export class KnowledgeService {
   private http = inject(HttpClient);
-  private apiUrl = environment.apiUrl;
+  private apiUrl = `${environment.apiBaseUrl}/v1/search`;
 
   private itemsState = signal<KnowledgeItem[]>([
     { id: '1', title: 'DeepSeek-V3 Technical Report', url: '#', capturedAt: new Date() },
@@ -54,6 +53,8 @@ export class KnowledgeService {
       query,
       topK: 10,
       threshold: 0.3
+    }, {
+      withCredentials: true
     }).pipe(
       map(results => results.map(r => ({
         id: r.id,

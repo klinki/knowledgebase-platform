@@ -57,7 +57,7 @@ describe('Message Passing Integration', () => {
       expect(sendResponse).toHaveBeenCalledWith({ success: true })
     })
 
-    it('handles SAVE_TWEET message and returns error for missing API key', async () => {
+    it('handles SAVE_TWEET message and returns error when extension auth is missing', async () => {
       mockStorageLocal.data = {}
 
       const tweetData = {
@@ -80,7 +80,7 @@ describe('Message Passing Integration', () => {
 
       expect(sendResponse).toHaveBeenCalledWith({
         success: false,
-        error: expect.stringContaining('API key not configured'),
+        error: expect.stringContaining('Sentinel sign-in is required'),
       })
     })
 
@@ -140,7 +140,7 @@ describe('Message Passing Integration', () => {
       )
     })
 
-    it('returns error when API key missing', async () => {
+    it('returns error when extension auth is missing', async () => {
       mockStorageLocal.data = {}
 
       const webpageData = {
@@ -164,7 +164,7 @@ describe('Message Passing Integration', () => {
 
       expect(sendResponse).toHaveBeenCalledWith({
         success: false,
-        error: expect.stringContaining('API key not configured'),
+        error: expect.stringContaining('Sentinel sign-in is required'),
       })
     })
   })

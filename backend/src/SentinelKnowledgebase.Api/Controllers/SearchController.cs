@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -5,6 +6,7 @@ using SentinelKnowledgebase.Application.Services.Interfaces;
 namespace SentinelKnowledgebase.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/search")]
 public class SearchController : ControllerBase
 {

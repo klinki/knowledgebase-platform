@@ -218,9 +218,9 @@
 
 <form id="settingsForm">
       <div class="form-group">
-        <label for="apiKey">API Key</label>
-        <input type="password" id="apiKey" placeholder="Enter your Sentinel API key">
-        <p class="help-text">Your API key is stored locally and never shared.</p>
+        <label for="apiKey">Legacy API Token</label>
+        <input type="password" id="apiKey" placeholder="Optional fallback token">
+        <p class="help-text">Optional fallback only. Primary authentication now uses browser sign-in.</p>
       </div>
 
       <div class="form-group">
@@ -249,9 +249,15 @@
         <button type="button" id="saveBtn" class="btn-primary">Save Settings</button>
         <button type="button" id="testConnection" class="btn-secondary">Test Connection</button>
       </div>
+
+      <div class="button-group">
+        <button type="button" id="signInBtn" class="btn-primary">Sign In</button>
+        <button type="button" id="signOutBtn" class="btn-secondary">Sign Out</button>
+      </div>
     </form>
 
     <div id="status" class="status"></div>
+    <div id="authStatus" class="status info" style="display: block;">Checking authentication status...</div>
 
 <div class="features">
       <h3>What you can do:</h3>

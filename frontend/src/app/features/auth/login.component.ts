@@ -1,7 +1,7 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -13,6 +13,9 @@ import { AuthService } from '../../core/services/auth.service';
       <div class="glass-card login-card">
         <h1>Sentinel</h1>
         <p class="subtitle">Secure Knowledge Curation</p>
+        <p class="subtitle" *ngIf="userCode">Approve this sign-in to connect your browser extension.</p>
+        <p class="status success" *ngIf="approvalComplete()">{{ approvalMessage() }}</p>
+        <p class="status error" *ngIf="error()">{{ error() }}</p>
         
         <form (ngSubmit)="onSubmit()">
           <div class="form-group">
@@ -74,7 +77,26 @@ import { AuthService } from '../../core/services/auth.service';
 
     .subtitle {
       color: #94a3b8;
-      margin-bottom: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .status {
+      border-radius: 10px;
+      margin: 1rem 0;
+      padding: 0.85rem 1rem;
+      text-align: left;
+    }
+
+    .status.success {
+      background: rgba(34, 197, 94, 0.14);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      color: #bbf7d0;
+    }
+
+    .status.error {
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #fecaca;
     }
 
     form {
@@ -118,23 +140,63 @@ import { AuthService } from '../../core/services/auth.service';
     }
   `]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   email = '';
   password = '';
   loading = signal(false);
+  error = signal<string | null>(null);
+  approvalComplete = signal(false);
+  approvalMessage = signal<string | null>(null);
+  userCode: string | null = null;
 
-  async onSubmit() {
+  async ngOnInit(): Promise<void> {
+    this.userCode = this.route.snapshot.queryParamMap.get('userCode');
+
+    if (this.userCode) {
+      const isAuthenticated = await this.authService.ensureAuthenticated();
+      if (isAuthenticated) {
+        await this.completeDeviceApproval();
+      }
+    }
+  }
+
+  async onSubmit(): Promise<void> {
     if (!this.email || !this.password) return;
     
     this.loading.set(true);
+    this.error.set(null);
+
     try {
       await this.authService.login(this.email, this.password);
+
+      if (this.userCode) {
+        await this.completeDeviceApproval();
+        return;
+      }
+
       await this.router.navigate(['/dashboard']);
+    } catch {
+      this.error.set('Authentication failed. Check your email and password.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async completeDeviceApproval(): Promise<void> {
+    if (!this.userCode) {
+      return;
+    }
+
+    try {
+      await this.authService.approveDevice(this.userCode);
+      this.approvalComplete.set(true);
+      this.approvalMessage.set('Device approved. Return to the Sentinel extension to finish signing in.');
+    } catch {
+      this.error.set('Device approval failed. Start the sign-in flow again from the extension.');
     }
   }
 }

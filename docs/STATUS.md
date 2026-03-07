@@ -13,6 +13,6 @@
 - [x] OpenAPI Documentation with Scalar (Ref: [/docs/features/08-openapi-scalar-docs/feature-spec.md](file:///c:/ai-workspace/knowledgebase-platform/docs/features/08-openapi-scalar-docs/feature-spec.md))
 
 ## Backlog
-- [ ] User Authentication
+- [ ] User Authentication (Ref: [/docs/features/10-user-authentication/feature-spec.md](file:///c:/projects/ai/sentinel-knowledgebase/docs/features/10-user-authentication/feature-spec.md))
 - [ ] Folder Organization for Vault
 - [ ] Export to Markdown/PDF

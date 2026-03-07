@@ -1,7 +1,33 @@
 import { test, expect } from '@playwright/test';
 
+async function mockAuthenticatedSession(page: import('@playwright/test').Page) {
+  let authenticated = false;
+  const user = {
+    id: 'user-1',
+    email: 'test@example.com',
+    displayName: 'test',
+    role: 'member',
+  };
+
+  await page.route('**/api/auth/me', async route => {
+    if (authenticated) {
+      await route.fulfill({ json: user });
+      return;
+    }
+
+    await route.fulfill({ status: 401, body: '' });
+  });
+
+  await page.route('**/api/auth/login', async route => {
+    authenticated = true;
+    await route.fulfill({ json: user });
+  });
+}
+
 test.describe('Dashboard and Search', () => {
   test.beforeEach(async ({ page }) => {
+    await mockAuthenticatedSession(page);
+
     // Mock the Semantic Search API
     await page.route('**/api/v1/search/semantic', async route => {
       const postData = route.request().postDataJSON();
