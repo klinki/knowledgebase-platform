@@ -3,13 +3,20 @@ using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Domain.Enums;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Xunit;
 
 namespace SentinelKnowledgebase.IntegrationTests;
 
 [Collection("IntegrationTests")]
-public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
+public class CaptureControllerTests
 {
+    private static readonly JsonSerializerOptions ResponseJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private readonly IntegrationTestFixture _fixture;
     
     public CaptureControllerTests(IntegrationTestFixture fixture)
@@ -86,7 +93,7 @@ public class CaptureControllerTests : IClassFixture<IntegrationTestFixture>
         var response = await client.GetAsync("/api/v1/capture");
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<List<CaptureResponseDto>>();
+        var content = await response.Content.ReadFromJsonAsync<List<CaptureResponseDto>>(ResponseJsonOptions);
         content.Should().NotBeNull();
     }
     

@@ -8,7 +8,7 @@ using Xunit;
 namespace SentinelKnowledgebase.IntegrationTests;
 
 [Collection("IntegrationTests")]
-public class HangfireIntegrationTests : IClassFixture<IntegrationTestFixture>
+public class HangfireIntegrationTests
 {
     private readonly IntegrationTestFixture _fixture;
 
@@ -62,10 +62,11 @@ public class HangfireIntegrationTests : IClassFixture<IntegrationTestFixture>
     {
         RetryProbeJob.Reset();
 
-        using var factory = _fixture.CreateApplicationFactory("Development");
+        using var factory = _fixture.CreateApplicationFactory("Testing");
         using var scope = factory.Services.CreateScope();
         var backgroundJobClient = scope.ServiceProvider.GetRequiredService<IBackgroundJobClient>();
         var storage = scope.ServiceProvider.GetRequiredService<JobStorage>();
+        using var server = new BackgroundJobServer(new BackgroundJobServerOptions(), storage);
 
         var jobId = backgroundJobClient.Enqueue(() => RetryProbeJob.RunOnceWithTransientFailure());
         jobId.Should().NotBeNullOrWhiteSpace();

@@ -10,7 +10,7 @@ using Xunit;
 namespace SentinelKnowledgebase.IntegrationTests;
 
 [Collection("IntegrationTests")]
-public class AuthControllerTests : IClassFixture<IntegrationTestFixture>
+public class AuthControllerTests
 {
     private readonly IntegrationTestFixture _fixture;
 

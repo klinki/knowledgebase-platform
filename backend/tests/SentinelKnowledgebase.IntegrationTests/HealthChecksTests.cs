@@ -4,7 +4,7 @@ using Xunit;
 namespace SentinelKnowledgebase.IntegrationTests;
 
 [Collection("IntegrationTests")]
-public class HealthChecksTests : IClassFixture<IntegrationTestFixture>
+public class HealthChecksTests
 {
     private readonly HttpClient _httpClient;
 

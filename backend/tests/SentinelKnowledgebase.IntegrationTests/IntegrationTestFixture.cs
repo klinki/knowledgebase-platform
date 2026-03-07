@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SentinelKnowledgebase.Application.DTOs.Auth;
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -18,7 +19,6 @@ public class IntegrationTestFixture : IAsyncLifetime
     private PostgreSqlContainer _container = null!;
     private WebApplicationFactory<Program> _factory = null!;
     public HttpClient HttpClient = null!;
-    public ApplicationDbContext DbContext = null!;
     
     public async Task InitializeAsync()
     {
@@ -30,12 +30,22 @@ public class IntegrationTestFixture : IAsyncLifetime
         
         await _container.StartAsync();
 
+        var dbContextOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(_container.GetConnectionString(), options => options.UseVector())
+            .Options;
+
+        await using (var dbContext = new ApplicationDbContext(dbContextOptions))
+        {
+            await dbContext.Database.EnsureDeletedAsync();
+            await dbContext.Database.EnsureCreatedAsync();
+        }
+
         _factory = CreateApplicationFactory();
+        using var scope = _factory.Services.CreateScope();
+        var bootstrapper = scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>();
+        await bootstrapper.SeedAsync();
+
         HttpClient = _factory.CreateClient();
-        var scope = _factory.Services.CreateScope();
-        DbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await DbContext.Database.EnsureDeletedAsync();
-        await DbContext.Database.EnsureCreatedAsync();
     }
     
     public WebApplicationFactory<Program> CreateApplicationFactory(string environment = "Testing")
