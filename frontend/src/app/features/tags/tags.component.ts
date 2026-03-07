@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { KnowledgeService } from '../../core/services/knowledge.service';
+import { TagsStateService } from '../../core/services/tags-state.service';
 
 @Component({
   selector: 'app-tags',
@@ -14,31 +14,40 @@ import { KnowledgeService } from '../../core/services/knowledge.service';
       </header>
 
       <div class="glass-card">
+        @if (tagsState.loading()) {
+          <div class="empty-state">
+            <p>Loading tags...</p>
+          </div>
+        } @else if (tagsState.error()) {
+          <div class="empty-state">
+            <p>{{ tagsState.error() }}</p>
+          </div>
+        } @else if (tagsState.tags().length === 0) {
+          <div class="empty-state">
+            <p>No tags have been created yet.</p>
+          </div>
+        } @else {
         <table class="premium-table">
           <thead>
             <tr>
               <th>Tag Name</th>
               <th>Occurrences</th>
               <th>Last Used</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            @for (tag of knowledgeService.tags(); track tag.id) {
+            @for (tag of tagsState.tags(); track tag.id) {
               <tr>
                 <td>
                   <span class="tag-pill">{{ tag.name }}</span>
                 </td>
                 <td>{{ tag.count }}</td>
-                <td>{{ tag.lastUsed | date:'mediumDate' }}</td>
-                <td>
-                  <button class="action-btn">Edit</button>
-                  <button class="action-btn delete">Delete</button>
-                </td>
+                <td>{{ tag.lastUsedAt ? (tag.lastUsedAt | date:'mediumDate') : '—' }}</td>
               </tr>
             }
           </tbody>
         </table>
+        }
       </div>
     </div>
   `,
@@ -75,34 +84,20 @@ import { KnowledgeService } from '../../core/services/knowledge.service';
       border-radius: 8px;
       font-size: 0.95rem;
       font-weight: 500;
-      border: 1px solid rgba(129, 140, 248, 0.15);
+        border: 1px solid rgba(129, 140, 248, 0.15);
     }
 
-    .action-btn {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    .empty-state {
       color: #94a3b8;
-      padding: 6px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-right: 12px;
-      font-size: 0.85rem;
-      transition: all 0.2s;
-      
-      &:hover {
-        border-color: #6366f1;
-        color: white;
-        background: rgba(99, 102, 241, 0.05);
-      }
-      
-      &.delete:hover {
-        border-color: #ef4444;
-        color: #ef4444;
-        background: rgba(239, 68, 68, 0.05);
-      }
+      padding: 2rem 0;
+      text-align: center;
     }
   `]
 })
-export class TagsComponent {
-  knowledgeService = inject(KnowledgeService);
+export class TagsComponent implements OnInit {
+  tagsState = inject(TagsStateService);
+
+  async ngOnInit(): Promise<void> {
+    await this.tagsState.loadTags();
+  }
 }

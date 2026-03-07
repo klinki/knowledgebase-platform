@@ -7,6 +7,8 @@ public interface IRawCaptureRepository
     Task<RawCapture> AddAsync(RawCapture rawCapture);
     Task<RawCapture?> GetByIdAsync(Guid id);
     Task<IEnumerable<RawCapture>> GetAllAsync();
+    Task<IEnumerable<RawCapture>> GetRecentAsync(int take);
+    Task<int> CountAsync();
     Task UpdateAsync(RawCapture rawCapture);
     Task DeleteAsync(Guid id);
 }
@@ -42,12 +44,22 @@ public class TagSearchRecord
     public DateTime ProcessedAt { get; set; }
 }
 
+public class TagSummaryRecord
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public DateTime? LastUsedAt { get; set; }
+}
+
 public interface ITagRepository
 {
     Task<Tag> AddAsync(Tag tag);
     Task<Tag?> GetByIdAsync(Guid id);
     Task<Tag?> GetByNameAsync(string name);
     Task<IEnumerable<Tag>> GetAllAsync();
+    Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(int? take = null);
+    Task<int> CountAsync();
     Task UpdateAsync(Tag tag);
     Task DeleteAsync(Guid id);
 }

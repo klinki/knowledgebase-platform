@@ -1,9 +1,11 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { KnowledgeService } from '../../core/services/knowledge.service';
-import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged, map } from 'rxjs';
+
+import { DashboardStateService } from '../../core/services/dashboard-state.service';
+import { SearchStateService } from '../../core/services/search-state.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -17,8 +19,8 @@ import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
           <p>Search and manage your semantic knowledge</p>
           
           <div class="search-container">
-            <div class="search-bar glass" [class.is-loading]="knowledgeService.loading()">
-              <span class="search-icon">@if(knowledgeService.loading()){ 🔄 } @else { 🔍 }</span>
+            <div class="search-bar glass" [class.is-loading]="loading()">
+              <span class="search-icon">@if(loading()){ 🔄 } @else { 🔍 }</span>
               <input 
                 type="text" 
                 [(ngModel)]="searchQuery" 
@@ -28,9 +30,9 @@ import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
             </div>
           </div>
           
-          @if (knowledgeService.error()) {
+          @if (error()) {
             <div class="search-error">
-              ⚠️ {{ knowledgeService.error() }}
+              ⚠️ {{ error() }}
             </div>
           }
         </div>
@@ -38,48 +40,74 @@ import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
 
       <div class="main-grid">
         <section class="glass-card list-section">
-          <h2>Recent Captures</h2>
+          <h2>{{ isSearchMode() ? 'Search Results' : 'Recent Captures' }}</h2>
           <div class="items-list">
-            @for (item of filteredItems(); track item.id) {
+            @if (loading() && items().length === 0) {
+              <div class="empty-state">
+                <p>Loading dashboard data...</p>
+              </div>
+            } @else {
+              @for (item of items(); track item.id) {
               <div class="knowledge-item">
                 <span class="status-dot"></span>
                 <div class="item-info">
                   <span class="title">{{ item.title }}</span>
-                  <span class="meta">{{ item.capturedAt | date:'mediumDate' }} • {{ item.url }}</span>
+                  <span class="meta">
+                    @if (item.capturedAt) {
+                      {{ item.capturedAt | date:'mediumDate' }} •
+                    }
+                    {{ item.sourceUrl }}
+                  </span>
+                  @if (item.summary) {
+                    <span class="summary">{{ item.summary }}</span>
+                  }
+                  @if (item.tags.length > 0) {
+                    <div class="item-tags">
+                      @for (tag of item.tags; track tag) {
+                        <span class="tag-chip">{{ tag }}</span>
+                      }
+                    </div>
+                  }
                 </div>
               </div>
-            } @empty {
-              @if (!knowledgeService.loading()) {
+              } @empty {
+              @if (!loading()) {
                 <div class="empty-state">
-                  <p>No knowledge items found matching your search.</p>
+                  <p>{{ emptyMessage() }}</p>
                 </div>
               }
+            }
             }
           </div>
         </section>
 
-        <!-- Sidebar column omitted for brevity in replace_file_content, but should be preserved -->
         <section class="secondary-column">
           <div class="glass-card tags-section">
             <h2>Trending Tags</h2>
-            <div class="tags-cloud">
-              @for (tag of knowledgeService.topTags(); track tag.id) {
+            @if (dashboardState.topTags().length > 0) {
+              <div class="tags-cloud">
+              @for (tag of dashboardState.topTags(); track tag.id) {
                 <span class="tag-badge">
                   {{ tag.name }} <span class="count">{{ tag.count }}</span>
                 </span>
               }
-            </div>
+              </div>
+            } @else {
+              <div class="empty-state compact">
+                <p>No tag data available yet.</p>
+              </div>
+            }
           </div>
           
           <div class="glass-card stats-card">
             <h2>Quick Stats</h2>
             <div class="stat">
-              <span class="stat-label">Total Items</span>
-              <span class="stat-value">{{ knowledgeService.items().length }}</span>
+              <span class="stat-label">Total Captures</span>
+              <span class="stat-value">{{ dashboardState.stats().totalCaptures }}</span>
             </div>
             <div class="stat">
               <span class="stat-label">Active Tags</span>
-              <span class="stat-value">{{ knowledgeService.tags().length }}</span>
+              <span class="stat-value">{{ dashboardState.stats().activeTags }}</span>
             </div>
           </div>
         </section>
@@ -179,6 +207,16 @@ import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
       .item-info { display: flex; flex-direction: column; }
       .title { color: #f8fafc; font-weight: 500; font-size: 1.1rem; margin-bottom: 4px; }
       .meta { font-size: 0.85rem; color: #64748b; }
+      .summary { margin-top: 8px; color: #cbd5e1; font-size: 0.9rem; }
+      .item-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .tag-chip {
+        background: rgba(99, 102, 241, 0.12);
+        border: 1px solid rgba(129, 140, 248, 0.16);
+        border-radius: 999px;
+        color: #c7d2fe;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+      }
     }
 
     .secondary-column { display: flex; flex-direction: column; gap: 2rem; }
@@ -206,6 +244,7 @@ import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
     }
 
     .empty-state { text-align: center; padding: 4rem 0; color: #64748b; }
+    .empty-state.compact { padding: 1rem 0 0; }
 
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes fadeIn {
@@ -214,18 +253,45 @@ import { switchMap, debounceTime, distinctUntilChanged, tap } from 'rxjs';
     }
   `]
 })
-export class DashboardComponent {
-  knowledgeService = inject(KnowledgeService);
-  
+export class DashboardComponent implements OnInit {
+  dashboardState = inject(DashboardStateService);
+  searchState = inject(SearchStateService);
+
   searchQuery = signal('');
-  
-  // Reactively trigger search with debounce
-  filteredItems = toSignal(
+
+  isSearchMode = computed(() => this.searchQuery().trim().length > 0);
+  items = computed(() =>
+    this.isSearchMode() ? this.searchState.results() : this.dashboardState.recentCaptures()
+  );
+  loading = computed(() =>
+    this.isSearchMode() ? this.searchState.loading() : this.dashboardState.loading()
+  );
+  error = computed(() =>
+    this.isSearchMode() ? this.searchState.error() : this.dashboardState.error()
+  );
+  emptyMessage = computed(() =>
+    this.isSearchMode()
+      ? 'No knowledge items found matching your search.'
+      : 'No captures have been saved yet.'
+  );
+
+  constructor() {
     toObservable(this.searchQuery).pipe(
+      map(query => query.trim()),
       debounceTime(300),
       distinctUntilChanged(),
-      switchMap(query => this.knowledgeService.search(query))
-    ),
-    { initialValue: this.knowledgeService.items() }
-  );
+      takeUntilDestroyed()
+    ).subscribe(query => {
+      if (!query) {
+        this.searchState.clear();
+        return;
+      }
+
+      void this.searchState.search(query);
+    });
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.dashboardState.loadOverview();
+  }
 }

@@ -22,6 +22,62 @@ async function mockAuthenticatedSession(page: import('@playwright/test').Page) {
     authenticated = true;
     await route.fulfill({ json: user });
   });
+
+  await page.route('**/api/v1/dashboard/overview', async route => {
+    await route.fulfill({
+      json: {
+        recentCaptures: [
+          {
+            id: '1',
+            title: 'DeepSeek-V3 Technical Report',
+            sourceUrl: 'https://example.com/deepseek',
+            capturedAt: '2026-03-01T12:00:00Z',
+            status: 'Completed',
+            tags: ['ai', 'research'],
+            summary: null,
+            similarity: null
+          },
+          {
+            id: '2',
+            title: 'Angular Signals Guide',
+            sourceUrl: 'https://example.com/signals',
+            capturedAt: '2026-02-28T12:00:00Z',
+            status: 'Pending',
+            tags: ['angular'],
+            summary: null,
+            similarity: null
+          },
+          {
+            id: '3',
+            title: 'Playwright Mocking',
+            sourceUrl: 'https://example.com/mocking',
+            capturedAt: '2026-02-27T12:00:00Z',
+            status: 'Completed',
+            tags: ['testing'],
+            summary: null,
+            similarity: null
+          }
+        ],
+        topTags: [
+          { id: 'tag-1', name: 'ai', count: 3, lastUsedAt: '2026-03-01T12:00:00Z' },
+          { id: 'tag-2', name: 'angular', count: 2, lastUsedAt: '2026-02-28T12:00:00Z' }
+        ],
+        stats: {
+          totalCaptures: 3,
+          activeTags: 2
+        }
+      }
+    });
+  });
+
+  await page.route('**/api/v1/tags', async route => {
+    await route.fulfill({
+      json: [
+        { id: 'tag-1', name: 'ai', count: 3, lastUsedAt: '2026-03-01T12:00:00Z' },
+        { id: 'tag-2', name: 'angular', count: 2, lastUsedAt: '2026-02-28T12:00:00Z' }
+      ]
+    });
+  });
 }
 
 test.describe('Dashboard and Search', () => {
@@ -39,13 +95,37 @@ test.describe('Dashboard and Search', () => {
         await route.fulfill({ json: [{ 
           id: '1', 
           title: 'DeepSeek-V3 Technical Report', 
-          sourceUrl: 'https://example.com/deepseek' 
+          sourceUrl: 'https://example.com/deepseek',
+          summary: 'A focused summary of the DeepSeek technical report.',
+          similarity: 0.98,
+          tags: ['ai', 'research']
         }] });
       } else {
         await route.fulfill({ json: [
-          { id: '1', title: 'DeepSeek-V3 Technical Report', sourceUrl: 'https://example.com/deepseek' },
-          { id: '2', title: 'Angular Signals Guide', sourceUrl: 'https://example.com/signals' },
-          { id: '3', title: 'Playwright Mocking', sourceUrl: 'https://example.com/mocking' }
+          {
+            id: '1',
+            title: 'DeepSeek-V3 Technical Report',
+            sourceUrl: 'https://example.com/deepseek',
+            summary: 'A focused summary of the DeepSeek technical report.',
+            similarity: 0.98,
+            tags: ['ai', 'research']
+          },
+          {
+            id: '2',
+            title: 'Angular Signals Guide',
+            sourceUrl: 'https://example.com/signals',
+            summary: 'Patterns for Angular signals.',
+            similarity: 0.84,
+            tags: ['angular']
+          },
+          {
+            id: '3',
+            title: 'Playwright Mocking',
+            sourceUrl: 'https://example.com/mocking',
+            summary: 'Testing with Playwright route mocks.',
+            similarity: 0.81,
+            tags: ['testing']
+          }
         ] });
       }
     });
@@ -60,11 +140,7 @@ test.describe('Dashboard and Search', () => {
 
   test('should display recent knowledge items', async ({ page }) => {
     const items = page.locator('.knowledge-item');
-    // Note: Initial state is hardcoded mock data (5 items), 
-    // but a search triggers the API mock (3 items).
-    // Let's trigger a blank search to verify mocking works.
-    await page.fill('.search-input', ' ');
-    await expect(items).toHaveCount(3); 
+    await expect(items).toHaveCount(3);
   });
 
   test('should filter items via search bar', async ({ page }) => {
@@ -84,9 +160,36 @@ test.describe('Dashboard and Search', () => {
     await expect(page.locator('.empty-state')).toContainText('No knowledge items found');
   });
 
+  test('should show dashboard error state when overview loading fails', async ({ page }) => {
+    await page.route('**/api/v1/dashboard/overview', async route => {
+      await route.fulfill({ status: 500, body: '' });
+    });
+
+    await page.reload();
+
+    await expect(page.locator('.search-error')).toContainText('Dashboard data could not be loaded.');
+    await expect(page.locator('.list-section .empty-state')).toContainText('No captures have been saved yet.');
+  });
+
   test('should navigate to tags page via sidebar', async ({ page }) => {
     await page.click('a[routerLink="/tags"]');
     await expect(page).toHaveURL(/.*tags/);
     await expect(page.locator('h1')).toContainText('Tags Vault');
+  });
+
+  test('should show empty and error states on the tags page', async ({ page }) => {
+    await page.route('**/api/v1/tags', async route => {
+      await route.fulfill({ json: [] });
+    });
+
+    await page.click('a[routerLink="/tags"]');
+    await expect(page.locator('.empty-state')).toContainText('No tags have been created yet.');
+
+    await page.route('**/api/v1/tags', async route => {
+      await route.fulfill({ status: 500, body: '' });
+    });
+
+    await page.reload();
+    await expect(page.locator('.empty-state')).toContainText('Tag summaries could not be loaded.');
   });
 });

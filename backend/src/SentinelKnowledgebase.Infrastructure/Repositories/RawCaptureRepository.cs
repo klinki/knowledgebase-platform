@@ -34,6 +34,21 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.ProcessedInsight)
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<RawCapture>> GetRecentAsync(int take)
+    {
+        return await _context.RawCaptures
+            .Include(r => r.Tags)
+            .Include(r => r.ProcessedInsight)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    public Task<int> CountAsync()
+    {
+        return _context.RawCaptures.CountAsync();
+    }
     
     public Task UpdateAsync(RawCapture rawCapture)
     {

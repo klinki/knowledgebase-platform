@@ -33,6 +33,44 @@ async function mockAuth(
   });
 }
 
+async function mockDashboardOverview(page: import('@playwright/test').Page) {
+  await page.route('**/api/v1/dashboard/overview', async route => {
+    await route.fulfill({
+      json: {
+        recentCaptures: [
+          {
+            id: 'capture-1',
+            title: 'DeepSeek-V3 Technical Report',
+            sourceUrl: 'https://example.com/deepseek',
+            capturedAt: '2026-03-01T12:00:00Z',
+            status: 'Completed',
+            tags: ['ai', 'research'],
+            summary: null,
+            similarity: null
+          }
+        ],
+        topTags: [
+          { id: 'tag-1', name: 'ai', count: 3, lastUsedAt: '2026-03-01T12:00:00Z' }
+        ],
+        stats: {
+          totalCaptures: 1,
+          activeTags: 1
+        }
+      }
+    });
+  });
+}
+
+async function mockTags(page: import('@playwright/test').Page) {
+  await page.route('**/api/v1/tags', async route => {
+    await route.fulfill({
+      json: [
+        { id: 'tag-1', name: 'ai', count: 3, lastUsedAt: '2026-03-01T12:00:00Z' }
+      ]
+    });
+  });
+}
+
 test.describe('Authentication Flow', () => {
   test('should redirect to login when not authenticated', async ({ page }) => {
     await mockAuth(page);
@@ -42,6 +80,7 @@ test.describe('Authentication Flow', () => {
 
   test('should successfully log in and redirect to dashboard', async ({ page }) => {
     await mockAuth(page);
+    await mockDashboardOverview(page);
     await page.goto('/login');
     
     await page.fill('input[type="email"]', 'test@example.com');
@@ -55,6 +94,7 @@ test.describe('Authentication Flow', () => {
 
   test('should show correct user info in sidebar after login', async ({ page }) => {
     await mockAuth(page, { displayName: 'david' });
+    await mockDashboardOverview(page);
     await page.goto('/login');
     await page.fill('input[type="email"]', 'david@sentinel.ai');
     await page.fill('input[type="password"]', 'securepass');
@@ -65,6 +105,7 @@ test.describe('Authentication Flow', () => {
 
   test('should restore an existing session on a protected route', async ({ page }) => {
     await mockAuth(page, { displayName: 'restored', initiallyAuthenticated: true });
+    await mockDashboardOverview(page);
 
     await page.goto('/dashboard');
 
@@ -74,6 +115,7 @@ test.describe('Authentication Flow', () => {
 
   test('should return to the originally requested route after login', async ({ page }) => {
     await mockAuth(page);
+    await mockTags(page);
 
     await page.goto('/tags');
     await expect(page).toHaveURL(/.*login\?returnUrl=%2Ftags/);
@@ -88,6 +130,7 @@ test.describe('Authentication Flow', () => {
 
   test('should redirect to login when a protected API request returns 401', async ({ page }) => {
     await mockAuth(page, { initiallyAuthenticated: true });
+    await mockDashboardOverview(page);
 
     await page.route('**/api/v1/search/semantic', async route => {
       await route.fulfill({ status: 401, body: '' });
