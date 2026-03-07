@@ -88,6 +88,7 @@ From the repository root:
 
 ```powershell
 .\build.ps1 -Target Setup
+.\build.ps1 -Target Check
 .\build.ps1 -Target Dev
 ```
 
@@ -105,12 +106,27 @@ Optional: launch Chromium with the extension loaded:
 .\build.ps1 -Target Dev -LaunchExtensionBrowser
 ```
 
+Useful selective startup examples:
+
+```powershell
+.\build.ps1 -Target Dev -SkipExtensionWatch
+.\build.ps1 -Target Dev -SkipWorker
+.\build.ps1 -Target Dev -SkipInfra
+```
+
+`Setup` installs .NET dependencies, frontend and extension npm dependencies,
+and Playwright Chromium for both frontend and extension projects.
+
+`Check` verifies `dotnet`, `node`, `npm`, and Docker availability, reports
+likely port conflicts, and prints the expected local URLs for the dev stack.
+
 ### Build Script Targets
 
 From the repository root:
 
 ```powershell
 .\build.ps1 -Target Setup
+.\build.ps1 -Target Check
 .\build.ps1 -Target Build
 .\build.ps1 -Target Backend
 .\build.ps1 -Target WebFrontend

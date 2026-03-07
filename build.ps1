@@ -1,17 +1,46 @@
 param (
     [Parameter(Mandatory = $false)]
-    [ValidateSet("Setup", "Build", "Dev", "Clean", "Backend", "WebFrontend", "Extension", "InfraUp", "InfraDown", "ExtensionBrowser")]
+    [ValidateSet("Setup", "Build", "Dev", "Clean", "Backend", "WebFrontend", "Extension", "InfraUp", "InfraDown", "ExtensionBrowser", "Check")]
     [string]$Target = "Build",
 
     [Parameter(Mandatory = $false)]
-    [switch]$LaunchExtensionBrowser
+    [switch]$LaunchExtensionBrowser,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipInfra,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipApi,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipWorker,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipFrontend,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipExtensionWatch
 )
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$FrontendUrl = "http://localhost:4200"
+$ApiUrl = "http://localhost:5000"
+$OpenApiUrl = "$ApiUrl/openapi/v1.json"
+$HangfireUrl = "$ApiUrl/hangfire"
+$HealthUrl = "$ApiUrl/health"
+$PostgresPort = 5432
 
 function Write-Header ([string]$Message) {
     Write-Host "`n=== $Message ===" -ForegroundColor Cyan
+}
+
+function Write-Success ([string]$Message) {
+    Write-Host $Message -ForegroundColor Green
+}
+
+function Write-WarningMessage ([string]$Message) {
+    Write-Host $Message -ForegroundColor Yellow
 }
 
 function Invoke-InDirectory {
@@ -49,6 +78,109 @@ function Install-NodeDependencies {
     }
 }
 
+function Ensure-NodeDependencies {
+    param(
+        [Parameter(Mandatory = $true)][string]$ProjectPath,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    if (Test-Path (Join-Path $ProjectPath "node_modules")) {
+        Write-Host "Dependencies already installed for $Label. Skipping npm install."
+        return
+    }
+
+    Write-WarningMessage "Dependencies missing for $Label. Installing now..."
+    Install-NodeDependencies -ProjectPath $ProjectPath -Label $Label
+}
+
+function Install-PlaywrightBrowser {
+    param(
+        [Parameter(Mandatory = $true)][string]$ProjectPath,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    Write-Host "Installing Playwright Chromium for $Label..."
+    Invoke-InDirectory -Path $ProjectPath -Script {
+        npx playwright install chromium
+    }
+}
+
+function Test-CommandAvailable {
+    param([Parameter(Mandatory = $true)][string]$CommandName)
+
+    return $null -ne (Get-Command $CommandName -ErrorAction SilentlyContinue)
+}
+
+function Test-PortAvailable {
+    param([Parameter(Mandatory = $true)][int]$Port)
+
+    try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
+        $listener.Start()
+        $listener.Stop()
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+function Test-DockerAvailable {
+    if (-not (Test-CommandAvailable -CommandName "docker")) {
+        return $false
+    }
+
+    & docker info | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+function Check-Environment {
+    Write-Header "Checking Local Development Environment"
+
+    $checksPassed = $true
+    foreach ($command in @("dotnet", "node", "npm", "docker")) {
+        if (Test-CommandAvailable -CommandName $command) {
+            Write-Success "[OK] $command is available."
+        }
+        else {
+            Write-Host "[FAIL] $command is not available." -ForegroundColor Red
+            $checksPassed = $false
+        }
+    }
+
+    if (Test-DockerAvailable) {
+        Write-Success "[OK] Docker daemon is reachable."
+    }
+    else {
+        Write-Host "[FAIL] Docker daemon is not reachable. Start Docker Desktop before using Dev or InfraUp." -ForegroundColor Red
+        $checksPassed = $false
+    }
+
+    foreach ($portInfo in @(
+        @{ Port = 4200; Label = "Angular dev server" },
+        @{ Port = 5000; Label = "Backend API" },
+        @{ Port = $PostgresPort; Label = "PostgreSQL" }
+    )) {
+        if (Test-PortAvailable -Port $portInfo.Port) {
+            Write-Success "[OK] Port $($portInfo.Port) is currently free for $($portInfo.Label)."
+        }
+        else {
+            Write-WarningMessage "[WARN] Port $($portInfo.Port) is already in use. Confirm that is intentional for $($portInfo.Label)."
+        }
+    }
+
+    Write-Host "`nExpected local URLs:"
+    Write-Host "- Frontend: $FrontendUrl"
+    Write-Host "- API: $ApiUrl"
+    Write-Host "- OpenAPI: $OpenApiUrl"
+    Write-Host "- Hangfire: $HangfireUrl"
+    Write-Host "- Health: $HealthUrl"
+
+    if (-not $checksPassed) {
+        throw "Environment check failed."
+    }
+}
+
 function Build-Backend {
     Write-Header "Building Backend (.NET)"
     & dotnet build "$Root\knowledgebase-platform.slnx" -c Debug
@@ -83,10 +215,8 @@ function Setup-All {
     Install-NodeDependencies -ProjectPath (Join-Path $Root "frontend") -Label "web frontend"
     Install-NodeDependencies -ProjectPath (Join-Path $Root "browser-extension") -Label "browser extension"
 
-    Write-Host "Installing Playwright browser for extension E2E/browser launch..."
-    Invoke-InDirectory -Path (Join-Path $Root "browser-extension") -Script {
-        npx playwright install chromium
-    }
+    Install-PlaywrightBrowser -ProjectPath (Join-Path $Root "frontend") -Label "web frontend"
+    Install-PlaywrightBrowser -ProjectPath (Join-Path $Root "browser-extension") -Label "browser extension"
 }
 
 function Start-Infra {
@@ -142,16 +272,14 @@ function Run-ExtensionBrowser {
     Write-Header "Launching Browser with Extension"
     $extensionPath = Join-Path $Root "browser-extension"
 
+    Ensure-NodeDependencies -ProjectPath $extensionPath -Label "browser extension"
+    Install-PlaywrightBrowser -ProjectPath $extensionPath -Label "browser extension"
+
     Invoke-InDirectory -Path $extensionPath -Script {
         if (!(Test-Path "dist/manifest.json")) {
             npm run build
         }
 
-        if (!(Test-Path "node_modules")) {
-            if (Test-Path "package-lock.json") { npm ci } else { npm install }
-        }
-
-        npx playwright install chromium
         node launch-browser.js
     }
 }
@@ -159,26 +287,56 @@ function Run-ExtensionBrowser {
 function Start-DevEnvironment {
     Write-Header "Starting Full Development Environment"
 
-    Start-Infra
+    if (-not $SkipInfra) {
+        Start-Infra
+    }
+    else {
+        Write-WarningMessage "Skipping Docker infrastructure startup."
+    }
 
-    Install-NodeDependencies -ProjectPath (Join-Path $Root "frontend") -Label "web frontend"
-    Install-NodeDependencies -ProjectPath (Join-Path $Root "browser-extension") -Label "browser extension"
+    if (-not $SkipFrontend) {
+        Ensure-NodeDependencies -ProjectPath (Join-Path $Root "frontend") -Label "web frontend"
+    }
 
-    Start-DevProcess -Title "Backend API" `
-        -WorkingDirectory (Join-Path $Root "backend") `
-        -Command '$env:ASPNETCORE_ENVIRONMENT="Development"; $env:DOTNET_ENVIRONMENT="Development"; dotnet watch run --project src/SentinelKnowledgebase.Api'
+    if (-not $SkipExtensionWatch -or $LaunchExtensionBrowser) {
+        Ensure-NodeDependencies -ProjectPath (Join-Path $Root "browser-extension") -Label "browser extension"
+    }
 
-    Start-DevProcess -Title "Backend Worker" `
-        -WorkingDirectory (Join-Path $Root "backend") `
-        -Command '$env:DOTNET_ENVIRONMENT="Development"; dotnet watch run --project src/SentinelKnowledgebase.Worker'
+    if (-not $SkipApi) {
+        Start-DevProcess -Title "Backend API" `
+            -WorkingDirectory (Join-Path $Root "backend") `
+            -Command '$env:ASPNETCORE_ENVIRONMENT="Development"; $env:DOTNET_ENVIRONMENT="Development"; $env:ASPNETCORE_URLS="http://localhost:5000"; dotnet watch run --project src/SentinelKnowledgebase.Api'
+    }
+    else {
+        Write-WarningMessage "Skipping backend API."
+    }
 
-    Start-DevProcess -Title "Web Frontend" `
-        -WorkingDirectory (Join-Path $Root "frontend") `
-        -Command "npm run start"
+    if (-not $SkipWorker) {
+        Start-DevProcess -Title "Backend Worker" `
+            -WorkingDirectory (Join-Path $Root "backend") `
+            -Command '$env:DOTNET_ENVIRONMENT="Development"; dotnet watch run --project src/SentinelKnowledgebase.Worker'
+    }
+    else {
+        Write-WarningMessage "Skipping backend worker."
+    }
 
-    Start-DevProcess -Title "Browser Extension Watch" `
-        -WorkingDirectory (Join-Path $Root "browser-extension") `
-        -Command "npm run watch"
+    if (-not $SkipFrontend) {
+        Start-DevProcess -Title "Web Frontend" `
+            -WorkingDirectory (Join-Path $Root "frontend") `
+            -Command "npm run start"
+    }
+    else {
+        Write-WarningMessage "Skipping Angular frontend."
+    }
+
+    if (-not $SkipExtensionWatch) {
+        Start-DevProcess -Title "Browser Extension Watch" `
+            -WorkingDirectory (Join-Path $Root "browser-extension") `
+            -Command "npm run watch"
+    }
+    else {
+        Write-WarningMessage "Skipping browser extension watch build."
+    }
 
     if ($LaunchExtensionBrowser) {
         Start-DevProcess -Title "Extension Browser" `
@@ -187,10 +345,18 @@ function Start-DevEnvironment {
     }
 
     Write-Host "`nDev environment started in separate terminals." -ForegroundColor Green
-    Write-Host "- Backend API: dotnet watch"
-    Write-Host "- Backend Worker: dotnet watch"
-    Write-Host "- Web Frontend: npm run start (Angular)"
-    Write-Host "- Browser Extension: npm run watch"
+    Write-Host "Local URLs:"
+    Write-Host "- Frontend: $FrontendUrl"
+    Write-Host "- API: $ApiUrl"
+    Write-Host "- OpenAPI: $OpenApiUrl"
+    Write-Host "- Hangfire: $HangfireUrl"
+    Write-Host "- Health: $HealthUrl"
+    Write-Host "- PostgreSQL: localhost:$PostgresPort"
+    Write-Host "`nStarted processes:"
+    if (-not $SkipApi) { Write-Host "- Backend API: dotnet watch run (http://localhost:5000)" }
+    if (-not $SkipWorker) { Write-Host "- Backend Worker: dotnet watch run" }
+    if (-not $SkipFrontend) { Write-Host "- Web Frontend: npm run start ($FrontendUrl)" }
+    if (-not $SkipExtensionWatch) { Write-Host "- Browser Extension: npm run watch" }
     if ($LaunchExtensionBrowser) {
         Write-Host "- Chromium with extension: launch-browser.js"
     }
@@ -201,6 +367,10 @@ try {
         "Setup" {
             Setup-All
             Write-Host "`nSetup completed successfully." -ForegroundColor Green
+        }
+        "Check" {
+            Check-Environment
+            Write-Host "`nEnvironment check completed successfully." -ForegroundColor Green
         }
         "Build" {
             Build-Backend
