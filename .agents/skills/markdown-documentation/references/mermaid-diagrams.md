@@ -10,28 +10,13 @@ enough to remain readable in raw Markdown and in rendered form.
 - MUST avoid oversized diagrams when a smaller diagram plus prose is clearer.
 - MUST pair diagrams in documentation with a short explanatory summary.
 
-## Flowchart Example
+## Example Pattern
 
 ````markdown
 ```mermaid
 flowchart TD
     A[Start] --> B{Decision}
-    B -->|Yes| C[Do Something]
-    B -->|No| D[Do Something Else]
-    C --> E[End]
-    D --> E
-```
-````
-
-## Sequence Diagram Example
-
-````markdown
-```mermaid
-sequenceDiagram
-    participant A as Alice
-    participant B as Bob
-    A->>B: Hello Bob!
-    B->>A: Hello Alice!
+    B --> C[Next Step]
 ```
 ````
 

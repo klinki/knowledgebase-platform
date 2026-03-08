@@ -38,43 +38,18 @@ Use collapsible sections for optional detail, not primary documentation.
 ```typescript
 const value = 1;
 ```
-
-```python
-print("hello")
-```
-
-```bash
-npm run build
-```
-
-```json
-{ "ok": true }
-```
 ````
-
-Common useful tags:
-
-- `typescript`
-- `python`
-- `bash`
-- `sql`
-- `json`
-- `yaml`
-- `html`
-- `css`
-- `dockerfile`
-- `graphql`
-- `markdown`
 
 ## Badges
 
 - MUST use badges only when they add useful status metadata.
 - MUST avoid cluttering documentation with low-signal badges.
 
+Example badge set:
+
 ```markdown
 ![Build Status](https://img.shields.io/github/workflow/status/user/repo/CI)
 ![Coverage](https://img.shields.io/codecov/c/github/user/repo)
-![Version](https://img.shields.io/npm/v/package-name)
 ```
 
 ## Do

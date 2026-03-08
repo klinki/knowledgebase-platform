@@ -10,34 +10,6 @@ Use lists for inherently list-shaped content and keep marker style consistent.
 - MUST keep indentation consistent within a list.
 - MUST avoid deep nesting unless it improves clarity.
 
-## Unordered Lists
-
-```markdown
-- Item 1
-- Item 2
-  - Nested item 2.1
-  - Nested item 2.2
-- Item 3
-```
-
-## Ordered Lists
-
-```markdown
-1. First item
-2. Second item
-   1. Nested item 2.1
-   2. Nested item 2.2
-3. Third item
-```
-
-## Task Lists
-
-```markdown
-- [x] Completed task
-- [ ] Incomplete task
-- [ ] Another task
-```
-
 Use task lists only when tracking actionable items.
 
 ## Do

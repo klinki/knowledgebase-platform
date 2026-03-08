@@ -12,37 +12,16 @@ improves the document.
 
 ## Footnotes
 
-```markdown
-Here's a sentence with a footnote[^1].
-
-[^1]: This is the footnote.
-```
-
 Use footnotes sparingly. Inline prose is usually easier to read.
 
 ## Task Lists
 
-```markdown
-- [x] Done
-- [ ] In progress
-- [ ] Not started
-```
-
-Use task lists for real tracking, not decorative formatting.
+Task lists are allowed when they represent real tracking state.
 
 ## GitHub-Specific References
 
-```markdown
-@username
-@org/team-name
-
-#123
-GH-123
-username/repo#123
-```
-
-Use these only when the document intentionally references GitHub users, teams,
-issues, or pull requests.
+Use mentions and issue references only when the document intentionally
+references GitHub users, teams, issues, or pull requests.
 
 ## Avoid by Default
 

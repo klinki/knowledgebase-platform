@@ -9,20 +9,6 @@ Use standard Markdown text formatting and keep emphasis restrained.
 - MUST use blockquotes only for quoted or callout-style content.
 - MUST avoid excessive horizontal rules.
 
-## Standard Formatting
-
-```markdown
-**Bold text**
-
-_Italic text_
-
-**_Bold and italic_**
-
-~~Strikethrough~~
-
-`Inline code`
-```
-
 ## Blockquotes
 
 ```markdown
@@ -35,10 +21,6 @@ Use blockquotes for quoted content or lightweight note-style sections. Do not
 use them as a general layout mechanism.
 
 ## Horizontal Rules
-
-```markdown
----
-```
 
 Use horizontal rules sparingly when they add real structure.
 

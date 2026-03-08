@@ -7,6 +7,8 @@ raw Markdown and rendered output.
 
 - MUST use descriptive link text.
 - MUST prefer relative links for repo-local documentation.
+- MUST use a Markdown link when referencing a file in Markdown prose instead of
+  plain quoted or backticked path text.
 - MUST include alt text for images.
 - MUST use fenced code blocks for multi-line code.
 - MUST include a language info string on fenced code blocks when practical.
@@ -14,54 +16,20 @@ raw Markdown and rendered output.
 
 ## Links
 
-```markdown
-[Project docs](docs/ARCHITECTURE.md)
-[OpenAI](https://openai.com)
-[Link with title](https://example.com "Link title")
-```
+Use inline links as the default style for normal repo docs.
 
 Use bare autolinks only when the raw URL itself is the content.
 
-```markdown
-<https://example.com>
-```
-
 Reference-style links are allowed, but inline links are usually easier to
-maintain for normal repo docs.
-
-```markdown
-[Link text][reference]
-[reference]: https://example.com
-```
+maintain.
 
 ## Images
 
-```markdown
-![Architecture diagram](images/architecture.png)
-![Architecture diagram](images/architecture.png "Diagram title")
-```
+Use alt text that still makes sense if the image cannot be rendered.
 
 ## Code Blocks
 
-````markdown
-Inline code: `const x = 5;`
-
-```typescript
-function hello(name: string): void {
-  console.log(`Hello, ${name}!`);
-}
-```
-
-```python
-def hello(name: str) -> None:
-    print(f"Hello, {name}!")
-```
-
-```bash
-npm install
-npm start
-```
-````
+Use fenced blocks with language tags for multi-line examples.
 
 ## Do
 

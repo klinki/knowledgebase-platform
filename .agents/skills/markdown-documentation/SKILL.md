@@ -11,9 +11,6 @@ metadata:
 
 # Markdown Documentation
 
-Use this skill for writing or editing Markdown documentation in GitHub
-Flavored Markdown.
-
 ## Reference Loading Rules
 
 Before editing a Markdown construct, MUST load the matching reference file.
@@ -31,8 +28,9 @@ Load only the references relevant to the current edit.
 ## Mandatory Rules
 
 - Optimize for raw-source readability as well as rendered output.
-- Keep formatting maintainable.
 - Split wide tables or move detail into bullets when needed.
+- When referencing a file in Markdown prose, use a Markdown link instead of
+  plain quoted or backticked path text.
 - Do not rely on memory when a relevant reference file exists.
 
 ## Final Check

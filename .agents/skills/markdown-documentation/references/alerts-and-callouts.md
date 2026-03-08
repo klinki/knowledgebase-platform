@@ -15,17 +15,8 @@ normal prose.
 > [!NOTE]
 > Useful information
 
-> [!TIP]
-> Helpful advice
-
-> [!IMPORTANT]
-> Key information
-
 > [!WARNING]
 > Critical content
-
-> [!CAUTION]
-> Negative potential consequences
 ```
 
 ## Plain Blockquote Callouts
@@ -33,9 +24,6 @@ normal prose.
 ```markdown
 > **Note**
 > This is a note.
-
-> **Warning**
-> This is a warning.
 ```
 
 Use plain blockquote callouts only when GFM alerts are unavailable or the
