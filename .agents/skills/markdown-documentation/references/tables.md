@@ -1,55 +1,63 @@
 # Tables
 
-Markdown tables are a great way to display structured data. GitHub Flavored Markdown (GFM) provides a simple syntax for creating tables.
+Use GitHub Flavored Markdown table syntax and format tables for raw-source
+readability, not just rendered correctness.
+
+## Mandatory Rules
+
+- MUST align pipe `|` characters vertically across all rows in a table.
+- MUST pad cells with spaces so columns line up in raw Markdown.
+- MUST use pipes on both ends of every row.
+- MUST keep headers concise.
+- MUST split wide tables or move detail into bullets when a table becomes hard
+  to read or align cleanly.
+- MUST re-read the final table in raw Markdown before finishing.
 
 ## Basic Table Syntax
 
-A table consists of a header row, a separator row (with dashes), and data rows. Use pipes (`|`) to separate columns.
+A table consists of a header row, a separator row, and data rows.
 
 ```markdown
 | Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
+| :---     | :---     | :---     |
 | Row 1    | Data     | Data     |
 | Row 2    | Data     | Data     |
 ```
 
 ## Column Alignment
 
-You can align text in columns by adding colons (`:`) to the separator row.
+Use colons in the separator row to control alignment.
 
-| Syntax | Alignment |
-|:--- |:--- |
-| `:---` | Left-aligned (default) |
-| `---:` | Right-aligned |
-| `:---:` | Center-aligned |
+| Syntax  | Alignment              |
+| :---    | :---                   |
+| `:---`  | Left-aligned (default) |
+| `---:`  | Right-aligned          |
+| `:---:` | Center-aligned         |
 
 ### Alignment Example
 
 ```markdown
 | Left | Center | Right |
-|:-----|:------:|------:|
-| data | data   | data  |
+| :--- | :----: | ----: |
+| data |  data  |  data |
 ```
 
 ## Formatting Inside Tables
 
-You can use common Markdown formatting such as links, inline code, and emphasis within table cells.
+You can use common Markdown formatting inside table cells.
 
 ```markdown
-| Feature | Description |
-|:--- |:--- |
-| **Bold** | `**text**` |
-| *Italic* | `*text*` |
+| Feature | Description     |
+| :---    | :---            |
+| **Bold** | `**text**`     |
+| *Italic* | `*text*`       |
 | [Link](https://example.com) | `[text](url)` |
-| `Code` | `` `code` `` |
+| `Code` | `` `code` ``     |
 ```
 
-## Well formatted tables
+## Formatting Standard
 
-Prefer well formatted tables with nice whitespace formatting
-
-### DON'T
-- Don't make ugly tables
+### Avoid
 
 ```markdown
 | Syntax | Alignment |
@@ -59,9 +67,13 @@ Prefer well formatted tables with nice whitespace formatting
 | `:---:` | Center-aligned |
 ```
 
-### DO
-- Make tables well formatted
-- Well formatted means pipe `|` characters are aligned
+Problems:
+
+- Pipes are not aligned.
+- Spacing is inconsistent.
+- Raw-source readability is poor.
+
+### Use
 
 ```markdown
 | Syntax  | Alignment              |
@@ -69,19 +81,19 @@ Prefer well formatted tables with nice whitespace formatting
 | `:---`  | Left-aligned (default) |
 | `---:`  | Right-aligned          |
 | `:---:` | Center-aligned         |
-
 ```
 
 ## Best Practices
 
-### ✅ DO
-- Use whitespace around pipes for better source code readability.
-- Keep table headers concise.
-- Use alignment to improve readability (e.g., right-align numbers).
-- Use pipes on both ends of a row for consistency.
-- Use whitespace to improve table readability
+### Do
 
-### ❌ DON'T
-- Create excessively wide tables that require horizontal scrolling.
-- Use complex formatting that makes the source Markdown hard to maintain.
-- Use more than one header row (not supported in standard GFM).
+- Use whitespace around pipes for readability.
+- Keep tables narrow when possible.
+- Move dense detail into bullets below the table.
+- Right-align numeric columns when it improves scanning.
+
+### Do Not
+
+- Leave pipe columns visually unaligned.
+- Keep a table wide when splitting it would improve readability.
+- Use more than one header row.

@@ -1,93 +1,45 @@
 ---
 name: markdown-documentation
 description: >
-  Master markdown formatting, GitHub Flavored Markdown, README files, and
-  documentation formatting. Use when writing markdown docs, READMEs, or
-  formatting documentation.
+  Write and edit Markdown documentation using GitHub Flavored Markdown. Use for
+  READMEs, docs pages, wiki content, and any task that creates or changes
+  Markdown structure such as tables, lists, links, images, Mermaid diagrams, or
+  code blocks.
+metadata:
+  version: "1.1"
 ---
 
 # Markdown Documentation
 
-## Table of Contents
+Use this skill for writing or editing Markdown documentation in GitHub
+Flavored Markdown.
 
-- [Overview](#overview)
-- [When to Use](#when-to-use)
-- [Quick Start](#quick-start)
-- [Reference Guides](#reference-guides)
-- [Best Practices](#best-practices)
+## Reference Loading Rules
 
-## Overview
+Before editing a Markdown construct, MUST load the matching reference file.
 
-Master markdown syntax and best practices for creating well-formatted, readable documentation using standard Markdown and GitHub Flavored Markdown (GFM).
+- Tables: [references/tables.md](references/tables.md)
+- Lists: [references/lists.md](references/lists.md)
+- Links and images: [references/links-and-images.md](references/links-and-images.md)
+- Mermaid diagrams: [references/mermaid-diagrams.md](references/mermaid-diagrams.md)
+- Extended syntax: [references/extended-syntax-github-flavored-markdown.md](references/extended-syntax-github-flavored-markdown.md)
+- Collapsible sections and badges: [references/collapsible-sections.md](references/collapsible-sections.md)
+- Alerts and callouts: [references/alerts-and-callouts.md](references/alerts-and-callouts.md)
 
-## When to Use
+Load only the references relevant to the current edit.
 
-- README files
-- Documentation pages
-- GitHub/GitLab wikis
-- Blog posts
-- Technical writing
-- Project documentation
-- Comment formatting
+## Mandatory Rules
 
-## Quick Start
+- Optimize for raw-source readability as well as rendered output.
+- Keep formatting maintainable.
+- Split wide tables or move detail into bullets when needed.
+- Do not rely on memory when a relevant reference file exists.
 
-- Comment formatting
+## Final Check
 
-```markdown
-# H1 Header
+Before finishing:
 
-## H2 Header
-
-### H3 Header
-
-#### H4 Header
-
-##### H5 Header
-
-###### H6 Header
-
-# Alternative H1
-
-## Alternative H2
-```
-
-## Reference Guides
-
-Detailed implementations in the `references/` directory:
-
-| Guide | Contents |
-|---|---|
-| [Text Formatting](references/text-formatting.md) | Text Formatting |
-| [Lists](references/lists.md) | Lists |
-| [Links and Images](references/links-and-images.md) | Links and Images, Code Blocks |
-| [Tables](references/tables.md) | Table formatting and alignment |
-| [Extended Syntax (GitHub Flavored Markdown)](references/extended-syntax-github-flavored-markdown.md) | Extended Syntax (GitHub Flavored Markdown) |
-| [Collapsible Sections](references/collapsible-sections.md) | Collapsible Sections, Syntax Highlighting, Badges |
-| [Alerts and Callouts](references/alerts-and-callouts.md) | Alerts and Callouts |
-| [Mermaid Diagrams](references/mermaid-diagrams.md) | Mermaid Diagrams |
-
-## Best Practices
-
-### ✅ DO
-
-- Use descriptive link text
-- Include table of contents for long documents
-- Add alt text to images
-- Use code blocks with language specification
-- Keep lines under 80-100 characters
-- Use relative links for internal docs
-- Add badges for build status, coverage, etc.
-- Include examples and screenshots
-- Use semantic line breaks
-- Test all links regularly
-
-### ❌ DON'T
-
-- Use "click here" as link text
-- Forget alt text on images
-- Mix HTML and Markdown unnecessarily
-- Use absolute paths for local files
-- Create walls of text without breaks
-- Skip language specification in code blocks
-- Use images for text content (accessibility)
+- Re-open edited constructs in raw Markdown.
+- Verify they follow the relevant reference rules.
+- For tables, verify pipe columns are visibly aligned.
+- Verify links and Markdown syntax still work.
