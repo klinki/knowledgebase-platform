@@ -40,8 +40,19 @@ The platform is composed of:
 - Domain/application/infrastructure separation is preserved in backend projects.
 - Documentation and implementation evolve together (docs-as-code workflow).
 
+## System Entity Model
+
+For the implemented persisted entities, lifecycle states, and cross-component
+data flows, use [`/docs/ENTITY-MODEL.md`](ENTITY-MODEL.md) as the canonical
+high-level model. It complements this runtime overview with:
+
+- entity relationships across ingestion and authentication
+- lifecycle states derived from enums and persisted timestamps
+- end-to-end flow diagrams for capture, processing, search, and sign-in
+
 ## Key Documentation
 - Project status: `/docs/STATUS.md`
 - Decisions (ADRs): `/docs/adrs/`
 - Feature specs: `/docs/features/`
+- System entity model: `/docs/ENTITY-MODEL.md`
 - Queue processing decision: `/docs/adrs/02-queue-processing/queue-processing.md`

@@ -73,6 +73,11 @@ The project consists of three main components working in concert:
 - **Angular Dashboard**: v21 (Modern Zoneless mode), Signals, SCSS, Playwright E2E.
 - **Browser Extension**: Manifest V3, TypeScript, Chrome Storage & Scripting APIs.
 
+## Documentation
+
+- [System entity model](docs/ENTITY-MODEL.md): canonical overview of the
+  implemented entities, lifecycle states, and main data flows.
+
 ## Quick Start
 
 ### Prerequisites
