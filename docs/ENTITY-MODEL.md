@@ -23,16 +23,43 @@ Sentinel currently has two main persisted entity clusters:
 
 ## Entity Catalog
 
-| Entity | Cluster | Source of truth | Purpose | Key fields | Relationships |
-|---|---|---|---|---|---|
-| `RawCapture` | Knowledge | `ApplicationDbContext.RawCaptures` | Stores the original captured payload before and during processing. | `Id`, `SourceUrl`, `ContentType`, `RawContent`, `Metadata`, `Status`, `CreatedAt`, `ProcessedAt` | Many-to-many with `Tag`; one-to-one with `ProcessedInsight` |
-| `ProcessedInsight` | Knowledge | `ApplicationDbContext.ProcessedInsights` | Stores normalized, AI-generated output derived from one raw capture. | `Id`, `RawCaptureId`, `Title`, `Summary`, `KeyInsights`, `ActionItems`, `SourceTitle`, `Author`, `ProcessedAt` | Belongs to one `RawCapture`; many-to-many with `Tag`; one-to-one with `EmbeddingVector` |
-| `EmbeddingVector` | Knowledge | `ApplicationDbContext.EmbeddingVectors` | Stores the semantic embedding used for vector search. | `Id`, `ProcessedInsightId`, `Vector`, `CreatedAt` | Belongs to one `ProcessedInsight` |
-| `Tag` | Knowledge | `ApplicationDbContext.Tags` | Shared categorization label attached to captures and insights. | `Id`, `Name`, `CreatedAt` | Many-to-many with `RawCapture`; many-to-many with `ProcessedInsight` |
-| `ApplicationUser` | Auth | ASP.NET Core Identity `AspNetUsers` | Identity user for dashboard sign-in, role membership, and device approval. | `Id`, `UserName`, `Email`, `DisplayName` | Referenced by `UserInvitation`, `DeviceAuthorization`, and `RefreshToken` |
-| `UserInvitation` | Auth | `ApplicationDbContext.UserInvitations` | Tracks invite-only account creation. | `Id`, `Email`, `DisplayName`, `Role`, `TokenHash`, `InvitedByUserId`, `CreatedAt`, `ExpiresAt`, `AcceptedAt` | Invited by one `ApplicationUser` |
-| `DeviceAuthorization` | Auth | `ApplicationDbContext.DeviceAuthorizations` | Tracks browser-assisted device login for the extension. | `Id`, `DeviceCode`, `UserCode`, `DeviceName`, `ApprovedByUserId`, `CreatedAt`, `ExpiresAt`, `ApprovedAt`, `CompletedAt`, `Denied` | Optionally approved by one `ApplicationUser`; optionally referenced by many `RefreshToken` rows over time |
-| `RefreshToken` | Auth | `ApplicationDbContext.RefreshTokens` | Stores opaque refresh tokens for extension sessions and rotation. | `Id`, `UserId`, `DeviceAuthorizationId`, `TokenHash`, `TokenName`, `Scope`, `CreatedAt`, `ExpiresAt`, `RevokedAt` | Belongs to one `ApplicationUser`; optionally linked to one `DeviceAuthorization` |
+### Knowledge Entities
+
+| Entity             | Source of Truth                          | Purpose                          | Relationships                                      |
+|:-------------------|:-----------------------------------------|:---------------------------------|:---------------------------------------------------|
+| `RawCapture`       | `ApplicationDbContext.RawCaptures`       | Original captured payload.       | `Tag` M:N; `ProcessedInsight` 1:1                  |
+| `ProcessedInsight` | `ApplicationDbContext.ProcessedInsights` | AI-generated normalized insight. | `RawCapture` 1:1; `Tag` M:N; `EmbeddingVector` 1:1 |
+| `EmbeddingVector`  | `ApplicationDbContext.EmbeddingVectors`  | Vector-search embedding record.  | `ProcessedInsight` 1:1                             |
+| `Tag`              | `ApplicationDbContext.Tags`              | Shared categorization label.     | `RawCapture` M:N; `ProcessedInsight` M:N           |
+
+Key fields:
+
+- `RawCapture`: `Id`, `SourceUrl`, `ContentType`, `RawContent`, `Metadata`,
+  `Status`, `CreatedAt`, `ProcessedAt`
+- `ProcessedInsight`: `Id`, `RawCaptureId`, `Title`, `Summary`,
+  `KeyInsights`, `ActionItems`, `SourceTitle`, `Author`, `ProcessedAt`
+- `EmbeddingVector`: `Id`, `ProcessedInsightId`, `Vector`, `CreatedAt`
+- `Tag`: `Id`, `Name`, `CreatedAt`
+
+### Authentication and Session Entities
+
+| Entity                | Source of Truth                             | Purpose                            | Relationships                                           |
+|:----------------------|:--------------------------------------------|:-----------------------------------|:--------------------------------------------------------|
+| `ApplicationUser`     | ASP.NET Core Identity `AspNetUsers`         | Identity root for users and roles. | Referenced by invitation, device auth, refresh token    |
+| `UserInvitation`      | `ApplicationDbContext.UserInvitations`      | Invite-only account record.        | `ApplicationUser` N:1                                   |
+| `DeviceAuthorization` | `ApplicationDbContext.DeviceAuthorizations` | Extension device-login session.    | `ApplicationUser` opt N:1; `RefreshToken` 1:N over time |
+| `RefreshToken`        | `ApplicationDbContext.RefreshTokens`        | Opaque refresh token record.       | `ApplicationUser` N:1; `DeviceAuthorization` opt N:1    |
+
+Key fields:
+
+- `ApplicationUser`: `Id`, `UserName`, `Email`, `DisplayName`
+- `UserInvitation`: `Id`, `Email`, `DisplayName`, `Role`, `TokenHash`,
+  `InvitedByUserId`, `CreatedAt`, `ExpiresAt`, `AcceptedAt`
+- `DeviceAuthorization`: `Id`, `DeviceCode`, `UserCode`, `DeviceName`,
+  `ApprovedByUserId`, `CreatedAt`, `ExpiresAt`, `ApprovedAt`, `CompletedAt`,
+  `Denied`
+- `RefreshToken`: `Id`, `UserId`, `DeviceAuthorizationId`, `TokenHash`,
+  `TokenName`, `Scope`, `CreatedAt`, `ExpiresAt`, `RevokedAt`
 
 ## Relationship Model
 
@@ -77,12 +104,12 @@ stateDiagram-v2
 
 State summary:
 
-| State | Meaning | Backing fields |
-|---|---|---|
-| `Pending` | Capture was accepted and persisted, but worker processing has not started. | `Status = Pending`, `ProcessedAt = null` |
-| `Processing` | Worker has started content cleanup, extraction, and embedding generation. | `Status = Processing` |
-| `Completed` | Processed insight and embedding were persisted successfully. | `Status = Completed`, `ProcessedAt != null` |
-| `Failed` | Processing failed after capture persistence. | `Status = Failed` |
+| State        | Meaning                              | Backing fields                              |
+|:-------------|:-------------------------------------|:--------------------------------------------|
+| `Pending`    | Accepted; work not started.          | `Status = Pending`, `ProcessedAt = null`    |
+| `Processing` | Worker is processing content.        | `Status = Processing`                       |
+| `Completed`  | Insight and embedding persisted.     | `Status = Completed`, `ProcessedAt != null` |
+| `Failed`     | Processing failed after persistence. | `Status = Failed`                           |
 
 Implementation traceability:
 
@@ -105,11 +132,11 @@ stateDiagram-v2
 
 State summary:
 
-| Derived state | Meaning | Backing fields |
-|---|---|---|
-| `Created` | Invitation exists and is still redeemable. | `AcceptedAt = null` and `ExpiresAt > now` |
-| `Accepted` | Invitation was redeemed to create an account. | `AcceptedAt != null` |
-| `Expired` | Invitation aged out before acceptance. | `AcceptedAt = null` and `ExpiresAt <= now` |
+| Derived state | Meaning                     | Backing fields                          |
+|:--------------|:----------------------------|:----------------------------------------|
+| `Created`     | Invitation is valid.        | `AcceptedAt = null`, `ExpiresAt > now`  |
+| `Accepted`    | Invitation created account. | `AcceptedAt != null`                    |
+| `Expired`     | Invitation aged out unused. | `AcceptedAt = null`, `ExpiresAt <= now` |
 
 Implementation traceability:
 
@@ -132,12 +159,12 @@ stateDiagram-v2
 
 State summary:
 
-| Derived state | Meaning | Backing fields |
-|---|---|---|
-| `Created` | Device code was issued and is waiting for browser approval. | `ApprovedAt = null`, `CompletedAt = null`, `Denied = false`, `ExpiresAt > now` |
-| `Approved` | Signed-in user approved the device, but token exchange has not completed. | `ApprovedAt != null`, `CompletedAt = null`, `Denied = false`, `ExpiresAt > now` |
-| `Completed` | Device poll succeeded and refresh token issuance was persisted. | `CompletedAt != null` |
-| `Expired` | Authorization is no longer redeemable. | `ExpiresAt <= now` and `CompletedAt = null` |
+| Derived state | Meaning                           | Backing fields                                                |
+|:--------------|:----------------------------------|:--------------------------------------------------------------|
+| `Created`     | Code issued; awaiting approval.   | `ApprovedAt = null`, `CompletedAt = null`, `ExpiresAt > now`  |
+| `Approved`    | Approved; exchange incomplete.    | `ApprovedAt != null`, `CompletedAt = null`, `ExpiresAt > now` |
+| `Completed`   | Poll succeeded; token issued.     | `CompletedAt != null`                                         |
+| `Expired`     | Authorization is no longer valid. | `ExpiresAt <= now`, `CompletedAt = null`                      |
 
 Implementation traceability:
 
@@ -164,12 +191,12 @@ stateDiagram-v2
 
 State summary:
 
-| Derived state | Meaning | Backing fields |
-|---|---|---|
-| `Issued` | Current active refresh token for a device/session chain. | `RevokedAt = null` and `ExpiresAt > now` |
-| `Rotated` | Token was used successfully for refresh and replaced by a new row. | Previous row has `RevokedAt != null`; new row created with same `DeviceAuthorizationId` |
-| `Revoked` | Token was explicitly invalidated by logout/reset/revoke flow. | `RevokedAt != null` |
-| `Expired` | Token aged out and can no longer be redeemed. | `ExpiresAt <= now` |
+| Derived state | Meaning                      | Backing fields                        |
+|:--------------|:-----------------------------|:--------------------------------------|
+| `Issued`      | Active token for a session.  | `RevokedAt = null`, `ExpiresAt > now` |
+| `Rotated`     | Replaced by a new token row. | Previous row has `RevokedAt != null`  |
+| `Revoked`     | Explicitly invalidated.      | `RevokedAt != null`                   |
+| `Expired`     | Aged out and not redeemable. | `ExpiresAt <= now`                    |
 
 Implementation traceability:
 
