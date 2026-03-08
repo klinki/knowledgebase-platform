@@ -1,36 +1,62 @@
 # Extended Syntax (GitHub Flavored Markdown)
 
-## Extended Syntax (GitHub Flavored Markdown)
+Use extended syntax only when the target renderer supports it and the feature
+improves the document.
+
+## Mandatory Rules
+
+- MUST verify that the target renderer supports the syntax before using it.
+- MUST prefer standard Markdown when extended syntax adds little value.
+- MUST avoid GitHub-specific mention or issue syntax in docs unless it is
+  intentionally needed.
+
+## Footnotes
 
 ```markdown
-Footnotes:
 Here's a sentence with a footnote[^1].
 
 [^1]: This is the footnote.
+```
 
-Definition list:
-Term
-: Definition
+Use footnotes sparingly. Inline prose is usually easier to read.
 
-Emoji:
-:smile: :rocket: :heart:
-:+1: :-1: :eyes:
+## Task Lists
 
-Automatic URL linking:
-https://github.com
+```markdown
+- [x] Done
+- [ ] In progress
+- [ ] Not started
+```
 
-Task lists in issues:
+Use task lists for real tracking, not decorative formatting.
 
-- [x] #739
-- [ ] https://github.com/octo-org/repo/issues/1
-- [ ] Add tests
+## GitHub-Specific References
 
-Mentioning users and teams:
+```markdown
 @username
 @org/team-name
 
-Referencing issues and PRs:
 #123
 GH-123
 username/repo#123
 ```
+
+Use these only when the document intentionally references GitHub users, teams,
+issues, or pull requests.
+
+## Avoid by Default
+
+Do not assume support for less-common extended constructs such as definition
+lists unless you have verified renderer support for the current environment.
+
+## Do
+
+- Use extended syntax when it adds real utility.
+- Keep GitHub-specific references intentional and minimal.
+- Prefer simpler Markdown when it communicates just as well.
+
+## Do Not
+
+- Introduce renderer-dependent syntax casually.
+- Create accidental mentions or issue links in general docs.
+- Use extended syntax as decoration.
