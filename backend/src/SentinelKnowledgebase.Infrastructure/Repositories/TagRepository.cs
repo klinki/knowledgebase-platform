@@ -24,19 +24,22 @@ public class TagRepository : ITagRepository
         return await _context.Tags.FindAsync(id);
     }
     
-    public async Task<Tag?> GetByNameAsync(string name)
+    public async Task<Tag?> GetByNameAsync(Guid ownerUserId, string name)
     {
-        return await _context.Tags.FirstOrDefaultAsync(t => t.Name == name);
+        return await _context.Tags.FirstOrDefaultAsync(t => t.OwnerUserId == ownerUserId && t.Name == name);
     }
     
-    public async Task<IEnumerable<Tag>> GetAllAsync()
+    public async Task<IEnumerable<Tag>> GetAllAsync(Guid ownerUserId)
     {
-        return await _context.Tags.ToListAsync();
+        return await _context.Tags
+            .Where(tag => tag.OwnerUserId == ownerUserId)
+            .ToListAsync();
     }
 
-    public async Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(int? take = null)
+    public async Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null)
     {
         IQueryable<TagSummaryRecord> query = _context.Tags
+            .Where(tag => tag.OwnerUserId == ownerUserId)
             .Select(tag => new TagSummaryRecord
             {
                 Id = tag.Id,
@@ -60,9 +63,9 @@ public class TagRepository : ITagRepository
         return await query.ToListAsync();
     }
 
-    public Task<int> CountAsync()
+    public Task<int> CountAsync(Guid ownerUserId)
     {
-        return _context.Tags.CountAsync(tag => tag.RawCaptures.Any());
+        return _context.Tags.CountAsync(tag => tag.OwnerUserId == ownerUserId && tag.RawCaptures.Any());
     }
     
     public Task UpdateAsync(Tag tag)

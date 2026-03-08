@@ -6,11 +6,12 @@ public interface IRawCaptureRepository
 {
     Task<RawCapture> AddAsync(RawCapture rawCapture);
     Task<RawCapture?> GetByIdAsync(Guid id);
-    Task<IEnumerable<RawCapture>> GetAllAsync();
-    Task<IEnumerable<RawCapture>> GetRecentAsync(int take);
-    Task<int> CountAsync();
+    Task<RawCapture?> GetByIdAsync(Guid id, Guid ownerUserId);
+    Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId);
+    Task<IEnumerable<RawCapture>> GetRecentAsync(Guid ownerUserId, int take);
+    Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(RawCapture rawCapture);
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, Guid ownerUserId);
 }
 
 public interface IProcessedInsightRepository
@@ -18,8 +19,8 @@ public interface IProcessedInsightRepository
     Task<ProcessedInsight> AddAsync(ProcessedInsight processedInsight);
     Task<ProcessedInsight?> GetByIdAsync(Guid id);
     Task<IEnumerable<ProcessedInsight>> GetAllAsync();
-    Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(float[] queryEmbedding, int topK, double threshold);
-    Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(IReadOnlyCollection<string> tags, bool matchAll);
+    Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold);
+    Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(Guid ownerUserId, IReadOnlyCollection<string> tags, bool matchAll);
     Task UpdateAsync(ProcessedInsight processedInsight);
     Task DeleteAsync(Guid id);
 }
@@ -56,10 +57,10 @@ public interface ITagRepository
 {
     Task<Tag> AddAsync(Tag tag);
     Task<Tag?> GetByIdAsync(Guid id);
-    Task<Tag?> GetByNameAsync(string name);
-    Task<IEnumerable<Tag>> GetAllAsync();
-    Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(int? take = null);
-    Task<int> CountAsync();
+    Task<Tag?> GetByNameAsync(Guid ownerUserId, string name);
+    Task<IEnumerable<Tag>> GetAllAsync(Guid ownerUserId);
+    Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null);
+    Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(Tag tag);
     Task DeleteAsync(Guid id);
 }

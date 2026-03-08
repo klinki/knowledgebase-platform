@@ -37,13 +37,13 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(float[] queryEmbedding, int topK, double threshold)
+    public async Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold)
     {
         var queryVector = new Vector(queryEmbedding);
 
         return await _context.ProcessedInsights
             .AsNoTracking()
-            .Where(p => p.EmbeddingVector != null)
+            .Where(p => p.OwnerUserId == ownerUserId && p.EmbeddingVector != null)
             .Select(p => new SemanticSearchRecord
             {
                 Id = p.Id,
@@ -59,7 +59,7 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(IReadOnlyCollection<string> tags, bool matchAll)
+    public async Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(Guid ownerUserId, IReadOnlyCollection<string> tags, bool matchAll)
     {
         var normalizedTags = tags
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
@@ -69,6 +69,7 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
 
         var query = _context.ProcessedInsights
             .AsNoTracking()
+            .Where(p => p.OwnerUserId == ownerUserId)
             .Where(p => p.Tags.Any(t => normalizedTags.Contains(t.Name)));
 
         if (matchAll)

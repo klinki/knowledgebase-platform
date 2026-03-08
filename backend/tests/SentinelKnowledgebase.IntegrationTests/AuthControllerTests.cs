@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 
 using AwesomeAssertions;
 
 using SentinelKnowledgebase.Application.DTOs.Auth;
+using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
 
 using Xunit;
 
@@ -114,5 +118,68 @@ public class AuthControllerTests
         tokenResponse!.AccessToken.Should().NotBeNullOrWhiteSpace();
         tokenResponse.RefreshToken.Should().NotBeNullOrWhiteSpace();
         tokenResponse.User.Role.Should().Be("admin");
+    }
+
+    [Fact]
+    public async Task ApprovedDeviceFlow_CaptureShouldBeOwnedByApprovingUser()
+    {
+        using var deviceClient = _fixture.CreateClient();
+        var member = await _fixture.CreateMemberClientAsync();
+        using var approvingClient = member.Client;
+        var memberUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+
+        var startResponse = await deviceClient.PostAsJsonAsync("/api/auth/device/start", new DeviceStartRequestDto
+        {
+            DeviceName = "Ownership Verification Extension"
+        });
+
+        startResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var startPayload = await startResponse.Content.ReadFromJsonAsync<DeviceStartResponseDto>();
+        startPayload.Should().NotBeNull();
+
+        var approveResponse = await approvingClient.PostAsJsonAsync("/api/auth/device/approve", new DeviceApproveRequestDto
+        {
+            UserCode = startPayload!.UserCode
+        });
+
+        approveResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var pollResponse = await deviceClient.PostAsJsonAsync("/api/auth/device/poll", new DevicePollRequestDto
+        {
+            DeviceCode = startPayload.DeviceCode
+        });
+
+        pollResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tokenResponse = await pollResponse.Content.ReadFromJsonAsync<TokenResponseDto>();
+        tokenResponse.Should().NotBeNull();
+        tokenResponse!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        tokenResponse.User.Id.Should().Be(memberUserId);
+
+        using var bearerClient = _fixture.CreateClient();
+        bearerClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
+
+        var captureUrl = $"https://example.com/device-owned/{Guid.NewGuid():N}";
+        var captureResponse = await bearerClient.PostAsJsonAsync("/api/v1/capture", new CaptureRequestDto
+        {
+            SourceUrl = captureUrl,
+            ContentType = ContentType.Article,
+            RawContent = "Device login ownership capture.",
+            Tags = new List<string> { "device-login" }
+        });
+
+        captureResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var accepted = await captureResponse.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
+        accepted.Should().NotBeNull();
+
+        RawCapture? persistedCapture = null;
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            persistedCapture = await dbContext.RawCaptures.FindAsync(accepted!.Id);
+        });
+
+        persistedCapture.Should().NotBeNull();
+        persistedCapture!.OwnerUserId.Should().Be(memberUserId);
+        persistedCapture.SourceUrl.Should().Be(captureUrl);
     }
 }

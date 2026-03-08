@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Pgvector.EntityFrameworkCore;
 using SentinelKnowledgebase.Infrastructure.Authentication;
@@ -46,10 +47,6 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-        var authOptions = configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
-        authOptions.ApplyDefaults();
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.JwtSigningKey));
-
         services.AddAuthentication(options =>
             {
                 options.DefaultScheme = AuthScheme;
@@ -86,14 +83,24 @@ public static class DependencyInjection
                     return Task.CompletedTask;
                 };
             })
-            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, _ => { });
+
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<AuthOptions>>((options, authOptionsAccessor) =>
             {
+                var authOptions = authOptionsAccessor.Value;
+                var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.JwtSigningKey))
+                {
+                    KeyId = "sentinel-auth-signing-key"
+                };
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = signingKey,
+                    TryAllIssuerSigningKeys = true,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };

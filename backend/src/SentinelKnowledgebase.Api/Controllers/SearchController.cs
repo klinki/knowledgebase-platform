@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Api.Extensions;
 
 namespace SentinelKnowledgebase.Api.Controllers;
 
@@ -28,10 +29,15 @@ public class SearchController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
         
         try
         {
-            var results = await _searchService.SemanticSearchAsync(request);
+            var results = await _searchService.SemanticSearchAsync(userId, request);
             return Ok(results);
         }
         catch (Exception ex)
@@ -50,10 +56,15 @@ public class SearchController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
         
         try
         {
-            var results = await _searchService.SearchByTagsAsync(request);
+            var results = await _searchService.SearchByTagsAsync(userId, request);
             return Ok(results);
         }
         catch (Exception ex)

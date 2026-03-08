@@ -25,21 +25,21 @@ Sentinel currently has two main persisted entity clusters:
 
 ### Knowledge Entities
 
-| Entity             | Source of Truth                          | Purpose                          | Relationships                                      |
-|:-------------------|:-----------------------------------------|:---------------------------------|:---------------------------------------------------|
-| `RawCapture`       | `ApplicationDbContext.RawCaptures`       | Original captured payload.       | `Tag` M:N; `ProcessedInsight` 1:1                  |
-| `ProcessedInsight` | `ApplicationDbContext.ProcessedInsights` | AI-generated normalized insight. | `RawCapture` 1:1; `Tag` M:N; `EmbeddingVector` 1:1 |
-| `EmbeddingVector`  | `ApplicationDbContext.EmbeddingVectors`  | Vector-search embedding record.  | `ProcessedInsight` 1:1                             |
-| `Tag`              | `ApplicationDbContext.Tags`              | Shared categorization label.     | `RawCapture` M:N; `ProcessedInsight` M:N           |
+| Entity             | Source of Truth                          | Purpose                          | Relationships                                                          |
+| :----------------- | :--------------------------------------- | :------------------------------- | :--------------------------------------------------------------------- |
+| `RawCapture`       | `ApplicationDbContext.RawCaptures`       | Original captured payload.       | `ApplicationUser` N:1; `Tag` M:N; `ProcessedInsight` 1:1               |
+| `ProcessedInsight` | `ApplicationDbContext.ProcessedInsights` | AI-generated normalized insight. | `ApplicationUser` N:1; `RawCapture` 1:1; `Tag` M:N; `EmbeddingVector` 1:1 |
+| `EmbeddingVector`  | `ApplicationDbContext.EmbeddingVectors`  | Vector-search embedding record.  | `ProcessedInsight` 1:1                                                 |
+| `Tag`              | `ApplicationDbContext.Tags`              | Per-user categorization label.   | `ApplicationUser` N:1; `RawCapture` M:N; `ProcessedInsight` M:N        |
 
 Key fields:
 
-- `RawCapture`: `Id`, `SourceUrl`, `ContentType`, `RawContent`, `Metadata`,
-  `Status`, `CreatedAt`, `ProcessedAt`
-- `ProcessedInsight`: `Id`, `RawCaptureId`, `Title`, `Summary`,
+- `RawCapture`: `Id`, `OwnerUserId`, `SourceUrl`, `ContentType`, `RawContent`,
+  `Metadata`, `Status`, `CreatedAt`, `ProcessedAt`
+- `ProcessedInsight`: `Id`, `OwnerUserId`, `RawCaptureId`, `Title`, `Summary`,
   `KeyInsights`, `ActionItems`, `SourceTitle`, `Author`, `ProcessedAt`
 - `EmbeddingVector`: `Id`, `ProcessedInsightId`, `Vector`, `CreatedAt`
-- `Tag`: `Id`, `Name`, `CreatedAt`
+- `Tag`: `Id`, `OwnerUserId`, `Name`, `CreatedAt`
 
 ### Authentication and Session Entities
 
@@ -65,6 +65,9 @@ Key fields:
 
 ```mermaid
 erDiagram
+    ApplicationUser ||--o{ RawCapture : owns
+    ApplicationUser ||--o{ ProcessedInsight : owns
+    ApplicationUser ||--o{ Tag : owns
     RawCapture ||--o| ProcessedInsight : produces
     ProcessedInsight ||--o| EmbeddingVector : has
     RawCapture }o--o{ Tag : tagged_with
@@ -79,12 +82,14 @@ erDiagram
 Relationship summary:
 
 - Every `ProcessedInsight` is derived from exactly one `RawCapture`.
+- Every `RawCapture`, `ProcessedInsight`, and `Tag` belongs to exactly one
+  `ApplicationUser` through `OwnerUserId`.
 - A `RawCapture` may exist without a `ProcessedInsight` while processing is
   pending or failed.
 - Every `EmbeddingVector` belongs to exactly one `ProcessedInsight`.
-- Tags are shared labels reused across raw captures and processed insights.
+- Tags are scoped per user and reused only within that owner's knowledge graph.
 - `ApplicationUser` is the root identity record for invites, approvals, and
-  extension refresh tokens.
+  extension refresh tokens, and it also owns persisted knowledge entities.
 - A device authorization can lead to multiple refresh-token rows because token
   rotation revokes the old token and persists a new one.
 
@@ -219,7 +224,8 @@ flowchart LR
 Flow summary:
 
 - The extension sends a normalized capture payload to the API.
-- The API persists `RawCapture` plus any tag associations immediately.
+- The API derives `OwnerUserId` from the authenticated principal, then persists
+  `RawCapture` plus any tag associations immediately.
 - The API returns `202 Accepted` after enqueueing background processing.
 - No `ProcessedInsight` or `EmbeddingVector` exists yet at this point.
 
@@ -247,8 +253,8 @@ Flow summary:
 - The worker loads the raw capture and marks it `Processing`.
 - Content cleanup, insight extraction, and embedding generation occur inside the
   application service.
-- Success creates `ProcessedInsight`, `EmbeddingVector`, and final
-  `RawCapture.ProcessedAt`.
+- Success creates an owner-matching `ProcessedInsight`, an
+  owner-transitive `EmbeddingVector`, and final `RawCapture.ProcessedAt`.
 - Failure leaves the raw record in place and marks the capture `Failed`.
 
 Traceability:
@@ -273,7 +279,8 @@ Flow summary:
 - Both search endpoints operate on processed knowledge, not raw captures alone.
 - Semantic search generates a query embedding and compares it against stored
   vectors.
-- Tag search filters `ProcessedInsight` records by associated tags.
+- Tag search filters owner-scoped `ProcessedInsight` records by associated
+  tags.
 - Retrieval depends on the ingestion pipeline having completed successfully.
 
 Traceability:
@@ -300,6 +307,8 @@ Flow summary:
 - Authenticated dashboard requests rely on the server-backed cookie session.
 - Admin-only flows such as invitations and password reset resolve from the same
   user identity root.
+- Knowledge reads from the dashboard remain scoped to the signed-in owner's
+  data even for admin users.
 
 Traceability:
 

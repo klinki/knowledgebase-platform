@@ -11,6 +11,7 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - [x] Browser extension can authenticate without pasting a permanent API key.
 - [x] Extension obtains short-lived access tokens and refresh tokens through a browser-assisted device login flow.
 - [x] All non-public backend endpoints require authentication.
+- [x] Knowledge entities and knowledge read models are scoped to the authenticated owner rather than shared globally.
 - [x] Role-based authorization exists for `admin` and `member`.
 - [x] Admins can invite users, revoke sessions/tokens, and reset passwords.
 - [x] Hangfire dashboard is not publicly exposed and requires authenticated admin access outside local development.
@@ -21,7 +22,8 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - ASP.NET Core Identity is the source of truth for local users, password hashing, roles, and dashboard sign-in.
 - Angular dashboard authentication uses secure cookie-based sessions backed by the API.
 - Browser extension authentication uses a Sentinel-managed device authorization flow that issues short-lived bearer access tokens and refresh tokens.
-- Detailed Angular auth and session hardening planning lives in `frontend-auth.md` for this feature.
+- Detailed Angular auth and session hardening planning lives in [frontend-auth.md](frontend-auth.md) for this feature.
+- Detailed ownership planning for user-scoped knowledge data lives in [entity-ownership.md](entity-ownership.md) for this feature.
 - Initial authorization model is limited to `admin` and `member`.
 - User creation is invite-only in v1, password recovery is admin reset only, and MFA is deferred but should remain design-compatible.
 - External OIDC providers are out of scope for implementation in this feature but should remain a viable future migration path.
@@ -48,6 +50,8 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - Cookie auth for the Angular app.
 - Token auth for extension calls.
 - Extension token claims include `userId`, `role`, `sessionId` or `deviceSessionId`, and scopes such as `capture:write`, `search:read`, and `offline_access`.
+- Knowledge endpoints keep existing route shapes, but owned resources are visible only to the authenticated owner.
+- Admin capabilities do not imply cross-user access to captures, insights, dashboard data, or search results.
 
 ### Extension UX
 
@@ -71,6 +75,13 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - [x] Add integration and frontend/E2E coverage for login, authorization, token refresh, and revocation.
 - [x] Document future OIDC migration considerations without implementing them in this feature.
 - [x] Run backend integration suite in a Docker-enabled environment to execute the auth integration coverage end to end.
+- [x] Add ownership planning document for user-scoped knowledge data.
+- [x] Add explicit ownership to `RawCapture`, `ProcessedInsight`, and `Tag`.
+- [x] Scope capture reads and deletes to the authenticated owner.
+- [x] Scope dashboard overview, tag summaries, semantic search, and tag search to the authenticated owner.
+- [x] Replace global tag uniqueness with per-user tag uniqueness.
+- [x] Update repositories, services, and tests for owner-scoped knowledge data.
+- [x] Update [docs/ENTITY-MODEL.md](../../ENTITY-MODEL.md) after ownership implementation lands.
 
 ## Verification Plan
 
@@ -87,6 +98,12 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - [x] Device flow remains pending until browser approval, then issues access and refresh tokens.
 - [ ] Extension refresh token rotation works and old refresh tokens cannot be reused.
 - [ ] Revoked extension tokens stop future authenticated API use.
+- [x] User A cannot read or delete user B's capture and receives `404 Not Found`.
+- [x] Dashboard overview and tag summaries exclude other users' data.
+- [x] Semantic search and tag search exclude other users' data.
+- [x] Different users can reuse the same tag name without conflict.
+- [x] A single user cannot create duplicate tags with the same trimmed tag name.
+- [x] Device-login capture flow assigns ownership to the approving user.
 - [x] Frontend route guards redirect anonymous users and restore authenticated state on reload.
 - [ ] Hangfire dashboard is blocked for anonymous and non-admin users.
 - [x] Execute the Docker-backed backend integration suite in an environment where Docker is available.
@@ -99,3 +116,5 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - Email-based recovery is out of scope for v1.
 - MFA is out of scope for v1 but should not be designed out.
 - Production deployment uses HTTPS and same-site dashboard/API hosting where possible.
+- Knowledge data ownership is strict by default and does not grant admins cross-user data visibility in v1.
+- Existing ownerless knowledge data may be discarded/reset in local development instead of backfilled.

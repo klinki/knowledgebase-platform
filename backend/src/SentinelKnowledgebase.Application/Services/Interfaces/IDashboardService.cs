@@ -4,6 +4,6 @@ namespace SentinelKnowledgebase.Application.Services.Interfaces;
 
 public interface IDashboardService
 {
-    Task<DashboardOverviewDto> GetOverviewAsync();
-    Task<IEnumerable<TagSummaryDto>> GetTagSummariesAsync();
+    Task<DashboardOverviewDto> GetOverviewAsync(Guid ownerUserId);
+    Task<IEnumerable<TagSummaryDto>> GetTagSummariesAsync(Guid ownerUserId);
 }

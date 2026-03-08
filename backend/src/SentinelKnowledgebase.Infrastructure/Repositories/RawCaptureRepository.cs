@@ -26,28 +26,38 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.ProcessedInsight)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
-    
-    public async Task<IEnumerable<RawCapture>> GetAllAsync()
+
+    public async Task<RawCapture?> GetByIdAsync(Guid id, Guid ownerUserId)
     {
         return await _context.RawCaptures
             .Include(r => r.Tags)
             .Include(r => r.ProcessedInsight)
+            .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
+    }
+    
+    public async Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId)
+    {
+        return await _context.RawCaptures
+            .Include(r => r.Tags)
+            .Include(r => r.ProcessedInsight)
+            .Where(r => r.OwnerUserId == ownerUserId)
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<RawCapture>> GetRecentAsync(int take)
+    public async Task<IEnumerable<RawCapture>> GetRecentAsync(Guid ownerUserId, int take)
     {
         return await _context.RawCaptures
             .Include(r => r.Tags)
             .Include(r => r.ProcessedInsight)
+            .Where(r => r.OwnerUserId == ownerUserId)
             .OrderByDescending(r => r.CreatedAt)
             .Take(take)
             .ToListAsync();
     }
 
-    public Task<int> CountAsync()
+    public Task<int> CountAsync(Guid ownerUserId)
     {
-        return _context.RawCaptures.CountAsync();
+        return _context.RawCaptures.CountAsync(r => r.OwnerUserId == ownerUserId);
     }
     
     public Task UpdateAsync(RawCapture rawCapture)
@@ -56,9 +66,10 @@ public class RawCaptureRepository : IRawCaptureRepository
         return Task.CompletedTask;
     }
     
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(Guid id, Guid ownerUserId)
     {
-        var rawCapture = await _context.RawCaptures.FindAsync(id);
+        var rawCapture = await _context.RawCaptures
+            .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
         if (rawCapture != null)
         {
             _context.RawCaptures.Remove(rawCapture);

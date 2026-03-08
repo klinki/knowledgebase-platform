@@ -14,12 +14,12 @@ public class DashboardService : IDashboardService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<DashboardOverviewDto> GetOverviewAsync()
+    public async Task<DashboardOverviewDto> GetOverviewAsync(Guid ownerUserId)
     {
-        var recentCaptures = await _unitOfWork.RawCaptures.GetRecentAsync(10);
-        var topTags = await _unitOfWork.Tags.GetSummariesAsync(10);
-        var totalCaptures = await _unitOfWork.RawCaptures.CountAsync();
-        var activeTags = await _unitOfWork.Tags.CountAsync();
+        var recentCaptures = await _unitOfWork.RawCaptures.GetRecentAsync(ownerUserId, 10);
+        var topTags = await _unitOfWork.Tags.GetSummariesAsync(ownerUserId, 10);
+        var totalCaptures = await _unitOfWork.RawCaptures.CountAsync(ownerUserId);
+        var activeTags = await _unitOfWork.Tags.CountAsync(ownerUserId);
 
         return new DashboardOverviewDto
         {
@@ -33,9 +33,9 @@ public class DashboardService : IDashboardService
         };
     }
 
-    public async Task<IEnumerable<TagSummaryDto>> GetTagSummariesAsync()
+    public async Task<IEnumerable<TagSummaryDto>> GetTagSummariesAsync(Guid ownerUserId)
     {
-        var tags = await _unitOfWork.Tags.GetSummariesAsync();
+        var tags = await _unitOfWork.Tags.GetSummariesAsync(ownerUserId);
         return tags.Select(MapTag);
     }
 

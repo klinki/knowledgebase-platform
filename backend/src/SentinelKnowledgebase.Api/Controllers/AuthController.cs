@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 using SentinelKnowledgebase.Application.DTOs.Auth;
+using SentinelKnowledgebase.Api.Extensions;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 
@@ -380,15 +381,14 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RevokeToken([FromBody] TokenRevokeRequestDto request)
     {
-        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userIdValue == null)
+        if (!User.TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
         var hashedToken = _tokenService.HashOpaqueToken(request.RefreshToken.Trim());
         var refreshToken = await _dbContext.RefreshTokens
-            .FirstOrDefaultAsync(item => item.TokenHash == hashedToken && item.UserId == Guid.Parse(userIdValue));
+            .FirstOrDefaultAsync(item => item.TokenHash == hashedToken && item.UserId == userId);
 
         if (refreshToken != null && !refreshToken.IsRevoked)
         {

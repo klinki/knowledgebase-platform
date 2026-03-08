@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Api.Extensions;
 
 namespace SentinelKnowledgebase.Api.Controllers;
 
@@ -35,10 +36,15 @@ public class CaptureController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
         
         try
         {
-            var response = await _captureService.CreateCaptureAsync(request);
+            var response = await _captureService.CreateCaptureAsync(userId, request);
             var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
             _logger.LogInformation(
                 "Capture {CaptureId} accepted for source {SourceUrl}; Hangfire job {JobId} enqueued",
@@ -64,7 +70,12 @@ public class CaptureController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCapture(Guid id)
     {
-        var response = await _captureService.GetCaptureByIdAsync(id);
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var response = await _captureService.GetCaptureByIdAsync(userId, id);
         if (response == null)
         {
             return NotFound();
@@ -77,7 +88,12 @@ public class CaptureController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<CaptureResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllCaptures()
     {
-        var responses = await _captureService.GetAllCapturesAsync();
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var responses = await _captureService.GetAllCapturesAsync(userId);
         return Ok(responses);
     }
     
@@ -86,15 +102,20 @@ public class CaptureController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteCapture(Guid id)
     {
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            await _captureService.DeleteCaptureAsync(id);
-            return NoContent();
+            var deleted = await _captureService.DeleteCaptureAsync(userId, id);
+            return deleted ? NoContent() : NotFound();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete capture {CaptureId}", id);
-            return NotFound();
+            return StatusCode(500, "An error occurred while deleting the capture");
         }
     }
 }

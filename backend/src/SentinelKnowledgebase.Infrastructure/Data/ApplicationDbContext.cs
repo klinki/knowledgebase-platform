@@ -30,10 +30,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<RawCapture>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
             entity.Property(e => e.SourceUrl).HasMaxLength(2048).IsRequired();
             entity.Property(e => e.RawContent).IsRequired();
             entity.Property(e => e.Status).HasDefaultValue(CaptureStatus.Pending);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAt });
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasMany(e => e.Tags)
                 .WithMany(t => t.RawCaptures);
@@ -46,9 +53,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<ProcessedInsight>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Summary).IsRequired();
             entity.Property(e => e.ProcessedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.OwnerUserId, e.ProcessedAt });
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasMany(e => e.Tags)
                 .WithMany(t => t.ProcessedInsights);
@@ -61,10 +75,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<Tag>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            
-            entity.HasIndex(e => e.Name).IsUnique();
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.OwnerUserId, e.Name }).IsUnique();
         });
         
         modelBuilder.Entity<EmbeddingVector>(entity =>

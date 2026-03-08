@@ -113,4 +113,32 @@ public class CaptureControllerTests
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task CaptureAccess_ShouldReturn404_ForForeignOwner()
+    {
+        using var ownerClient = await _fixture.CreateAuthenticatedClientAsync();
+        var member = await _fixture.CreateMemberClientAsync();
+        using var foreignClient = member.Client;
+
+        var createResponse = await ownerClient.PostAsJsonAsync("/api/v1/capture", new CaptureRequestDto
+        {
+            SourceUrl = $"https://example.com/{Guid.NewGuid():N}",
+            ContentType = ContentType.Article,
+            RawContent = "Owner scoped capture content."
+        });
+
+        createResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+        var accepted = await createResponse.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
+        accepted.Should().NotBeNull();
+
+        var foreignGetResponse = await foreignClient.GetAsync($"/api/v1/capture/{accepted!.Id}");
+        foreignGetResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+
+        var foreignDeleteResponse = await foreignClient.DeleteAsync($"/api/v1/capture/{accepted.Id}");
+        foreignDeleteResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+
+        var ownerGetResponse = await ownerClient.GetAsync($"/api/v1/capture/{accepted.Id}");
+        ownerGetResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+    }
 }

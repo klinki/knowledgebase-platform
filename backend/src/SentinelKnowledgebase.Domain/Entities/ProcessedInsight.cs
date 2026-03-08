@@ -7,6 +7,9 @@ public class ProcessedInsight
 {
     [Key]
     public Guid Id { get; set; }
+
+    [Required]
+    public Guid OwnerUserId { get; set; }
     
     [Required]
     public Guid RawCaptureId { get; set; }

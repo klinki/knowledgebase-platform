@@ -10,6 +10,7 @@ namespace SentinelKnowledgebase.Infrastructure.Authentication;
 
 public sealed class TokenService
 {
+    private const string SigningKeyId = "sentinel-auth-signing-key";
     private readonly AuthOptions _options;
 
     public TokenService(IOptions<AuthOptions> options)
@@ -37,7 +38,10 @@ public sealed class TokenService
             claims.Add(new Claim("device_session_id", deviceSessionId.Value.ToString()));
         }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.JwtSigningKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.JwtSigningKey))
+        {
+            KeyId = SigningKeyId
+        };
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             claims: claims,

@@ -66,4 +66,55 @@ public class DashboardControllerTests
         overview.RecentCaptures.Should().Contain(capture => capture.SourceUrl == uniqueUrl);
         overview.TopTags.Should().Contain(tag => tag.Name == uniqueTag);
     }
+
+    [Fact]
+    public async Task GetOverview_ShouldExcludeOtherUsersData_WhenAuthenticated()
+    {
+        using var adminClient = await _fixture.CreateAuthenticatedClientAsync();
+        var member = await _fixture.CreateMemberClientAsync();
+        using var memberClient = member.Client;
+
+        var adminUrl = $"https://example.com/admin/{Guid.NewGuid():N}";
+        var adminTag = $"admin-tag-{Guid.NewGuid():N}";
+        var memberUrl = $"https://example.com/member/{Guid.NewGuid():N}";
+        var memberTag = $"member-tag-{Guid.NewGuid():N}";
+
+        var adminCreateResponse = await adminClient.PostAsJsonAsync("/api/v1/capture", new CaptureRequestDto
+        {
+            SourceUrl = adminUrl,
+            ContentType = ContentType.Article,
+            RawContent = "Admin-owned dashboard capture.",
+            Metadata = JsonSerializer.Serialize(new { source = "admin" }),
+            Tags = new List<string> { adminTag }
+        });
+        adminCreateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+
+        var memberCreateResponse = await memberClient.PostAsJsonAsync("/api/v1/capture", new CaptureRequestDto
+        {
+            SourceUrl = memberUrl,
+            ContentType = ContentType.Article,
+            RawContent = "Member-owned dashboard capture.",
+            Metadata = JsonSerializer.Serialize(new { source = "member" }),
+            Tags = new List<string> { memberTag }
+        });
+        memberCreateResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+
+        var adminOverviewResponse = await adminClient.GetAsync("/api/v1/dashboard/overview");
+        adminOverviewResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var adminOverview = await adminOverviewResponse.Content.ReadFromJsonAsync<DashboardOverviewDto>(ResponseJsonOptions);
+        adminOverview.Should().NotBeNull();
+        adminOverview!.RecentCaptures.Should().Contain(capture => capture.SourceUrl == adminUrl);
+        adminOverview.RecentCaptures.Should().NotContain(capture => capture.SourceUrl == memberUrl);
+        adminOverview.TopTags.Should().Contain(tag => tag.Name == adminTag);
+        adminOverview.TopTags.Should().NotContain(tag => tag.Name == memberTag);
+
+        var memberOverviewResponse = await memberClient.GetAsync("/api/v1/dashboard/overview");
+        memberOverviewResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var memberOverview = await memberOverviewResponse.Content.ReadFromJsonAsync<DashboardOverviewDto>(ResponseJsonOptions);
+        memberOverview.Should().NotBeNull();
+        memberOverview!.RecentCaptures.Should().Contain(capture => capture.SourceUrl == memberUrl);
+        memberOverview.RecentCaptures.Should().NotContain(capture => capture.SourceUrl == adminUrl);
+        memberOverview.TopTags.Should().Contain(tag => tag.Name == memberTag);
+        memberOverview.TopTags.Should().NotContain(tag => tag.Name == adminTag);
+    }
 }

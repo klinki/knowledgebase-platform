@@ -24,6 +24,7 @@ public class SearchServiceTests
     [Fact]
     public async Task SemanticSearchAsync_ShouldReturnResults()
     {
+        var ownerUserId = Guid.NewGuid();
         var request = new SemanticSearchRequestDto
         {
             Query = "test query",
@@ -49,10 +50,10 @@ public class SearchServiceTests
         };
         
         _unitOfWork.ProcessedInsights
-            .SemanticSearchAsync(queryEmbedding, request.TopK, request.Threshold)
+            .SemanticSearchAsync(ownerUserId, queryEmbedding, request.TopK, request.Threshold)
             .Returns(searchResults);
         
-        var result = await _service.SemanticSearchAsync(request);
+        var result = await _service.SemanticSearchAsync(ownerUserId, request);
         
         result.Should().NotBeEmpty();
     }
@@ -60,6 +61,7 @@ public class SearchServiceTests
     [Fact]
     public async Task SemanticSearchAsync_ShouldReturnEmptyList_WhenNoEmbeddings()
     {
+        var ownerUserId = Guid.NewGuid();
         var request = new SemanticSearchRequestDto
         {
             Query = "test query",
@@ -72,10 +74,10 @@ public class SearchServiceTests
             .Returns(queryEmbedding);
         
         _unitOfWork.ProcessedInsights
-            .SemanticSearchAsync(queryEmbedding, request.TopK, request.Threshold)
+            .SemanticSearchAsync(ownerUserId, queryEmbedding, request.TopK, request.Threshold)
             .Returns(Enumerable.Empty<SemanticSearchRecord>());
         
-        var result = await _service.SemanticSearchAsync(request);
+        var result = await _service.SemanticSearchAsync(ownerUserId, request);
         
         result.Should().BeEmpty();
     }
@@ -83,6 +85,7 @@ public class SearchServiceTests
     [Fact]
     public async Task SearchByTagsAsync_ShouldReturnMatchingInsights()
     {
+        var ownerUserId = Guid.NewGuid();
         var request = new TagSearchRequestDto
         {
             Tags = new List<string> { "test" },
@@ -102,10 +105,10 @@ public class SearchServiceTests
             }
         };
         
-        _unitOfWork.ProcessedInsights.SearchByTagsAsync(request.Tags, request.MatchAll)
+        _unitOfWork.ProcessedInsights.SearchByTagsAsync(ownerUserId, request.Tags, request.MatchAll)
             .Returns(insights);
         
-        var result = await _service.SearchByTagsAsync(request);
+        var result = await _service.SearchByTagsAsync(ownerUserId, request);
         
         result.Should().HaveCount(1);
         result.First().Title.Should().Be("Test");
@@ -114,16 +117,17 @@ public class SearchServiceTests
     [Fact]
     public async Task SearchByTagsAsync_WithMatchAll_ShouldRequireAllTags()
     {
+        var ownerUserId = Guid.NewGuid();
         var request = new TagSearchRequestDto
         {
             Tags = new List<string> { "test", "important" },
             MatchAll = true
         };
         
-        _unitOfWork.ProcessedInsights.SearchByTagsAsync(request.Tags, request.MatchAll)
+        _unitOfWork.ProcessedInsights.SearchByTagsAsync(ownerUserId, request.Tags, request.MatchAll)
             .Returns(Enumerable.Empty<TagSearchRecord>());
         
-        var result = await _service.SearchByTagsAsync(request);
+        var result = await _service.SearchByTagsAsync(ownerUserId, request);
         
         result.Should().BeEmpty();
     }

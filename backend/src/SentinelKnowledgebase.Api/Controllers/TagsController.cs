@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SentinelKnowledgebase.Application.DTOs.Dashboard;
 using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Api.Extensions;
 
 namespace SentinelKnowledgebase.Api.Controllers;
 
@@ -21,7 +22,12 @@ public class TagsController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<TagSummaryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
-        var tags = await _dashboardService.GetTagSummariesAsync();
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var tags = await _dashboardService.GetTagSummariesAsync(userId);
         return Ok(tags);
     }
 }

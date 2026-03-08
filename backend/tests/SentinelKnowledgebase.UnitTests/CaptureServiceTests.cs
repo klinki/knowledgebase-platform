@@ -29,6 +29,7 @@ public class CaptureServiceTests
     [Fact]
     public async Task CreateCaptureAsync_ShouldReturnCaptureResponse()
     {
+        var ownerUserId = Guid.NewGuid();
         var request = new CaptureRequestDto
         {
             SourceUrl = "https://example.com/article",
@@ -39,7 +40,7 @@ public class CaptureServiceTests
         
         var mockTag = new Tag { Id = Guid.NewGuid(), Name = "test" };
         
-        _unitOfWork.Tags.GetByNameAsync("test")
+        _unitOfWork.Tags.GetByNameAsync(ownerUserId, "test")
             .Returns((Tag?)null);
         
         _unitOfWork.Tags.AddAsync(Arg.Any<Tag>())
@@ -51,7 +52,7 @@ public class CaptureServiceTests
         _unitOfWork.SaveChangesAsync()
             .Returns(1);
         
-        var result = await _service.CreateCaptureAsync(request);
+        var result = await _service.CreateCaptureAsync(ownerUserId, request);
         
         result.Should().NotBeNull();
         result.SourceUrl.Should().Be(request.SourceUrl);
@@ -62,11 +63,12 @@ public class CaptureServiceTests
     [Fact]
     public async Task GetCaptureByIdAsync_ShouldReturnNullForNonexistent()
     {
+        var ownerUserId = Guid.NewGuid();
         var nonexistentId = Guid.NewGuid();
-        _unitOfWork.RawCaptures.GetByIdAsync(nonexistentId)
+        _unitOfWork.RawCaptures.GetByIdAsync(nonexistentId, ownerUserId)
             .Returns((RawCapture?)null);
         
-        var result = await _service.GetCaptureByIdAsync(nonexistentId);
+        var result = await _service.GetCaptureByIdAsync(ownerUserId, nonexistentId);
         
         result.Should().BeNull();
     }
@@ -74,10 +76,12 @@ public class CaptureServiceTests
     [Fact]
     public async Task GetCaptureByIdAsync_ShouldReturnCaptureResponse()
     {
+        var ownerUserId = Guid.NewGuid();
         var captureId = Guid.NewGuid();
         var rawCapture = new RawCapture
         {
             Id = captureId,
+            OwnerUserId = ownerUserId,
             SourceUrl = "https://example.com",
             ContentType = ContentType.Article,
             RawContent = "Test",
@@ -86,10 +90,10 @@ public class CaptureServiceTests
             Tags = new List<Tag>()
         };
         
-        _unitOfWork.RawCaptures.GetByIdAsync(captureId)
+        _unitOfWork.RawCaptures.GetByIdAsync(captureId, ownerUserId)
             .Returns(rawCapture);
         
-        var result = await _service.GetCaptureByIdAsync(captureId);
+        var result = await _service.GetCaptureByIdAsync(ownerUserId, captureId);
         
         result.Should().NotBeNull();
         result!.Id.Should().Be(captureId);
@@ -99,16 +103,17 @@ public class CaptureServiceTests
     [Fact]
     public async Task GetAllCapturesAsync_ShouldReturnAllCaptures()
     {
+        var ownerUserId = Guid.NewGuid();
         var captures = new List<RawCapture>
         {
-            new() { Id = Guid.NewGuid(), SourceUrl = "https://example1.com", ContentType = ContentType.Article, Status = CaptureStatus.Pending, Tags = new List<Tag>() },
-            new() { Id = Guid.NewGuid(), SourceUrl = "https://example2.com", ContentType = ContentType.Tweet, Status = CaptureStatus.Completed, Tags = new List<Tag>() }
+            new() { Id = Guid.NewGuid(), OwnerUserId = ownerUserId, SourceUrl = "https://example1.com", ContentType = ContentType.Article, Status = CaptureStatus.Pending, Tags = new List<Tag>() },
+            new() { Id = Guid.NewGuid(), OwnerUserId = ownerUserId, SourceUrl = "https://example2.com", ContentType = ContentType.Tweet, Status = CaptureStatus.Completed, Tags = new List<Tag>() }
         };
         
-        _unitOfWork.RawCaptures.GetAllAsync()
+        _unitOfWork.RawCaptures.GetAllAsync(ownerUserId)
             .Returns(captures);
         
-        var result = await _service.GetAllCapturesAsync();
+        var result = await _service.GetAllCapturesAsync(ownerUserId);
         
         result.Should().HaveCount(2);
     }
@@ -116,15 +121,44 @@ public class CaptureServiceTests
     [Fact]
     public async Task DeleteCaptureAsync_ShouldCallDelete()
     {
+        var ownerUserId = Guid.NewGuid();
         var captureId = Guid.NewGuid();
-        
-        _unitOfWork.RawCaptures.DeleteAsync(captureId)
+        var existingCapture = new RawCapture
+        {
+            Id = captureId,
+            OwnerUserId = ownerUserId,
+            SourceUrl = "https://example.com",
+            ContentType = ContentType.Article,
+            RawContent = "Test",
+            Status = CaptureStatus.Pending
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(captureId, ownerUserId)
+            .Returns(existingCapture);
+        _unitOfWork.RawCaptures.DeleteAsync(captureId, ownerUserId)
             .Returns(Task.CompletedTask);
         _unitOfWork.SaveChangesAsync()
             .Returns(1);
-        
-        await _service.DeleteCaptureAsync(captureId);
-        
-        await _unitOfWork.RawCaptures.Received(1).DeleteAsync(captureId);
+
+        var deleted = await _service.DeleteCaptureAsync(ownerUserId, captureId);
+
+        deleted.Should().BeTrue();
+        await _unitOfWork.RawCaptures.Received(1).DeleteAsync(captureId, ownerUserId);
+    }
+
+    [Fact]
+    public async Task DeleteCaptureAsync_ShouldReturnFalse_WhenCaptureDoesNotExist()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var captureId = Guid.NewGuid();
+
+        _unitOfWork.RawCaptures.GetByIdAsync(captureId, ownerUserId)
+            .Returns((RawCapture?)null);
+
+        var deleted = await _service.DeleteCaptureAsync(ownerUserId, captureId);
+
+        deleted.Should().BeFalse();
+        await _unitOfWork.RawCaptures.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync();
     }
 }

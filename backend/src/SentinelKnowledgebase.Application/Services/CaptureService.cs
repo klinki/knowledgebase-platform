@@ -25,11 +25,12 @@ public class CaptureService : ICaptureService
         _monitoringService = monitoringService;
     }
     
-    public async Task<CaptureResponseDto> CreateCaptureAsync(CaptureRequestDto request)
+    public async Task<CaptureResponseDto> CreateCaptureAsync(Guid ownerUserId, CaptureRequestDto request)
     {
         var rawCapture = new RawCapture
         {
             Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
             SourceUrl = request.SourceUrl,
             ContentType = request.ContentType,
             RawContent = request.RawContent,
@@ -42,10 +43,21 @@ public class CaptureService : ICaptureService
         {
             foreach (var tagName in request.Tags)
             {
-                var tag = await _unitOfWork.Tags.GetByNameAsync(tagName);
+                var normalizedTagName = tagName.Trim();
+                if (string.IsNullOrWhiteSpace(normalizedTagName))
+                {
+                    continue;
+                }
+
+                var tag = await _unitOfWork.Tags.GetByNameAsync(ownerUserId, normalizedTagName);
                 if (tag == null)
                 {
-                    tag = new Tag { Id = Guid.NewGuid(), Name = tagName };
+                    tag = new Tag
+                    {
+                        Id = Guid.NewGuid(),
+                        OwnerUserId = ownerUserId,
+                        Name = normalizedTagName
+                    };
                     await _unitOfWork.Tags.AddAsync(tag);
                 }
                 rawCapture.Tags.Add(tag);
@@ -58,22 +70,29 @@ public class CaptureService : ICaptureService
         return MapToResponse(rawCapture);
     }
     
-    public async Task<CaptureResponseDto?> GetCaptureByIdAsync(Guid id)
+    public async Task<CaptureResponseDto?> GetCaptureByIdAsync(Guid ownerUserId, Guid id)
     {
-        var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(id);
+        var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(id, ownerUserId);
         return rawCapture != null ? MapToResponse(rawCapture) : null;
     }
     
-    public async Task<IEnumerable<CaptureResponseDto>> GetAllCapturesAsync()
+    public async Task<IEnumerable<CaptureResponseDto>> GetAllCapturesAsync(Guid ownerUserId)
     {
-        var rawCaptures = await _unitOfWork.RawCaptures.GetAllAsync();
+        var rawCaptures = await _unitOfWork.RawCaptures.GetAllAsync(ownerUserId);
         return rawCaptures.Select(MapToResponse);
     }
     
-    public async Task DeleteCaptureAsync(Guid id)
+    public async Task<bool> DeleteCaptureAsync(Guid ownerUserId, Guid id)
     {
-        await _unitOfWork.RawCaptures.DeleteAsync(id);
+        var existingCapture = await _unitOfWork.RawCaptures.GetByIdAsync(id, ownerUserId);
+        if (existingCapture == null)
+        {
+            return false;
+        }
+
+        await _unitOfWork.RawCaptures.DeleteAsync(id, ownerUserId);
         await _unitOfWork.SaveChangesAsync();
+        return true;
     }
     
     public async Task ProcessCaptureAsync(Guid rawCaptureId)
@@ -101,6 +120,7 @@ public class CaptureService : ICaptureService
             var processedInsight = new ProcessedInsight
             {
                 Id = Guid.NewGuid(),
+                OwnerUserId = rawCapture.OwnerUserId,
                 RawCaptureId = rawCaptureId,
                 Title = insights.Title,
                 Summary = insights.Summary,

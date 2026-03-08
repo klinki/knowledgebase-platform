@@ -4,6 +4,6 @@ namespace SentinelKnowledgebase.Application.Services.Interfaces;
 
 public interface ISearchService
 {
-    Task<IEnumerable<SemanticSearchResultDto>> SemanticSearchAsync(SemanticSearchRequestDto request);
-    Task<IEnumerable<TagSearchResultDto>> SearchByTagsAsync(TagSearchRequestDto request);
+    Task<IEnumerable<SemanticSearchResultDto>> SemanticSearchAsync(Guid ownerUserId, SemanticSearchRequestDto request);
+    Task<IEnumerable<TagSearchResultDto>> SearchByTagsAsync(Guid ownerUserId, TagSearchRequestDto request);
 }

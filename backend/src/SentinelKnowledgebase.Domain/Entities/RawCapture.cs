@@ -11,6 +11,9 @@ public class RawCapture
 {
     [Key]
     public Guid Id { get; set; }
+
+    [Required]
+    public Guid OwnerUserId { get; set; }
     
     [Required]
     [MaxLength(2048)]

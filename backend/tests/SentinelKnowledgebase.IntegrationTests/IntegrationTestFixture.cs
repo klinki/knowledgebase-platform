@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SentinelKnowledgebase.Application.DTOs.Auth;
-using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Infrastructure.Authentication;
+using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Infrastructure.Data;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -110,6 +110,58 @@ public class IntegrationTestFixture : IAsyncLifetime
 
         response.EnsureSuccessStatusCode();
         return client;
+    }
+
+    public async Task<(HttpClient Client, string Email, string Password)> CreateMemberClientAsync(
+        string? email = null,
+        string? displayName = null,
+        string password = "Member1234!")
+    {
+        email ??= $"member-{Guid.NewGuid():N}@sentinel.test";
+        displayName ??= "Integration Member";
+
+        using var adminClient = await CreateAuthenticatedClientAsync();
+        var invitationResponse = await adminClient.PostAsJsonAsync("/api/auth/invitations", new InvitationRequestDto
+        {
+            Email = email,
+            DisplayName = displayName,
+            Role = AuthRoles.Member
+        });
+
+        invitationResponse.EnsureSuccessStatusCode();
+        var invitation = await invitationResponse.Content.ReadFromJsonAsync<InvitationResponseDto>();
+        if (invitation == null)
+        {
+            throw new InvalidOperationException("Expected invitation response payload.");
+        }
+
+        using var anonymousClient = CreateClient();
+        var acceptResponse = await anonymousClient.PostAsJsonAsync("/api/auth/invitations/accept", new AcceptInvitationRequestDto
+        {
+            Token = invitation.Token,
+            DisplayName = displayName,
+            Password = password
+        });
+
+        acceptResponse.EnsureSuccessStatusCode();
+        var memberClient = await CreateAuthenticatedClientAsync(email, password);
+        return (memberClient, email, password);
+    }
+
+    public async Task<Guid> GetUserIdByEmailAsync(string email)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var user = await dbContext.Users.SingleAsync(u => u.Email == email);
+        return user.Id;
+    }
+
+    public async Task ExecuteDbContextAsync(Func<ApplicationDbContext, Task> action)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await action(dbContext);
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task DisposeAsync()

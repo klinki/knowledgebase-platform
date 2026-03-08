@@ -15,12 +15,12 @@ public class SearchService : ISearchService
         _contentProcessor = contentProcessor;
     }
     
-    public async Task<IEnumerable<SemanticSearchResultDto>> SemanticSearchAsync(SemanticSearchRequestDto request)
+    public async Task<IEnumerable<SemanticSearchResultDto>> SemanticSearchAsync(Guid ownerUserId, SemanticSearchRequestDto request)
     {
         var queryEmbedding = await _contentProcessor.GenerateEmbeddingAsync(request.Query);
 
         var results = await _unitOfWork.ProcessedInsights
-            .SemanticSearchAsync(queryEmbedding, request.TopK, request.Threshold);
+            .SemanticSearchAsync(ownerUserId, queryEmbedding, request.TopK, request.Threshold);
 
         return results.Select(r => new SemanticSearchResultDto
         {
@@ -33,10 +33,10 @@ public class SearchService : ISearchService
         });
     }
     
-    public async Task<IEnumerable<TagSearchResultDto>> SearchByTagsAsync(TagSearchRequestDto request)
+    public async Task<IEnumerable<TagSearchResultDto>> SearchByTagsAsync(Guid ownerUserId, TagSearchRequestDto request)
     {
         var results = await _unitOfWork.ProcessedInsights
-            .SearchByTagsAsync(request.Tags, request.MatchAll);
+            .SearchByTagsAsync(ownerUserId, request.Tags, request.MatchAll);
 
         return results.Select(r => new TagSearchResultDto
         {

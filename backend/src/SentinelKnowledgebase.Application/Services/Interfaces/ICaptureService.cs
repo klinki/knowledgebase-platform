@@ -4,9 +4,9 @@ namespace SentinelKnowledgebase.Application.Services.Interfaces;
 
 public interface ICaptureService
 {
-    Task<CaptureResponseDto> CreateCaptureAsync(CaptureRequestDto request);
+    Task<CaptureResponseDto> CreateCaptureAsync(Guid ownerUserId, CaptureRequestDto request);
     Task ProcessCaptureAsync(Guid rawCaptureId);
-    Task<CaptureResponseDto?> GetCaptureByIdAsync(Guid id);
-    Task<IEnumerable<CaptureResponseDto>> GetAllCapturesAsync();
-    Task DeleteCaptureAsync(Guid id);
+    Task<CaptureResponseDto?> GetCaptureByIdAsync(Guid ownerUserId, Guid id);
+    Task<IEnumerable<CaptureResponseDto>> GetAllCapturesAsync(Guid ownerUserId);
+    Task<bool> DeleteCaptureAsync(Guid ownerUserId, Guid id);
 }
