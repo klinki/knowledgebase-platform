@@ -56,3 +56,4 @@ high-level model. It complements this runtime overview with:
 - Feature specs: `/docs/features/`
 - System entity model: `/docs/ENTITY-MODEL.md`
 - Queue processing decision: `/docs/adrs/02-queue-processing/queue-processing.md`
+- Deployment edge routing decision: `/docs/adrs/03-deployment-edge-routing/deployment-edge-routing.md`

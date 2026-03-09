@@ -63,5 +63,6 @@ Notes:
 - [x] Added `deploy/.env.proxy.example` for shared Caddy bootstrap.
 - [x] Updated app compose to attach `api` and `web` services to external `shared-proxy` network.
 - [x] Updated production app routing to use Docker labels for shared Caddy autodiscovery.
+- [x] Added ADR documenting the shared Caddy deployment edge and routing model.
 - [x] Updated production frontend API URL for proxy-based routing.
 - [x] Updated `README.md` deployment section.
