@@ -53,6 +53,15 @@ services:
     networks:
       - default
       - proxy
+    labels:
+      caddy: ${SENTINEL_DOMAIN}
+      caddy.encode: zstd gzip
+      caddy.0_reverse_proxy: /api/* sentinel-api:5000
+      caddy.1_reverse_proxy: /health sentinel-api:5000
+      caddy.2_reverse_proxy: /openapi/* sentinel-api:5000
+      caddy.3_reverse_proxy: /scalar* sentinel-api:5000
+      caddy.4_reverse_proxy: /hangfire* sentinel-api:5000
+      caddy.5_reverse_proxy: sentinel-web:80
     restart: unless-stopped
 
 volumes:

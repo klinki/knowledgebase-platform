@@ -1,6 +1,6 @@
 param (
     [Parameter(Mandatory = $false)]
-    [ValidateSet("Setup", "Build", "Dev", "Clean", "Backend", "WebFrontend", "Extension", "InfraUp", "InfraDown", "ExtensionBrowser", "Check")]
+    [ValidateSet("Setup", "Build", "Dev", "DevWithProxy", "Clean", "Backend", "WebFrontend", "Extension", "InfraUp", "InfraDown", "ExtensionBrowser", "Check")]
     [string]$Target = "Build",
 
     [Parameter(Mandatory = $false)]
@@ -34,6 +34,9 @@ $PostgresHost = "localhost"
 $BackendEnvExamplePath = Join-Path $Root "backend/.env.example"
 $BackendEnvPath = Join-Path $Root "backend/.env"
 $BackendApiDevelopmentSettingsPath = Join-Path $Root "backend/src/SentinelKnowledgebase.Api/appsettings.Development.json"
+$ProxyEnvExamplePath = Join-Path $Root "deploy/.env.proxy.example"
+$ProxyEnvPath = Join-Path $Root "deploy/.env.proxy"
+$ProxyComposePath = Join-Path $Root "deploy/docker-compose.proxy.yml"
 
 function Write-Header ([string]$Message) {
     Write-Host "`n=== $Message ===" -ForegroundColor Cyan
@@ -255,6 +258,22 @@ function Ensure-BackendEnvFile {
     Write-Success "Backend environment file is ready at backend/.env."
 }
 
+function Ensure-ProxyEnvFile {
+    Write-Header "Preparing Shared Proxy Environment Variables"
+
+    if (-not (Test-Path $ProxyEnvExamplePath)) {
+        throw "Missing proxy env template: $ProxyEnvExamplePath"
+    }
+
+    if (-not (Test-Path $ProxyEnvPath)) {
+        Copy-Item -Path $ProxyEnvExamplePath -Destination $ProxyEnvPath
+        Write-Success "Created deploy/.env.proxy from deploy/.env.proxy.example."
+    }
+    else {
+        Write-Host "Found existing deploy/.env.proxy. Preserving current values."
+    }
+}
+
 function Test-CommandAvailable {
     param([Parameter(Mandatory = $true)][string]$CommandName)
 
@@ -337,6 +356,8 @@ function Check-Environment {
     }
 
     foreach ($portInfo in @(
+        @{ Port = 80; Label = "Shared Caddy proxy (HTTP)" },
+        @{ Port = 443; Label = "Shared Caddy proxy (HTTPS)" },
         @{ Port = 4200; Label = "Angular dev server" },
         @{ Port = 5000; Label = "Backend API" },
         @{ Port = $PostgresPort; Label = "PostgreSQL" }
@@ -449,16 +470,36 @@ function Apply-BackendMigrations {
 }
 
 function Start-Infra {
-    Write-Header "Starting Backend Infrastructure"
+    param(
+        [switch]$IncludeProxy
+    )
+
+    Write-Header "Starting Local Infrastructure"
+
+    if ($IncludeProxy) {
+        Ensure-ProxyEnvFile
+
+        Invoke-InDirectory -Path $Root -Script {
+            docker compose -f $ProxyComposePath --env-file $ProxyEnvPath up -d
+        }
+    }
+
     Invoke-InDirectory -Path (Join-Path $Root "backend") -Script {
         docker compose up -d
     }
 }
 
 function Stop-Infra {
-    Write-Header "Stopping Backend Infrastructure"
+    Write-Header "Stopping Local Infrastructure"
+
     Invoke-InDirectory -Path (Join-Path $Root "backend") -Script {
         docker compose down
+    }
+
+    if (Test-Path $ProxyEnvPath) {
+        Invoke-InDirectory -Path $Root -Script {
+            docker compose -f $ProxyComposePath --env-file $ProxyEnvPath down
+        }
     }
 }
 
@@ -514,6 +555,10 @@ function Run-ExtensionBrowser {
 }
 
 function Start-DevEnvironment {
+    param(
+        [switch]$IncludeProxy
+    )
+
     Write-Header "Starting Full Development Environment"
 
     $startsBackendProcess = -not $SkipApi -or -not $SkipWorker
@@ -523,7 +568,7 @@ function Start-DevEnvironment {
     }
 
     if (-not $SkipInfra) {
-        Start-Infra
+        Start-Infra -IncludeProxy:$IncludeProxy
     }
     else {
         Write-WarningMessage "Skipping Docker infrastructure startup."
@@ -591,6 +636,9 @@ function Start-DevEnvironment {
     Write-Host "- Hangfire: $HangfireUrl"
     Write-Host "- Health: $HealthUrl"
     Write-Host "- PostgreSQL: localhost:$PostgresPort"
+    if ($IncludeProxy -and -not $SkipInfra) {
+        Write-Host "- Shared Proxy: https://localhost (if a local domain is routed)"
+    }
     Write-Host "`nStarted processes:"
     if (-not $SkipApi) { Write-Host "- Backend API: dotnet watch run (http://localhost:5000)" }
     if (-not $SkipWorker) { Write-Host "- Backend Worker: dotnet watch run" }
@@ -646,6 +694,9 @@ try {
         }
         "Dev" {
             Start-DevEnvironment
+        }
+        "DevWithProxy" {
+            Start-DevEnvironment -IncludeProxy
         }
     }
 }

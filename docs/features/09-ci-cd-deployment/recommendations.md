@@ -12,10 +12,9 @@
 
 - Production stack definition:
   - `deploy/docker-compose.prod.yml`
-- Shared edge proxy stack for multi-app hosts:
-  - `deploy/proxy/docker-compose.proxy.yml`
-  - `deploy/proxy/Caddyfile`
-  - `deploy/proxy/sites/sentinel.caddy.example`
+- Shared autodiscovery Caddy bootstrap for multi-app hosts:
+  - `deploy/docker-compose.proxy.yml`
+  - `deploy/.env.proxy.example`
 - Server-side deployment script:
   - `deploy/scripts/deploy.sh`
 - Production env template:
@@ -38,18 +37,19 @@
 
 ## Caddy vs Nginx Recommendation
 
-- Caddy is a good fit for this project because it is simple to maintain, supports automatic TLS, and cleanly handles SPA static hosting plus reverse proxying `/api/*` to the backend.
+- Caddy is a good fit for this project because it is simple to maintain, supports automatic TLS, and cleanly routes multiple apps from one shared host using Docker label autodiscovery.
 - Keep Nginx only if you already depend on advanced Nginx-specific behavior or established operations tooling around it.
 
 ## Validation Performed
 
 - `npm run build` in `frontend` completed successfully.
-- `docker compose --env-file deploy/.env.production.test -f deploy/docker-compose.prod.yml config` rendered successfully during validation.
+- `docker compose --env-file deploy/.env.production.example -f deploy/docker-compose.prod.yml config` renders successfully.
+- `docker compose --env-file deploy/.env.proxy.example -f deploy/docker-compose.proxy.yml config` renders successfully.
 
 ## Follow-up Setup Steps
 
 1. On the server, copy `deploy/.env.production.example` to `deploy/.env.production` and fill real values.
-2. Bootstrap the shared proxy stack (`deploy/proxy/*`) and `shared-proxy` Docker network once.
+2. Bootstrap the shared Caddy stack once with `deploy/docker-compose.proxy.yml` and `deploy/.env.proxy`.
 3. Ensure deploy script is executable on Linux host:
    - `chmod +x deploy/scripts/deploy.sh`
 4. Configure GitHub secrets:

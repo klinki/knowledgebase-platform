@@ -1,8 +1,0 @@
-{$SENTINEL_DOMAIN} {
-    encode gzip zstd
-
-    @api path /api/* /health /openapi/* /scalar* /hangfire*
-    reverse_proxy @api sentinel-api:5000
-
-    reverse_proxy sentinel-web:80
-}

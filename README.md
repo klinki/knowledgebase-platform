@@ -118,6 +118,7 @@ Useful selective startup examples:
 .\build.ps1 -Target Dev -SkipExtensionWatch
 .\build.ps1 -Target Dev -SkipWorker
 .\build.ps1 -Target Dev -SkipInfra
+.\build.ps1 -Target DevWithProxy
 ```
 
 `Setup` installs .NET dependencies, frontend and extension npm dependencies,
@@ -130,6 +131,9 @@ likely port conflicts, and prints the expected local URLs for the dev stack.
 
 `Dev` ensures `backend/.env` exists for backend startup, waits for PostgreSQL,
 and runs `dotnet ef database update` before launching the API and worker.
+`DevWithProxy` additionally ensures `deploy/.env.proxy` exists and starts the
+shared proxy stack for parity with production or for other local containerized
+services.
 
 ### Build Script Targets
 
@@ -144,6 +148,7 @@ From the repository root:
 .\build.ps1 -Target Extension
 .\build.ps1 -Target InfraUp
 .\build.ps1 -Target InfraDown
+.\build.ps1 -Target DevWithProxy
 .\build.ps1 -Target Clean
 .\build.ps1 -Target ExtensionBrowser
 ```
@@ -161,6 +166,13 @@ If you prefer to run services manually:
 
     If `backend/.env` does not exist yet, copy `backend/.env.example` to
     `backend/.env` and fill in `OPENAI_API_KEY` before starting the stack.
+
+    Optional shared proxy:
+
+    ```bash
+    cp deploy/.env.proxy.example deploy/.env.proxy
+    docker compose -f deploy/docker-compose.proxy.yml --env-file deploy/.env.proxy up -d
+    ```
 
 2. Run backend API
 
@@ -206,26 +218,23 @@ docker compose --profile app up -d
 This repository now includes production deployment assets for CI/CD and multi-app hosts:
 
 - `deploy/docker-compose.prod.yml` (Postgres + API + Worker + Web app only)
+- `deploy/docker-compose.proxy.yml` (shared autodiscovery Caddy edge, run once per host)
 - `deploy/scripts/deploy.sh` (server-side rollout script)
 - `frontend/Dockerfile` + `frontend/Caddyfile` (Angular static hosting)
 - `.github/workflows/deploy.yml` and `bitbucket-pipelines.yml` (image build/push + SSH deploy)
 - `.github/workflows/release-please.yml` + release-please config files (versioning + changelog)
 
-For multiple apps on the same server, use a shared edge proxy:
+For multiple apps on the same server, use one shared autodiscovery Caddy instance:
 
-- `deploy/proxy/docker-compose.proxy.yml`
-- `deploy/proxy/Caddyfile`
-- `deploy/proxy/sites/*.caddy`
+- `deploy/docker-compose.proxy.yml`
+- `deploy/.env.proxy.example`
 
-Bootstrap shared proxy once:
+Bootstrap shared Caddy once:
 
 ```bash
-cd /opt/apps/proxy
-cp <repo>/deploy/proxy/.env.proxy.example .env
-mkdir -p sites
-cp <repo>/deploy/proxy/sites/sentinel.caddy.example sites/sentinel.caddy
-docker network create shared-proxy || true
-docker compose -f <repo>/deploy/proxy/docker-compose.proxy.yml --env-file .env up -d
+cd <repo>
+cp deploy/.env.proxy.example deploy/.env.proxy
+docker compose -f deploy/docker-compose.proxy.yml --env-file deploy/.env.proxy up -d
 ```
 
 ### Release Process (GitHub)
@@ -245,9 +254,17 @@ Manual deployment remains available through `workflow_dispatch` in `deploy.yml`.
 Server bootstrap (one-time):
 
 1. Clone repo on your server (example: `/opt/sentinel`).
-2. Copy `deploy/.env.production.example` to `deploy/.env.production`.
-3. Fill in secrets (`OPENAI_API_KEY`, DB password, registry credentials).
-4. Run:
+2. Copy `deploy/.env.proxy.example` to `deploy/.env.proxy` and start the shared Caddy stack:
+
+   ```bash
+   cd /opt/sentinel
+   cp deploy/.env.proxy.example deploy/.env.proxy
+   docker compose -f deploy/docker-compose.proxy.yml --env-file deploy/.env.proxy up -d
+   ```
+
+3. Copy `deploy/.env.production.example` to `deploy/.env.production`.
+4. Fill in secrets (`OPENAI_API_KEY`, DB password, registry credentials) and set `SENTINEL_DOMAIN`.
+5. Run:
 
    ```bash
    cd /opt/sentinel

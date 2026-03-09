@@ -17,6 +17,7 @@ Local `dotnet watch` used `Host=postgres` (Docker service DNS), which is not rea
 - `api` and `worker` were moved behind profile `app`.
 - `docker compose up -d` now starts infra only (`postgres`).
 - Full containerized backend is available with `docker compose --profile app up -d`.
+- An optional shared proxy stack is available separately via `deploy/docker-compose.proxy.yml`.
 
 2. Development configuration alignment:
 - API `appsettings.Development.json` now uses:
@@ -38,6 +39,7 @@ The local dev flow is now deterministic:
 3. Run Worker locally with `dotnet watch`.
 
 This removes port conflicts and guarantees host processes can connect to PostgreSQL and Seq.
+If needed, the shared Caddy proxy can be started separately for parity with production and for other containerized services on the machine.
 
 ## Verification Notes
 - `docker compose config --services` returns only `postgres`.

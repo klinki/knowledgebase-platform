@@ -6,8 +6,8 @@ Provide a production-ready deployment pipeline using Docker images, with support
 
 ## Acceptance Criteria
 
-- [x] Production Docker Compose stack includes API, Worker, PostgreSQL (pgvector), and web edge.
-- [x] Frontend container serves Angular static assets and reverse proxies API traffic.
+- [x] Production Docker Compose stack includes API, Worker, PostgreSQL (pgvector), and the web app, with the shared Caddy edge bootstrapped separately.
+- [x] Frontend container serves Angular static assets, and shared Caddy routes API traffic to the backend.
 - [x] Server-side deployment script supports commit-tag rollouts.
 - [x] GitHub Actions pipeline builds, pushes, and deploys containers.
 - [x] Bitbucket Pipelines config builds, pushes, and deploys containers.
@@ -20,7 +20,7 @@ Provide a production-ready deployment pipeline using Docker images, with support
 
 ## Architecture Notes
 
-- Caddy handles static SPA hosting, API reverse proxying, and HTTPS certificate automation.
+- Shared autodiscovery Caddy handles domain routing and HTTPS certificate automation.
 - API and Worker remain separate processes, preserving queue-processing architecture.
 - CI systems only publish immutable images and trigger remote rollout by image tag.
 
@@ -59,7 +59,9 @@ Notes:
 - [x] Added `release-please-manifest.json`.
 - [x] Updated deploy workflow to trigger on `v*` release tags and keep manual dispatch.
 - [x] Updated deploy workflow to upload deploy artifacts and remove remote git pull/checkout.
-- [x] Added shared proxy stack under `deploy/proxy/` for multi-app hosts.
+- [x] Added `deploy/docker-compose.proxy.yml` for a shared autodiscovery Caddy host.
+- [x] Added `deploy/.env.proxy.example` for shared Caddy bootstrap.
 - [x] Updated app compose to attach `api` and `web` services to external `shared-proxy` network.
+- [x] Updated production app routing to use Docker labels for shared Caddy autodiscovery.
 - [x] Updated production frontend API URL for proxy-based routing.
 - [x] Updated `README.md` deployment section.

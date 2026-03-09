@@ -1,0 +1,28 @@
+services:
+  caddy:
+    image: ${CADDY_IMAGE:-lucaslorentz/caddy-docker-proxy:2.11-alpine}
+    container_name: shared-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CADDY_INGRESS_NETWORKS: ${CADDY_INGRESS_NETWORKS:-shared-proxy}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - proxy
+    labels:
+      caddy.email: ${CADDY_EMAIL}
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  proxy:
+    name: ${CADDY_INGRESS_NETWORKS:-shared-proxy}
