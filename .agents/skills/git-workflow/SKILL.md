@@ -82,7 +82,9 @@ Common scopes when a scope is useful:
 - **api**: Changes to controllers, middleware, or Program.cs.
 - **frontend**: Changes to the Angular dashboard or shared frontend UI logic.
 - **ext**: Changes to the browser extension.
-- **docs**: Changes to project documentation or planning files.
+- **adr**: Changes to architecture decision records in `docs/adrs/`.
+- **feature**: Changes to feature specs, implementation plans, or feature-tracking docs in `docs/features/`.
+- **agents**: Changes to `.agents/`, `AGENTS.md`, or other LLM agent-facing guidance.
 
 ## 4. Execution Steps
 
