@@ -61,8 +61,11 @@ Notes:
 - [x] Updated deploy workflow to upload deploy artifacts and remove remote git pull/checkout.
 - [x] Added `deploy/docker-compose.proxy.yml` for a shared autodiscovery Caddy host.
 - [x] Added `deploy/.env.proxy.example` for shared Caddy bootstrap.
+- [x] Added `deploy/docker-compose.vertex-proxy.yml` and `deploy/.env.vertex-proxy.example` for optional Vertex AI proxy bootstrap.
 - [x] Updated app compose to attach `api` and `web` services to external `shared-proxy` network.
 - [x] Updated production app routing to use Docker labels for shared Caddy autodiscovery.
+- [x] Added production env overrides for custom OpenAI-compatible URLs and model names.
 - [x] Added ADR documenting the shared Caddy deployment edge and routing model.
+- [x] Added detailed Vertex proxy setup guide with Google Cloud and Sentinel configuration steps.
 - [x] Updated production frontend API URL for proxy-based routing.
 - [x] Updated `README.md` deployment section.

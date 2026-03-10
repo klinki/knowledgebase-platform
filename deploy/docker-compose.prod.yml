@@ -25,11 +25,16 @@ services:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
       OpenAI__ApiKey: ${OPENAI_API_KEY}
+      OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
+      OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OpenAI__EmbeddingsUrl: ${OPENAI_EMBEDDINGS_URL:-https://api.openai.com/v1/embeddings}
+      OpenAI__ChatCompletionsUrl: ${OPENAI_CHAT_COMPLETIONS_URL:-https://api.openai.com/v1/chat/completions}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - default
+      - ai
       - proxy
     restart: unless-stopped
 
@@ -40,9 +45,16 @@ services:
       DOTNET_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
       OpenAI__ApiKey: ${OPENAI_API_KEY}
+      OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
+      OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OpenAI__EmbeddingsUrl: ${OPENAI_EMBEDDINGS_URL:-https://api.openai.com/v1/embeddings}
+      OpenAI__ChatCompletionsUrl: ${OPENAI_CHAT_COMPLETIONS_URL:-https://api.openai.com/v1/chat/completions}
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - default
+      - ai
     restart: unless-stopped
 
   web:
@@ -68,6 +80,9 @@ volumes:
   postgres_data:
 
 networks:
+  ai:
+    external: true
+    name: sentinel-ai
   proxy:
     external: true
     name: shared-proxy

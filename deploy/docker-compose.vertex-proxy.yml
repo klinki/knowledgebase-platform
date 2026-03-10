@@ -1,0 +1,20 @@
+services:
+  vertex-proxy:
+    image: ${VERTEX_PROXY_IMAGE:-ghcr.io/prantlf/ovai:latest}
+    container_name: sentinel-vertex-proxy
+    working_dir: /usr/src/app
+    restart: unless-stopped
+    environment:
+      PORT: ${VERTEX_PROXY_INTERNAL_PORT:-22434}
+      DEBUG: ${VERTEX_PROXY_DEBUG:-ovai:srv}
+    ports:
+      - "${VERTEX_PROXY_BIND:-127.0.0.1}:${VERTEX_PROXY_PORT:-22434}:${VERTEX_PROXY_INTERNAL_PORT:-22434}"
+    volumes:
+      - ${VERTEX_PROXY_GOOGLE_ACCOUNT_FILE}:/usr/src/app/google-account.json:ro
+    networks:
+      - ai
+
+networks:
+  ai:
+    external: true
+    name: ${VERTEX_PROXY_DOCKER_NETWORK:-sentinel-ai}
