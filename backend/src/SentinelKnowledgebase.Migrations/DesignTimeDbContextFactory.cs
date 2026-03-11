@@ -7,11 +7,13 @@ namespace SentinelKnowledgebase.Migrations;
 
 public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
 {
+    private const string DesignTimeConnectionString =
+        "Host=localhost;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres";
+
     public ApplicationDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? throw new InvalidOperationException(
-                "Set ConnectionStrings__DefaultConnection before running EF Core migrations.");
+            ?? DesignTimeConnectionString;
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
         optionsBuilder.UseNpgsql(connectionString, npgsqlOptions =>

@@ -12,6 +12,8 @@ ENV PATH="${PATH}:/root/.dotnet/tools"
 RUN dotnet restore "src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj"
 
 COPY . .
+RUN dotnet restore "src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj" --force
+RUN dotnet build "src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj" --configuration Release --verbosity minimal --nologo
 RUN dotnet ef migrations bundle \
     --project src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj \
     --startup-project src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj \

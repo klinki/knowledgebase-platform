@@ -1,7 +1,7 @@
 bin
 obj
-tests/**/bin
-tests/**/obj
+**/bin
+**/obj
 .git
 .github
 docker-compose*.yml
