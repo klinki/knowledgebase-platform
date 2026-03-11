@@ -1,14 +1,13 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:${POSTGRES_VERSION:-18}
     container_name: sentinel-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-sentinel_knowledgebase}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ../backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgresql/data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -76,9 +75,6 @@ services:
       caddy.5_reverse_proxy: sentinel-web:80
     restart: unless-stopped
 
-volumes:
-  postgres_data:
-
 networks:
   ai:
     external: true
@@ -86,3 +82,4 @@ networks:
   proxy:
     external: true
     name: shared-proxy
+
