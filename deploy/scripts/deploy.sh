@@ -50,7 +50,13 @@ fi
 echo "Pulling images for tag ${IMAGE_TAG}..."
 IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" pull
 
+echo "Starting PostgreSQL..."
+IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d postgres
+
+echo "Running database migrations..."
+IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up --no-deps migrator
+
 echo "Starting updated stack..."
-IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --remove-orphans
+IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --remove-orphans api worker web
 
 echo "Deployment finished for tag ${IMAGE_TAG}."

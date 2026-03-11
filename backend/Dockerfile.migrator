@@ -1,0 +1,25 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["global.json", "."]
+COPY ["NuGet.Config", "."]
+COPY ["src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj", "src/SentinelKnowledgebase.Migrations/"]
+COPY ["src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj", "src/SentinelKnowledgebase.Infrastructure/"]
+COPY ["src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj", "src/SentinelKnowledgebase.Domain/"]
+
+RUN dotnet tool install --global dotnet-ef --version 10.0.3
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+RUN dotnet restore "src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj"
+
+COPY . .
+RUN dotnet ef migrations bundle \
+    --project src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj \
+    --startup-project src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj \
+    --configuration Release \
+    --output /bundle/efbundle
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+WORKDIR /bundle
+COPY --from=build /bundle/efbundle ./efbundle
+ENTRYPOINT ["./efbundle"]

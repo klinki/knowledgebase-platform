@@ -16,6 +16,20 @@ services:
       timeout: 5s
       retries: 5
 
+  migrator:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.migrator
+    container_name: sentinel-migrator
+    command:
+      - --connection
+      - Host=postgres;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     profiles: ["app"]
     build:
@@ -32,6 +46,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   worker:
@@ -47,8 +63,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
   postgres_data:
-

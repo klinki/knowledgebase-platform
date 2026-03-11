@@ -15,6 +15,17 @@ services:
       retries: 10
     restart: unless-stopped
 
+  migrator:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-migrator:${IMAGE_TAG:-latest}
+    container_name: sentinel-migrator
+    command:
+      - --connection
+      - Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-api:${IMAGE_TAG:-latest}
     container_name: sentinel-api
@@ -31,6 +42,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
     networks:
       - default
       - ai
@@ -51,6 +64,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
     networks:
       - default
       - ai
@@ -82,4 +97,3 @@ networks:
   proxy:
     external: true
     name: shared-proxy
-
