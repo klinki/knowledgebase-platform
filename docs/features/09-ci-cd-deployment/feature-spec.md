@@ -7,6 +7,7 @@ Provide a production-ready deployment pipeline using Docker images, with support
 ## Acceptance Criteria
 
 - [x] Production Docker Compose stack includes API, Worker, PostgreSQL (pgvector), and the web app, with the shared Caddy edge bootstrapped separately.
+- [x] Production deployment runs database migrations as a one-shot container before starting API and Worker.
 - [x] Frontend container serves Angular static assets, and shared Caddy routes API traffic to the backend.
 - [x] Server-side deployment script supports commit-tag rollouts.
 - [x] GitHub Actions pipeline builds, pushes, and deploys containers.
@@ -23,6 +24,7 @@ Provide a production-ready deployment pipeline using Docker images, with support
 - Shared autodiscovery Caddy handles domain routing and HTTPS certificate automation.
 - API and Worker remain separate processes, preserving queue-processing architecture.
 - CI systems only publish immutable images and trigger remote rollout by image tag.
+- Database schema rollout is handled by an EF Core migration bundle container built from the existing migrations project.
 
 ## GitHub Secrets Setup
 
@@ -50,6 +52,7 @@ Notes:
 - [x] Added `frontend/Dockerfile`.
 - [x] Added `frontend/Caddyfile`.
 - [x] Added `.github/workflows/deploy.yml`.
+- [x] Added `backend/Dockerfile.migrator`.
 - [x] Added `bitbucket-pipelines.yml`.
 - [x] Added `deploy/scripts/remote-deploy.sh`.
 - [x] Added `deploy/.env.remote.example`.
@@ -59,6 +62,7 @@ Notes:
 - [x] Added `release-please-manifest.json`.
 - [x] Updated deploy workflow to trigger on `v*` release tags and keep manual dispatch.
 - [x] Updated deploy workflow to upload deploy artifacts and remove remote git pull/checkout.
+- [x] Updated deploy workflow and compose stack to run a one-shot migration bundle before starting application services.
 - [x] Added `deploy/docker-compose.proxy.yml` for a shared autodiscovery Caddy host.
 - [x] Added `deploy/.env.proxy.example` for shared Caddy bootstrap.
 - [x] Added `deploy/docker-compose.vertex-proxy.yml` and `deploy/.env.vertex-proxy.example` for optional Vertex AI proxy bootstrap.
@@ -69,3 +73,4 @@ Notes:
 - [x] Added detailed Vertex proxy setup guide with Google Cloud and Sentinel configuration steps.
 - [x] Updated production frontend API URL for proxy-based routing.
 - [x] Updated `README.md` deployment section.
+

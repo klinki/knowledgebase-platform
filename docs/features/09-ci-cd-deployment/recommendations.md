@@ -17,6 +17,8 @@
   - `deploy/.env.proxy.example`
 - Server-side deployment script:
   - `deploy/scripts/deploy.sh`
+- EF migration bundle image:
+  - `backend/Dockerfile.migrator`
 - Production env template:
   - `deploy/.env.production.example`
 - Frontend container with Caddy:
@@ -46,6 +48,17 @@
 - `docker compose --env-file deploy/.env.production.example -f deploy/docker-compose.prod.yml config` renders successfully.
 - `docker compose --env-file deploy/.env.proxy.example -f deploy/docker-compose.proxy.yml config` renders successfully.
 
+## Current Rollout Sequence
+
+Production rollout now happens in this order:
+
+1. Pull the requested image tag.
+2. Start PostgreSQL.
+3. Run the one-shot `migrator` service.
+4. Start `api`, `worker`, and `web`.
+
+The `migrator` image is an EF Core migration bundle built from [backend/src/SentinelKnowledgebase.Migrations](../../../backend/src/SentinelKnowledgebase.Migrations/). It is not a separate migrations source tree.
+
 ## Follow-up Setup Steps
 
 1. On the server, copy `deploy/.env.production.example` to `deploy/.env.production` and fill real values.
@@ -72,7 +85,7 @@ Use `deploy/scripts/remote-deploy.sh` to run the same remote deployment flow loc
 5. Optional dry run (no deploy):
    - `./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha> --dry-run`
 
-This mirrors CI behavior by executing remotely:
+This uses the same server-side deploy script as CI, but not the same transport:
 - `git fetch --all --prune`
 - `git checkout <branch>`
 - `git pull --ff-only`
@@ -85,3 +98,5 @@ This mirrors CI behavior by executing remotely:
 3. Merge release PR to create `v*` tag and GitHub release.
 4. Deploy workflow runs on `v*` tag pushes, uploads deploy artifacts (`deploy.sh` and compose file) to the server, and deploys that immutable release image tag.
 5. `workflow_dispatch` remains available for manual deployments.
+6. During deployment, CI builds and publishes `sentinel-api`, `sentinel-worker`, `sentinel-migrator`, and `sentinel-web`.
+

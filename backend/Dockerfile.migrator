@@ -2,7 +2,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY ["global.json", "."]
-COPY ["NuGet.Config", "."]
 COPY ["src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj", "src/SentinelKnowledgebase.Migrations/"]
 COPY ["src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj", "src/SentinelKnowledgebase.Infrastructure/"]
 COPY ["src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj", "src/SentinelKnowledgebase.Domain/"]
@@ -23,3 +22,4 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
 WORKDIR /bundle
 COPY --from=build /bundle/efbundle ./efbundle
 ENTRYPOINT ["./efbundle"]
+

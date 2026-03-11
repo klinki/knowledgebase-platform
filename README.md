@@ -221,6 +221,7 @@ This repository now includes production deployment assets for CI/CD and multi-ap
 - `deploy/docker-compose.proxy.yml` (shared autodiscovery Caddy edge, run once per host)
 - `deploy/docker-compose.vertex-proxy.yml` (optional Vertex AI OpenAI-compatible proxy)
 - `deploy/scripts/deploy.sh` (server-side rollout script)
+- `backend/Dockerfile.migrator` (builds an EF Core migration bundle image from the existing migrations project)
 - `frontend/Dockerfile` + `frontend/Caddyfile` (Angular static hosting)
 - `.github/workflows/deploy.yml` and `bitbucket-pipelines.yml` (image build/push + SSH deploy)
 - `.github/workflows/release-please.yml` + release-please config files (versioning + changelog)
@@ -264,6 +265,15 @@ Releases are formalized with Release Please and Conventional Commits:
 
 Manual deployment remains available through `workflow_dispatch` in `deploy.yml`.
 
+The GitHub deployment workflow now builds and publishes four images:
+
+- `sentinel-api`
+- `sentinel-worker`
+- `sentinel-migrator`
+- `sentinel-web`
+
+The `sentinel-migrator` image is not a separate source project. It is an EF Core migration bundle built from the existing [backend migrations project](backend/src/SentinelKnowledgebase.Migrations/).
+
 Server bootstrap (one-time):
 
 1. Clone repo on your server (example: `/opt/sentinel`).
@@ -283,6 +293,12 @@ Server bootstrap (one-time):
    cd /opt/sentinel
    IMAGE_TAG=latest ./deploy/scripts/deploy.sh
    ```
+
+The production deploy script runs the stack in this order:
+
+1. Start PostgreSQL.
+2. Run the one-shot `migrator` service, which executes the EF Core migration bundle against PostgreSQL.
+3. Start `api`, `worker`, and `web`.
 
 Each CI deployment then updates `IMAGE_TAG` to commit SHA and re-runs the same script.
 
@@ -309,10 +325,17 @@ Optional: preview remote commands without executing deploy:
 ./deploy/scripts/remote-deploy.sh --config deploy/.env.remote --image-tag <commit-sha> --dry-run
 ```
 
-This mirrors the CI deployment behavior:
+This uses the same server-side deploy script as the GitHub deploy flow, but the transport is different:
+
 - SSH to server
 - `git fetch`, `git checkout`, `git pull`
 - execute `deploy/scripts/deploy.sh` remotely with `IMAGE_TAG`
+
+GitHub Actions deploys differently:
+
+- build and push images
+- upload `deploy/scripts/deploy.sh` and `deploy/docker-compose.prod.yml` to the server
+- execute `deploy/scripts/deploy.sh` over SSH with `IMAGE_TAG`
 
 ### Explore
 
@@ -322,3 +345,4 @@ This mirrors the CI deployment behavior:
 - **Hangfire Dashboard**: `https://localhost:5001/hangfire` (Job monitoring)
 - **Health Checks**: `https://localhost:5001/health`
 - **Seq (Logs)**: `http://localhost:5341` (Local logging UI)
+
