@@ -20,8 +20,9 @@ RUN dotnet ef migrations bundle \
     --configuration Release \
     --output /bundle/efbundle
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /bundle
 COPY --from=build /bundle/efbundle ./efbundle
 ENTRYPOINT ["./efbundle"]
+
 
