@@ -164,6 +164,11 @@ public class IntegrationTestFixture : IAsyncLifetime
         await dbContext.SaveChangesAsync();
     }
 
+    public IServiceScope CreateScope()
+    {
+        return _factory.Services.CreateScope();
+    }
+
     public async Task DisposeAsync()
     {
         HttpClient?.Dispose();

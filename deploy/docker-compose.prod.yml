@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: pgvector/pgvector:${POSTGRES_VERSION:-18}
+    image: pgvector/pgvector:${POSTGRES_VERSION:-pg18}
     container_name: sentinel-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -34,6 +34,8 @@ services:
       ASPNETCORE_URLS: http://+:5000
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      Authentication__JwtSigningKey: ${AUTHENTICATION_JWT_SIGNING_KEY:-replace-this-signing-key-in-production-with-a-long-random-secret}
+      Authentication__FrontendUrl: ${AUTHENTICATION_FRONTEND_URL:-https://${SENTINEL_DOMAIN}}
       OpenAI__ApiKey: ${OPENAI_API_KEY}
       OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
       OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
@@ -70,6 +72,16 @@ services:
       - default
       - ai
     restart: unless-stopped
+
+  servercli:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-servercli:${IMAGE_TAG:-latest}
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   web:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-web:${IMAGE_TAG:-latest}

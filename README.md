@@ -265,11 +265,12 @@ Releases are formalized with Release Please and Conventional Commits:
 
 Manual deployment remains available through `workflow_dispatch` in `deploy.yml`.
 
-The GitHub deployment workflow now builds and publishes four images:
+The GitHub deployment workflow now builds and publishes five images:
 
 - `sentinel-api`
 - `sentinel-worker`
 - `sentinel-migrator`
+- `sentinel-servercli`
 - `sentinel-web`
 
 The `sentinel-migrator` image is not a separate source project. It is an EF Core migration bundle built from the existing [backend migrations project](backend/src/SentinelKnowledgebase.Migrations/).
@@ -287,6 +288,7 @@ Server bootstrap (one-time):
 
 3. Copy `deploy/.env.production.example` to `deploy/.env.production`.
 4. Fill in secrets (`OPENAI_API_KEY`, DB password, registry credentials) and set `SENTINEL_DOMAIN`.
+   Also set `AUTHENTICATION_JWT_SIGNING_KEY` to a long random secret.
 5. Run:
 
    ```bash
@@ -301,6 +303,24 @@ The production deploy script runs the stack in this order:
 3. Start `api`, `worker`, and `web`.
 
 Each CI deployment then updates `IMAGE_TAG` to commit SHA and re-runs the same script.
+
+### Server Admin CLI
+
+The production stack now includes a one-off admin CLI image for direct user management:
+
+- `sentinel-servercli`
+- service name: `servercli`
+
+Run it on the server with the same production env file used for deployment:
+
+```bash
+docker compose --env-file deploy/.env.production -f deploy/docker-compose.prod.yml run --rm servercli users list
+docker compose --env-file deploy/.env.production -f deploy/docker-compose.prod.yml run --rm servercli users add admin@example.com --role admin
+docker compose --env-file deploy/.env.production -f deploy/docker-compose.prod.yml run --rm servercli users change-password admin@example.com
+docker compose --env-file deploy/.env.production -f deploy/docker-compose.prod.yml run --rm servercli users delete old-user@example.com
+```
+
+If `--password` is omitted for `users add` or `users change-password`, the CLI prompts securely.
 
 ### Local Remote Deploy (Linux/WSL)
 

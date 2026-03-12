@@ -1,0 +1,20 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["global.json", "."]
+COPY ["src/SentinelKnowledgebase.ServerCLI/SentinelKnowledgebase.ServerCLI.csproj", "src/SentinelKnowledgebase.ServerCLI/"]
+COPY ["src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj", "src/SentinelKnowledgebase.Infrastructure/"]
+COPY ["src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj", "src/SentinelKnowledgebase.Domain/"]
+
+RUN dotnet restore "src/SentinelKnowledgebase.ServerCLI/SentinelKnowledgebase.ServerCLI.csproj"
+
+COPY . .
+RUN dotnet publish "src/SentinelKnowledgebase.ServerCLI/SentinelKnowledgebase.ServerCLI.csproj" \
+    --configuration Release \
+    --output /app/publish \
+    /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "SentinelKnowledgebase.ServerCLI.dll"]

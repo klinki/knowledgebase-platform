@@ -98,5 +98,5 @@ This uses the same server-side deploy script as CI, but not the same transport:
 3. Merge release PR to create `v*` tag and GitHub release.
 4. Deploy workflow runs on `v*` tag pushes, uploads deploy artifacts (`deploy.sh` and compose file) to the server, and deploys that immutable release image tag.
 5. `workflow_dispatch` remains available for manual deployments.
-6. During deployment, CI builds and publishes `sentinel-api`, `sentinel-worker`, `sentinel-migrator`, and `sentinel-web`.
+6. During deployment, CI builds and publishes `sentinel-api`, `sentinel-worker`, `sentinel-migrator`, `sentinel-servercli`, and `sentinel-web`.
 

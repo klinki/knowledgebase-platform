@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\src\SentinelKnowledgebase.Application\SentinelKnowledgebase.Application.csproj" />
     <ProjectReference Include="..\..\src\SentinelKnowledgebase.Domain\SentinelKnowledgebase.Domain.csproj" />
     <ProjectReference Include="..\..\src\SentinelKnowledgebase.Infrastructure\SentinelKnowledgebase.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\SentinelKnowledgebase.ServerCLI\SentinelKnowledgebase.ServerCLI.csproj" />
   </ItemGroup>
 
 </Project>

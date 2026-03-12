@@ -80,6 +80,17 @@ jobs:
             ghcr.io/${{ steps.vars.outputs.image_namespace }}/sentinel-migrator:${{ github.sha }}
             ghcr.io/${{ steps.vars.outputs.image_namespace }}/sentinel-migrator:latest
 
+      - name: Build and push ServerCLI image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.servercli
+          push: true
+          tags: |
+            ghcr.io/${{ steps.vars.outputs.image_namespace }}/sentinel-servercli:${{ steps.vars.outputs.image_tag }}
+            ghcr.io/${{ steps.vars.outputs.image_namespace }}/sentinel-servercli:${{ github.sha }}
+            ghcr.io/${{ steps.vars.outputs.image_namespace }}/sentinel-servercli:latest
+
       - name: Build and push Web image
         uses: docker/build-push-action@v6
         with:

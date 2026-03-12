@@ -72,5 +72,7 @@ Notes:
 - [x] Added ADR documenting the shared Caddy deployment edge and routing model.
 - [x] Added detailed Vertex proxy setup guide with Google Cloud and Sentinel configuration steps.
 - [x] Updated production frontend API URL for proxy-based routing.
+- [x] Added `backend/Dockerfile.servercli` and a one-off `servercli` production compose service for server-side admin operations.
+- [x] Updated the deploy workflow to build and publish the `sentinel-servercli` image.
 - [x] Updated `README.md` deployment section.
 
