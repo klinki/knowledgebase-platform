@@ -189,15 +189,7 @@ public class CaptureService : ICaptureService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Capture {RawCaptureId} failed during processing", rawCaptureId);
-
-            var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId);
-            if (rawCapture != null)
-            {
-                rawCapture.Status = CaptureStatus.Failed;
-                await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
-                await _unitOfWork.SaveChangesAsync();
-                _logger.LogInformation("Capture {RawCaptureId} marked as failed", rawCaptureId);
-            }
+            throw;
         }
         finally
         {

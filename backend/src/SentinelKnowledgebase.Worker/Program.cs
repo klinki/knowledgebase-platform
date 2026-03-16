@@ -3,6 +3,7 @@ using Hangfire.PostgreSql;
 using Serilog;
 using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Infrastructure;
+using SentinelKnowledgebase.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSerilog((services, loggerConfiguration) =>
@@ -15,21 +16,27 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<CaptureProcessingStateFilter>();
 
-var hangfireRetryAttempts = builder.Configuration.GetValue<int?>("Hangfire:RetryAttempts") ?? 3;
-var hangfireRetryDelays = builder.Configuration.GetSection("Hangfire:RetryDelaysInSeconds").Get<int[]>() ?? [5, 15, 30];
+var hangfireRetryAttempts = builder.Configuration.GetValue<int?>("Hangfire:RetryAttempts") ?? 10;
+var hangfireRetryDelays = builder.Configuration.GetSection("Hangfire:RetryDelaysInSeconds").Get<int[]>();
+var retryFilter = new AutomaticRetryAttribute
+{
+    Attempts = hangfireRetryAttempts
+};
+if (hangfireRetryDelays is { Length: > 0 })
+{
+    retryFilter.DelaysInSeconds = hangfireRetryDelays;
+}
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseFilter(new AutomaticRetryAttribute
-    {
-        Attempts = hangfireRetryAttempts,
-        DelaysInSeconds = hangfireRetryDelays
-    })
+    .UseFilter(retryFilter)
     .UsePostgreSqlStorage(options =>
         options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
 builder.Services.AddHangfireServer();
 
 var host = builder.Build();
+GlobalJobFilters.Filters.Add(host.Services.GetRequiredService<CaptureProcessingStateFilter>());
 host.Run();
