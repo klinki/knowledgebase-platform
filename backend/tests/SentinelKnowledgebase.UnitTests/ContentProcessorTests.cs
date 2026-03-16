@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -25,7 +26,8 @@ public class ContentProcessorTests
         
         var httpClient = new HttpClient();
         var monitoringService = Substitute.For<IMonitoringService>();
-        _processor = new ContentProcessor(config, httpClient, monitoringService);
+        var logger = Substitute.For<ILogger<ContentProcessor>>();
+        _processor = new ContentProcessor(config, httpClient, monitoringService, logger);
     }
     
     [Fact]
@@ -58,25 +60,24 @@ Final important content.
     }
     
     [Fact]
-    public async Task ExtractInsightsAsync_ShouldReturnInsights()
+    public async Task ExtractInsightsAsync_ShouldThrow_WhenApiKeyIsMissing()
     {
         var content = "This is a test article about programming. It covers best practices.";
         
-        var result = await _processor.ExtractInsightsAsync(content, ContentType.Article);
-        
-        result.Should().NotBeNull();
-        result.Title.Should().NotBeNullOrEmpty();
-        result.Summary.Should().NotBeNullOrEmpty();
+        var action = async () => await _processor.ExtractInsightsAsync(content, ContentType.Article);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("OpenAI API key is not configured.");
     }
     
     [Fact]
-    public async Task GenerateEmbeddingAsync_ShouldReturnVector()
+    public async Task GenerateEmbeddingAsync_ShouldThrow_WhenApiKeyIsMissing()
     {
         var text = "Test text for embedding";
         
-        var result = await _processor.GenerateEmbeddingAsync(text);
-        
-        result.Should().NotBeNull();
-        result.Should().HaveCount(1536);
+        var action = async () => await _processor.GenerateEmbeddingAsync(text);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("OpenAI API key is not configured.");
     }
 }

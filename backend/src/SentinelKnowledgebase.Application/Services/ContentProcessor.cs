@@ -44,20 +44,8 @@ public class ContentProcessor : IContentProcessor
     public async Task<ContentInsights> ExtractInsightsAsync(string content, ContentType contentType)
     {
         var prompt = GeneratePrompt(content, contentType);
-        
-        var insights = new ContentInsights();
-        
-        if (!string.IsNullOrEmpty(_configuration["OpenAI:ApiKey"]))
-        {
-            insights = await CallOpenAIForInsights(prompt);
-        }
-        else
-        {
-            _logger.LogWarning("OpenAI API key is not configured. Falling back to heuristic insight extraction.");
-            insights = GenerateFallbackInsights(content, contentType);
-        }
-        
-        return insights;
+        EnsureOpenAiApiKeyConfigured();
+        return await CallOpenAIForInsights(prompt);
     }
     
     public async Task<float[]> GenerateEmbeddingAsync(string text)
@@ -66,11 +54,7 @@ public class ContentProcessor : IContentProcessor
 
         try
         {
-            if (string.IsNullOrEmpty(_configuration["OpenAI:ApiKey"]))
-            {
-                _logger.LogWarning("OpenAI API key is not configured. Falling back to generated embeddings.");
-                return GenerateRandomEmbedding();
-            }
+            EnsureOpenAiApiKeyConfigured();
             
             var embeddingModel = _configuration["OpenAI:EmbeddingModel"] ?? "text-embedding-3-small";
             var apiKey = _configuration["OpenAI:ApiKey"];
@@ -98,7 +82,12 @@ public class ContentProcessor : IContentProcessor
                 }
 
                 var embedding = responseContent?.data?[0]?.embedding;
-                return embedding != null ? embedding.ToArray() : GenerateRandomEmbedding();
+                if (embedding != null)
+                {
+                    return embedding.ToArray();
+                }
+
+                throw new InvalidOperationException("Embedding response did not contain an embedding vector.");
             }
 
             var responseBody = await response.Content.ReadAsStringAsync();
@@ -106,8 +95,11 @@ public class ContentProcessor : IContentProcessor
                 "Embedding request failed with status {StatusCode}. Response: {ResponseBody}",
                 (int)response.StatusCode,
                 responseBody);
-            
-            return GenerateRandomEmbedding();
+
+            throw new HttpRequestException(
+                $"Embedding request failed with status {(int)response.StatusCode}.",
+                null,
+                response.StatusCode);
         }
         finally
         {
@@ -184,64 +176,41 @@ Respond with valid JSON only.";
             {
                 return ParseJsonToInsights(content);
             }
+
+            throw new InvalidOperationException("Chat completions response did not contain a message content payload.");
         }
-        else
-        {
-            var responseBody = await response.Content.ReadAsStringAsync();
-            _logger.LogWarning(
-                "Insight extraction request failed with status {StatusCode}. Response: {ResponseBody}",
-                (int)response.StatusCode,
-                responseBody);
-        }
-        
-        return new ContentInsights { Summary = "Failed to process content" };
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        _logger.LogWarning(
+            "Insight extraction request failed with status {StatusCode}. Response: {ResponseBody}",
+            (int)response.StatusCode,
+            responseBody);
+
+        throw new HttpRequestException(
+            $"Insight extraction request failed with status {(int)response.StatusCode}.",
+            null,
+            response.StatusCode);
     }
     
     private ContentInsights ParseJsonToInsights(string json)
     {
-        try
+        var options = new JsonSerializerOptions
         {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-            return JsonSerializer.Deserialize<ContentInsights>(json, options) ?? new ContentInsights();
-        }
-        catch
-        {
-            return new ContentInsights { Summary = json.Length > 500 ? json[..500] : json };
-        }
-    }
-    
-    private ContentInsights GenerateFallbackInsights(string content, ContentType contentType)
-    {
-        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var firstMeaningfulLine = lines.FirstOrDefault(l => !IsNoiseLine(l)) ?? content[..Math.Min(100, content.Length)];
-        
-        return new ContentInsights
-        {
-            Title = firstMeaningfulLine.Length > 100 ? firstMeaningfulLine[..100] : firstMeaningfulLine,
-            Summary = content.Length > 500 ? content[..500] : content,
-            KeyInsights = lines.Take(5).Where(l => !IsNoiseLine(l)).ToList(),
-            ActionItems = new List<string>()
+            PropertyNameCaseInsensitive = true
         };
+        return JsonSerializer.Deserialize<ContentInsights>(json, options)
+            ?? throw new InvalidOperationException("Chat completions response contained an empty JSON payload.");
     }
-    
-    private float[] GenerateRandomEmbedding()
+
+    private void EnsureOpenAiApiKeyConfigured()
     {
-        var random = new Random(42);
-        var vector = new float[1536];
-        for (int i = 0; i < vector.Length; i++)
+        if (!string.IsNullOrWhiteSpace(_configuration["OpenAI:ApiKey"]))
         {
-            vector[i] = (float)random.NextDouble() * 2 - 1;
+            return;
         }
-        return NormalizeVector(vector);
-    }
-    
-    private float[] NormalizeVector(float[] vector)
-    {
-        var norm = (float)Math.Sqrt(vector.Sum(x => x * x));
-        return norm > 0 ? vector.Select(x => x / norm).ToArray() : vector;
+
+        _logger.LogError("OpenAI API key is not configured. Content processing cannot continue.");
+        throw new InvalidOperationException("OpenAI API key is not configured.");
     }
     
     private bool IsNoiseLine(string line)

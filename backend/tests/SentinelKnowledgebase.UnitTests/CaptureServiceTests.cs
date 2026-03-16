@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services;
@@ -16,6 +17,7 @@ public class CaptureServiceTests
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly IMonitoringService _monitoringService;
+    private readonly ILogger<CaptureService> _logger;
     private readonly CaptureService _service;
     
     public CaptureServiceTests()
@@ -23,7 +25,8 @@ public class CaptureServiceTests
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _contentProcessor = Substitute.For<IContentProcessor>();
         _monitoringService = Substitute.For<IMonitoringService>();
-        _service = new CaptureService(_unitOfWork, _contentProcessor, _monitoringService);
+        _logger = Substitute.For<ILogger<CaptureService>>();
+        _service = new CaptureService(_unitOfWork, _contentProcessor, _monitoringService, _logger);
     }
     
     [Fact]
