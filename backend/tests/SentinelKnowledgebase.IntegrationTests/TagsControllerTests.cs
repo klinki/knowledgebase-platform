@@ -135,4 +135,132 @@ public class TagsControllerTests
         matchingTags.Should().ContainSingle();
         matchingTags[0].Count.Should().Be(2);
     }
+
+    // ──── POST /api/v1/tags ────────────────────────────────────────────
+
+    [Fact]
+    public async Task CreateTag_ShouldReturn401_WhenAnonymous()
+    {
+        using var client = _fixture.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/v1/tags", new { name = "anon-tag" });
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task CreateTag_ShouldReturn201WithDto_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var tagName = $"new-tag-{Guid.NewGuid():N}";
+
+        var response = await client.PostAsJsonAsync("/api/v1/tags", new { name = tagName });
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+        var tag = await response.Content.ReadFromJsonAsync<TagSummaryDto>();
+        tag.Should().NotBeNull();
+        tag!.Name.Should().Be(tagName);
+        tag.Id.Should().NotBe(Guid.Empty);
+        tag.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateTag_ShouldReturn409_WhenNameAlreadyExists()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var tagName = $"dup-tag-{Guid.NewGuid():N}";
+
+        var first = await client.PostAsJsonAsync("/api/v1/tags", new { name = tagName });
+        first.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+
+        var second = await client.PostAsJsonAsync("/api/v1/tags", new { name = tagName });
+        second.StatusCode.Should().Be(System.Net.HttpStatusCode.Conflict);
+    }
+
+    // ──── PATCH /api/v1/tags/{id} ──────────────────────────────────────
+
+    [Fact]
+    public async Task RenameTag_ShouldReturn200WithUpdatedDto_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var original = $"rename-original-{Guid.NewGuid():N}";
+        var renamed = $"rename-updated-{Guid.NewGuid():N}";
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/tags", new { name = original });
+        createResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<TagSummaryDto>();
+
+        var patchResponse = await client.PatchAsJsonAsync($"/api/v1/tags/{created!.Id}", new { name = renamed });
+
+        patchResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var updated = await patchResponse.Content.ReadFromJsonAsync<TagSummaryDto>();
+        updated.Should().NotBeNull();
+        updated!.Name.Should().Be(renamed);
+        updated.Id.Should().Be(created.Id);
+    }
+
+    [Fact]
+    public async Task RenameTag_ShouldReturn404_WhenTagDoesNotExist()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var response = await client.PatchAsJsonAsync($"/api/v1/tags/{Guid.NewGuid()}", new { name = "ghost" });
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task RenameTag_ShouldReturn409_WhenNewNameConflicts()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var firstName = $"conflict-a-{Guid.NewGuid():N}";
+        var secondName = $"conflict-b-{Guid.NewGuid():N}";
+
+        var first = await client.PostAsJsonAsync("/api/v1/tags", new { name = firstName });
+        var second = await client.PostAsJsonAsync("/api/v1/tags", new { name = secondName });
+        first.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+        second.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+        var secondTag = await second.Content.ReadFromJsonAsync<TagSummaryDto>();
+
+        var response = await client.PatchAsJsonAsync($"/api/v1/tags/{secondTag!.Id}", new { name = firstName });
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Conflict);
+    }
+
+    // ──── DELETE /api/v1/tags/{id} ─────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteTag_ShouldReturn204_WhenTagExists()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var tagName = $"delete-me-{Guid.NewGuid():N}";
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/tags", new { name = tagName });
+        createResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<TagSummaryDto>();
+
+        var deleteResponse = await client.DeleteAsync($"/api/v1/tags/{created!.Id}");
+
+        deleteResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteTag_ShouldReturn404_WhenTagDoesNotExist()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var response = await client.DeleteAsync($"/api/v1/tags/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeleteTag_ShouldReturn401_WhenAnonymous()
+    {
+        using var client = _fixture.CreateClient();
+
+        var response = await client.DeleteAsync($"/api/v1/tags/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
 }

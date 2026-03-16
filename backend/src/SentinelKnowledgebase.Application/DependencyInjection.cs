@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<ICaptureService, CaptureService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ISearchService, SearchService>();
+        services.AddScoped<ITagService, TagService>();
         services.AddSingleton<IMonitoringService, MonitoringService>();
         services.AddScoped<IContentProcessor, ContentProcessor>();
         
