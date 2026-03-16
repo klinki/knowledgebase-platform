@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Enums;
 using System.Net.Http.Json;
@@ -13,12 +14,18 @@ public class ContentProcessor : IContentProcessor
     private readonly IConfiguration _configuration;
     private readonly HttpClient _httpClient;
     private readonly IMonitoringService _monitoringService;
+    private readonly ILogger<ContentProcessor> _logger;
     
-    public ContentProcessor(IConfiguration configuration, HttpClient httpClient, IMonitoringService monitoringService)
+    public ContentProcessor(
+        IConfiguration configuration,
+        HttpClient httpClient,
+        IMonitoringService monitoringService,
+        ILogger<ContentProcessor> logger)
     {
         _configuration = configuration;
         _httpClient = httpClient;
         _monitoringService = monitoringService;
+        _logger = logger;
     }
     
     public string DenoiseContent(string content)
@@ -46,6 +53,7 @@ public class ContentProcessor : IContentProcessor
         }
         else
         {
+            _logger.LogWarning("OpenAI API key is not configured. Falling back to heuristic insight extraction.");
             insights = GenerateFallbackInsights(content, contentType);
         }
         
@@ -60,6 +68,7 @@ public class ContentProcessor : IContentProcessor
         {
             if (string.IsNullOrEmpty(_configuration["OpenAI:ApiKey"]))
             {
+                _logger.LogWarning("OpenAI API key is not configured. Falling back to generated embeddings.");
                 return GenerateRandomEmbedding();
             }
             
@@ -91,6 +100,12 @@ public class ContentProcessor : IContentProcessor
                 var embedding = responseContent?.data?[0]?.embedding;
                 return embedding != null ? embedding.ToArray() : GenerateRandomEmbedding();
             }
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning(
+                "Embedding request failed with status {StatusCode}. Response: {ResponseBody}",
+                (int)response.StatusCode,
+                responseBody);
             
             return GenerateRandomEmbedding();
         }
@@ -169,6 +184,14 @@ Respond with valid JSON only.";
             {
                 return ParseJsonToInsights(content);
             }
+        }
+        else
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning(
+                "Insight extraction request failed with status {StatusCode}. Response: {ResponseBody}",
+                (int)response.StatusCode,
+                responseBody);
         }
         
         return new ContentInsights { Summary = "Failed to process content" };

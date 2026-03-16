@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -14,15 +15,18 @@ public class CaptureService : ICaptureService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly IMonitoringService _monitoringService;
+    private readonly ILogger<CaptureService> _logger;
     
     public CaptureService(
         IUnitOfWork unitOfWork,
         IContentProcessor contentProcessor,
-        IMonitoringService monitoringService)
+        IMonitoringService monitoringService,
+        ILogger<CaptureService> logger)
     {
         _unitOfWork = unitOfWork;
         _contentProcessor = contentProcessor;
         _monitoringService = monitoringService;
+        _logger = logger;
     }
     
     public async Task<CaptureResponseDto> CreateCaptureAsync(Guid ownerUserId, CaptureRequestDto request)
@@ -102,20 +106,42 @@ public class CaptureService : ICaptureService
 
         try
         {
+            _logger.LogInformation("Starting capture processing for {RawCaptureId}", rawCaptureId);
+
             var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId);
             if (rawCapture == null)
             {
                 processingStatus = "not_found";
+                _logger.LogWarning("Capture {RawCaptureId} was not found for processing", rawCaptureId);
                 return;
             }
             
             rawCapture.Status = CaptureStatus.Processing;
             await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
             await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "Capture {RawCaptureId} marked as processing for owner {OwnerUserId}",
+                rawCaptureId,
+                rawCapture.OwnerUserId);
             
             var deNoisedContent = _contentProcessor.DenoiseContent(rawCapture.RawContent);
+            _logger.LogInformation(
+                "Capture {RawCaptureId} denoised from {OriginalLength} to {DenoisedLength} characters",
+                rawCaptureId,
+                rawCapture.RawContent.Length,
+                deNoisedContent.Length);
+
             var insights = await _contentProcessor.ExtractInsightsAsync(deNoisedContent, rawCapture.ContentType);
+            _logger.LogInformation(
+                "Capture {RawCaptureId} produced insights with title '{Title}'",
+                rawCaptureId,
+                insights.Title);
+
             var embedding = await _contentProcessor.GenerateEmbeddingAsync(insights.Summary);
+            _logger.LogInformation(
+                "Capture {RawCaptureId} generated embedding with {Dimensions} dimensions",
+                rawCaptureId,
+                embedding.Length);
             
             var processedInsight = new ProcessedInsight
             {
@@ -155,21 +181,33 @@ public class CaptureService : ICaptureService
 
             processingStatus = "completed";
             _monitoringService.IncrementProcessedCaptures();
+            _logger.LogInformation(
+                "Capture {RawCaptureId} completed successfully as insight {ProcessedInsightId}",
+                rawCaptureId,
+                processedInsight.Id);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Capture {RawCaptureId} failed during processing", rawCaptureId);
+
             var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId);
             if (rawCapture != null)
             {
                 rawCapture.Status = CaptureStatus.Failed;
                 await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
                 await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("Capture {RawCaptureId} marked as failed", rawCaptureId);
             }
         }
         finally
         {
             stopwatch.Stop();
             _monitoringService.RecordCaptureProcessingDuration(stopwatch.Elapsed.TotalMilliseconds, processingStatus);
+            _logger.LogInformation(
+                "Capture {RawCaptureId} finished with status {ProcessingStatus} in {ElapsedMilliseconds} ms",
+                rawCaptureId,
+                processingStatus,
+                stopwatch.Elapsed.TotalMilliseconds);
         }
     }
     
