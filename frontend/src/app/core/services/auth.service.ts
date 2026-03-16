@@ -12,6 +12,28 @@ export interface User {
   role: string;
 }
 
+export interface InvitationRequest {
+  email: string;
+  displayName: string;
+  role: string;
+}
+
+export interface InvitationResponse {
+  invitationId: string;
+  email: string;
+  role: string;
+  token: string;
+  invitationUrl: string;
+  expiresAt: string;
+}
+
+export interface InvitationPreview {
+  email: string;
+  displayName: string;
+  role: string;
+  expiresAt: string;
+}
+
 export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous';
 
 @Injectable({
@@ -57,6 +79,33 @@ export class AuthService {
     await firstValueFrom(
       this.http.post(`${this.apiBaseUrl}/device/approve`, { userCode })
     );
+  }
+
+  async createInvitation(request: InvitationRequest): Promise<InvitationResponse> {
+    return await firstValueFrom(
+      this.http.post<InvitationResponse>(`${this.apiBaseUrl}/invitations`, request)
+    );
+  }
+
+  async previewInvitation(token: string): Promise<InvitationPreview> {
+    return await firstValueFrom(
+      this.http.get<InvitationPreview>(`${this.apiBaseUrl}/invitations/preview`, {
+        params: { token }
+      })
+    );
+  }
+
+  async acceptInvitation(token: string, displayName: string, password: string): Promise<User> {
+    const user = await firstValueFrom(
+      this.http.post<User>(`${this.apiBaseUrl}/invitations/accept`, {
+        token,
+        displayName,
+        password
+      })
+    );
+
+    this.setAuthenticated(user);
+    return user;
   }
 
   async ensureSessionResolved(): Promise<AuthStatus> {

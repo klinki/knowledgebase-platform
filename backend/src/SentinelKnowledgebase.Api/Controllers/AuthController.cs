@@ -139,10 +139,39 @@ public class AuthController : ControllerBase
             Email = invitation.Email,
             Role = invitation.Role,
             Token = invitationToken,
+            InvitationUrl = $"{_authOptions.FrontendUrl.TrimEnd('/')}/accept-invite?token={Uri.EscapeDataString(invitationToken)}",
             ExpiresAt = invitation.ExpiresAt
         };
 
         return CreatedAtAction(nameof(CreateInvitation), response);
+    }
+
+    [HttpGet("invitations/preview")]
+    [ProducesResponseType(typeof(InvitationPreviewDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<InvitationPreviewDto>> PreviewInvitation([FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest("Invitation token is required.");
+        }
+
+        var tokenHash = _tokenService.HashOpaqueToken(token.Trim());
+        var invitation = await _dbContext.UserInvitations
+            .FirstOrDefaultAsync(item => item.TokenHash == tokenHash);
+
+        if (invitation == null || invitation.AcceptedAt.HasValue || invitation.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            return BadRequest("Invitation is invalid or expired.");
+        }
+
+        return Ok(new InvitationPreviewDto
+        {
+            Email = invitation.Email,
+            DisplayName = invitation.DisplayName,
+            Role = invitation.Role,
+            ExpiresAt = invitation.ExpiresAt
+        });
     }
 
     [HttpPost("invitations/accept")]
@@ -186,6 +215,7 @@ public class AuthController : ControllerBase
 
         invitation.AcceptedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();
+        await _signInManager.SignInAsync(user, isPersistent: true);
 
         return Created(string.Empty, await BuildAuthUserAsync(user));
     }

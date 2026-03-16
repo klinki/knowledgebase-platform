@@ -24,6 +24,11 @@ import { fadeAnimation } from '../../shared/animations';
           <a routerLink="/tags" routerLinkActive="active" class="nav-item">
             <span class="icon">🏷️</span> Tags
           </a>
+          @if (isAdmin()) {
+            <a routerLink="/admin/invitations" routerLinkActive="active" class="nav-item">
+              <span class="icon">✉️</span> Invitations
+            </a>
+          }
         </nav>
         
         <div class="user-footer">
@@ -152,6 +157,7 @@ import { fadeAnimation } from '../../shared/animations';
 export class ShellComponent {
   authService = inject(AuthService);
   private router = inject(Router);
+  isAdmin = () => this.authService.currentUser()?.role === 'admin';
 
   async logout(): Promise<void> {
     await this.authService.logout();
