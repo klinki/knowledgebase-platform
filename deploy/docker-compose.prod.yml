@@ -2,6 +2,8 @@ services:
   postgres:
     image: pgvector/pgvector:${POSTGRES_VERSION:-pg18}
     container_name: sentinel-postgres
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -34,6 +36,7 @@ services:
       ASPNETCORE_URLS: http://+:5000
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      Serilog__WriteTo__1__Args__serverUrl: http://seq
       Authentication__JwtSigningKey: ${AUTHENTICATION_JWT_SIGNING_KEY:-replace-this-signing-key-in-production-with-a-long-random-secret}
       Authentication__FrontendUrl: ${AUTHENTICATION_FRONTEND_URL:-https://${SENTINEL_DOMAIN}}
       OpenAI__ApiKey: ${OPENAI_API_KEY}
@@ -58,6 +61,7 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      Serilog__WriteTo__1__Args__serverUrl: http://seq
       OpenAI__ApiKey: ${OPENAI_API_KEY}
       OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
       OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
@@ -83,11 +87,42 @@ services:
         condition: service_healthy
     restart: "no"
 
+  adminer:
+    image: adminer:5
+    container_name: sentinel-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DEFAULT_DB_DRIVER: pgsql
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - proxy
+    restart: unless-stopped
+
+  seq:
+    image: datalust/seq:latest
+    container_name: sentinel-seq
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_API_CANONICALURI: https://${SENTINEL_DOMAIN}/logs/
+      SEQ_FIRSTRUN_ADMINUSERNAME: ${SEQ_FIRSTRUN_ADMINUSERNAME:-admin}
+      SEQ_FIRSTRUN_ADMINPASSWORD: ${SEQ_FIRSTRUN_ADMINPASSWORD:-}
+    volumes:
+      - ./docker/seq:/data
+    networks:
+      - default
+      - proxy
+    restart: unless-stopped
+
   web:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-web:${IMAGE_TAG:-latest}
     container_name: sentinel-web
     depends_on:
       - api
+      - adminer
+      - seq
     networks:
       - default
       - proxy
@@ -99,7 +134,13 @@ services:
       caddy.2_reverse_proxy: /openapi/* sentinel-api:5000
       caddy.3_reverse_proxy: /scalar* sentinel-api:5000
       caddy.4_reverse_proxy: /hangfire* sentinel-api:5000
-      caddy.5_reverse_proxy: sentinel-web:80
+      caddy.5_redir: /db /db/ 308
+      caddy.6_handle_path: /db/*
+      caddy.6_handle_path.0_reverse_proxy: sentinel-adminer:8080
+      caddy.7_redir: /logs /logs/ 308
+      caddy.8_handle_path: /logs/*
+      caddy.8_handle_path.0_reverse_proxy: sentinel-seq:80
+      caddy.9_reverse_proxy: sentinel-web:80
     restart: unless-stopped
 
 networks:
