@@ -13,9 +13,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent) },
+      { path: 'captures', loadComponent: () => import('./features/captures/captures.component').then(m => m.CapturesComponent) },
+      { path: 'captures/:id', loadComponent: () => import('./features/captures/capture-detail.component').then(m => m.CaptureDetailComponent) },
       { path: 'tags', loadComponent: () => import('./features/tags/tags.component').then(m => m.TagsComponent) },
       { path: 'admin/invitations', loadComponent: () => import('./features/admin/invitations.component').then(m => m.InvitationsComponent) },
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: '**', loadComponent: () => import('./features/shell/shell-not-found.component').then(m => m.ShellNotFoundComponent) }
     ]
   }
 ];

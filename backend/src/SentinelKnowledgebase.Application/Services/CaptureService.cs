@@ -213,6 +213,8 @@ public class CaptureService : ICaptureService
             Status = rawCapture.Status,
             CreatedAt = rawCapture.CreatedAt,
             ProcessedAt = rawCapture.ProcessedAt,
+            RawContent = rawCapture.RawContent,
+            Metadata = rawCapture.Metadata,
             Tags = rawCapture.Tags.Select(t => t.Name).ToList(),
             ProcessedInsight = rawCapture.ProcessedInsight != null ? new ProcessedInsightDto
             {

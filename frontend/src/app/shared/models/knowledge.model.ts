@@ -35,3 +35,37 @@ export interface SemanticSearchResult {
   similarity: number;
   tags: string[];
 }
+
+export interface CaptureListItem {
+  id: string;
+  sourceUrl: string;
+  contentType: string;
+  status: string;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+export interface CaptureProcessedInsight {
+  id: string;
+  title: string;
+  summary: string;
+  keyInsights: string | null;
+  actionItems: string | null;
+  sourceTitle: string | null;
+  author: string | null;
+  processedAt: string;
+  tags: string[];
+}
+
+export interface CaptureDetail {
+  id: string;
+  sourceUrl: string;
+  contentType: string;
+  status: string;
+  createdAt: string;
+  processedAt: string | null;
+  rawContent: string;
+  metadata: string | null;
+  tags: string[];
+  processedInsight: CaptureProcessedInsight | null;
+}

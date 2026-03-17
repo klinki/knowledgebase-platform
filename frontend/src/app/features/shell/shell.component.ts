@@ -21,6 +21,9 @@ import { fadeAnimation } from '../../shared/animations';
           <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
             <span class="icon">📊</span> Dashboard
           </a>
+          <a routerLink="/captures" routerLinkActive="active" class="nav-item">
+            <span class="icon">🗂️</span> Captures
+          </a>
           <a routerLink="/tags" routerLinkActive="active" class="nav-item">
             <span class="icon">🏷️</span> Tags
           </a>

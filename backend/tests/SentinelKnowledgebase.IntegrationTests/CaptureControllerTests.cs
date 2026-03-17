@@ -84,6 +84,35 @@ public class CaptureControllerTests
         
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task GetCapture_ShouldReturnRawContentAndMetadata_ForOwner()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = $"https://example.com/{Guid.NewGuid():N}",
+            ContentType = ContentType.Article,
+            RawContent = "Stored raw content for capture detail.",
+            Metadata = JsonSerializer.Serialize(new { author = "Integration Test", length = 42 }),
+            Tags = new List<string> { "detail" }
+        };
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/capture", request);
+        createResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+
+        var accepted = await createResponse.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
+        accepted.Should().NotBeNull();
+
+        var getResponse = await client.GetAsync($"/api/v1/capture/{accepted!.Id}");
+        getResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+
+        var capture = await getResponse.Content.ReadFromJsonAsync<CaptureResponseDto>(ResponseJsonOptions);
+        capture.Should().NotBeNull();
+        capture!.RawContent.Should().Be(request.RawContent);
+        capture.Metadata.Should().Be(request.Metadata);
+    }
     
     [Fact]
     public async Task GetAllCaptures_ShouldReturnEmptyList_WhenAuthenticated()
@@ -140,5 +169,8 @@ public class CaptureControllerTests
 
         var ownerGetResponse = await ownerClient.GetAsync($"/api/v1/capture/{accepted.Id}");
         ownerGetResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var ownerCapture = await ownerGetResponse.Content.ReadFromJsonAsync<CaptureResponseDto>(ResponseJsonOptions);
+        ownerCapture.Should().NotBeNull();
+        ownerCapture!.RawContent.Should().Be("Owner scoped capture content.");
     }
 }
