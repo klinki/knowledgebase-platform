@@ -7,6 +7,7 @@ describe('app routes', () => {
 
     expect(shellRoute).toBeTruthy();
     expect(shellRoute?.canActivate).toContain(authGuard);
+    expect(shellRoute?.children?.some(route => route.path === 'captures/new')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === 'captures')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === 'captures/:id')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === '**')).toBe(true);

@@ -173,4 +173,29 @@ public class CaptureControllerTests
         ownerCapture.Should().NotBeNull();
         ownerCapture!.RawContent.Should().Be("Owner scoped capture content.");
     }
+
+    [Fact]
+    public async Task CreateCapture_ShouldAllowDirectContentWithoutUrl_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = string.Empty,
+            ContentType = ContentType.Note,
+            RawContent = "Manual frontend capture without a URL.",
+            Metadata = JsonSerializer.Serialize(new { source = "frontend_manual_input" })
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/capture", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+        var accepted = await response.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
+        accepted.Should().NotBeNull();
+
+        var detail = await client.GetFromJsonAsync<CaptureResponseDto>($"/api/v1/capture/{accepted!.Id}", ResponseJsonOptions);
+        detail.Should().NotBeNull();
+        detail!.SourceUrl.Should().BeEmpty();
+        detail.RawContent.Should().Be(request.RawContent);
+    }
 }

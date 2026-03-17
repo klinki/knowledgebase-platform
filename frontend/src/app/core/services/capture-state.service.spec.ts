@@ -106,4 +106,47 @@ describe('CaptureStateService', () => {
     service.setSort('sourceUrl');
     expect(service.captures().map(item => item.id)).toEqual(['a', 'b']);
   });
+
+  it('maps URL-only create capture to Article with generated content', async () => {
+    const createPromise = service.createCapture({
+      sourceUrl: 'https://example.com/url-only',
+      contentType: '',
+      rawContent: '',
+      tags: [' alpha ', ' ', 'beta']
+    });
+
+    const request = http.expectOne('http://localhost:5000/api/v1/capture');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.sourceUrl).toBe('https://example.com/url-only');
+    expect(request.request.body.contentType).toBe('Article');
+    expect(request.request.body.rawContent).toBe('https://example.com/url-only');
+    expect(request.request.body.tags).toEqual(['alpha', 'beta']);
+    const urlOnlyMetadata = JSON.parse(request.request.body.metadata) as { source: string; capturedAt: string };
+    expect(urlOnlyMetadata.source).toBe('frontend_url_input');
+    expect(typeof urlOnlyMetadata.capturedAt).toBe('string');
+    request.flush({ id: 'capture-1', message: 'accepted' });
+
+    await expect(createPromise).resolves.toEqual({ id: 'capture-1', message: 'accepted' });
+  });
+
+  it('maps direct content create capture without a URL', async () => {
+    const createPromise = service.createCapture({
+      sourceUrl: '   ',
+      contentType: 'Note',
+      rawContent: 'Manual body',
+      tags: [' one ', 'two']
+    });
+
+    const request = http.expectOne('http://localhost:5000/api/v1/capture');
+    expect(request.request.body.sourceUrl).toBe('');
+    expect(request.request.body.contentType).toBe('Note');
+    expect(request.request.body.rawContent).toBe('Manual body');
+    expect(request.request.body.tags).toEqual(['one', 'two']);
+    const directMetadata = JSON.parse(request.request.body.metadata) as { source: string; capturedAt: string };
+    expect(directMetadata.source).toBe('frontend_manual_input');
+    expect(typeof directMetadata.capturedAt).toBe('string');
+    request.flush({ id: 'capture-2', message: 'accepted' });
+
+    await expect(createPromise).resolves.toEqual({ id: 'capture-2', message: 'accepted' });
+});
 });

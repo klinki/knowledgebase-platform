@@ -12,6 +12,8 @@
 - [x] Browser Extension Capture DTO Normalization (Ref: [docs/features/02-browser-extension/2026-03-02-fixed-data-shape.md](features/02-browser-extension/2026-03-02-fixed-data-shape.md))
 - [x] OpenAPI Documentation with Scalar (Ref: [docs/features/08-openapi-scalar-docs/feature-spec.md](features/08-openapi-scalar-docs/feature-spec.md))
 - [x] Frontend Dashboard (Ref: [docs/features/11-frontend-dashboard/feature-spec.md](features/11-frontend-dashboard/feature-spec.md))
+- [x] Capture Browsing and Logged-In Not Found (Ref: [docs/features/14-capture-browsing/feature-spec.md](features/14-capture-browsing/feature-spec.md))
+- [x] Frontend Direct Capture Creation (Ref: [docs/features/15-direct-capture-creation/feature-spec.md](features/15-direct-capture-creation/feature-spec.md))
 
 ## Backlog
 - [ ] User Authentication (Ref: [docs/features/10-user-authentication/feature-spec.md](features/10-user-authentication/feature-spec.md))

@@ -69,3 +69,15 @@ export interface CaptureDetail {
   tags: string[];
   processedInsight: CaptureProcessedInsight | null;
 }
+
+export interface CaptureCreateRequest {
+  sourceUrl: string;
+  contentType: string;
+  rawContent: string;
+  tags: string[];
+}
+
+export interface CaptureAccepted {
+  id: string;
+  message: string;
+}

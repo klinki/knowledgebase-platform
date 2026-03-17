@@ -13,6 +13,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent) },
+      { path: 'captures/new', loadComponent: () => import('./features/captures/create-capture.component').then(m => m.CreateCaptureComponent) },
       { path: 'captures', loadComponent: () => import('./features/captures/captures.component').then(m => m.CapturesComponent) },
       { path: 'captures/:id', loadComponent: () => import('./features/captures/capture-detail.component').then(m => m.CaptureDetailComponent) },
       { path: 'tags', loadComponent: () => import('./features/tags/tags.component').then(m => m.TagsComponent) },

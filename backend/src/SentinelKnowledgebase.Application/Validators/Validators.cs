@@ -7,9 +7,8 @@ public class CaptureRequestValidator : AbstractValidator<DTOs.Capture.CaptureReq
     public CaptureRequestValidator()
     {
         RuleFor(x => x.SourceUrl)
-            .NotEmpty()
             .MaximumLength(2048)
-            .Must(BeValidUrl).WithMessage("Invalid URL format");
+            .Must(BeEmptyOrValidUrl).WithMessage("Invalid URL format");
         
         RuleFor(x => x.RawContent)
             .NotEmpty()
@@ -19,8 +18,13 @@ public class CaptureRequestValidator : AbstractValidator<DTOs.Capture.CaptureReq
             .IsInEnum();
     }
     
-    private bool BeValidUrl(string url)
+    private bool BeEmptyOrValidUrl(string? url)
     {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return true;
+        }
+
         return Uri.TryCreate(url, UriKind.Absolute, out var uri) && 
                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }

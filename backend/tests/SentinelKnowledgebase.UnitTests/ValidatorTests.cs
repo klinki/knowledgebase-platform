@@ -51,6 +51,36 @@ public class ValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "SourceUrl");
     }
+
+    [Fact]
+    public void CaptureRequest_WithUrlOnlyPayload_ShouldPassValidation()
+    {
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://example.com/article",
+            ContentType = Domain.Enums.ContentType.Article,
+            RawContent = "https://example.com/article"
+        };
+
+        var result = _captureValidator.Validate(request);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CaptureRequest_WithDirectContentAndNoUrl_ShouldPassValidation()
+    {
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "",
+            ContentType = Domain.Enums.ContentType.Note,
+            RawContent = "Captured manually from the frontend."
+        };
+
+        var result = _captureValidator.Validate(request);
+
+        result.IsValid.Should().BeTrue();
+    }
     
     [Fact]
     public void CaptureRequest_WithEmptyContent_ShouldFailValidation()

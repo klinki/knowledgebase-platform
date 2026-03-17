@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { CaptureDetail, CaptureListItem } from '../../shared/models/knowledge.model';
+import { CaptureAccepted, CaptureCreateRequest, CaptureDetail, CaptureListItem } from '../../shared/models/knowledge.model';
 
 export type CaptureSortField = 'contentType' | 'createdAt' | 'status' | 'sourceUrl';
 export type CaptureSortDirection = 'asc' | 'desc';
@@ -17,6 +17,7 @@ interface CaptureSortState {
   providedIn: 'root'
 })
 export class CaptureStateService {
+  private static readonly maxRawContentLength = 10000;
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/capture`;
 
@@ -26,8 +27,10 @@ export class CaptureStateService {
 
   loadingList = signal(false);
   loadingDetail = signal(false);
+  creating = signal(false);
   listError = signal<string | null>(null);
   detailError = signal<string | null>(null);
+  createError = signal<string | null>(null);
   detailNotFound = signal(false);
 
   captures = computed(() => this.sortCaptures(this.capturesState(), this.sortState()));
@@ -109,6 +112,26 @@ export class CaptureStateService {
     this.loadingDetail.set(false);
   }
 
+  async createCapture(request: CaptureCreateRequest): Promise<CaptureAccepted> {
+    this.creating.set(true);
+    this.createError.set(null);
+
+    try {
+      const payload = this.mapCreateRequest(request);
+      const accepted = await firstValueFrom(
+        this.http.post<CaptureAccepted>(this.apiUrl, payload)
+      );
+
+      this.capturesState.set([]);
+      return accepted;
+    } catch {
+      this.createError.set('Capture could not be created.');
+      throw new Error('Capture could not be created.');
+    } finally {
+      this.creating.set(false);
+    }
+  }
+
   setSort(field: CaptureSortField): void {
     const currentSort = this.sortState();
     if (currentSort.field === field) {
@@ -150,5 +173,49 @@ export class CaptureStateService {
       case 'sourceUrl':
         return capture.sourceUrl;
     }
+  }
+
+  private mapCreateRequest(request: CaptureCreateRequest): {
+    sourceUrl: string;
+    contentType: string;
+    rawContent: string;
+    metadata: string;
+    tags: string[];
+  } {
+    const normalizedUrl = request.sourceUrl.trim();
+    const normalizedContent = request.rawContent.trim();
+    const tags = request.tags
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+
+    if (normalizedUrl && !normalizedContent) {
+      return {
+        sourceUrl: normalizedUrl,
+        contentType: 'Article',
+        rawContent: this.normalizeRawContent(normalizedUrl),
+        metadata: JSON.stringify({
+          source: 'frontend_url_input',
+          capturedAt: new Date().toISOString()
+        }),
+        tags
+      };
+    }
+
+    return {
+      sourceUrl: normalizedUrl,
+      contentType: request.contentType,
+      rawContent: this.normalizeRawContent(normalizedContent),
+      metadata: JSON.stringify({
+        source: 'frontend_manual_input',
+        capturedAt: new Date().toISOString()
+      }),
+      tags
+    };
+  }
+
+  private normalizeRawContent(value: string): string {
+    return value.length <= CaptureStateService.maxRawContentLength
+      ? value
+      : value.slice(0, CaptureStateService.maxRawContentLength);
   }
 }

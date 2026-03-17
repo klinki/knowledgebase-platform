@@ -1,17 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CaptureSortField, CaptureStateService } from '../../core/services/capture-state.service';
 
 @Component({
   selector: 'app-captures',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="captures-page">
       <header>
-        <h1>Captures</h1>
-        <p>Browse all captured items across their processing lifecycle.</p>
+        <div>
+          <h1>Captures</h1>
+          <p>Browse all captured items across their processing lifecycle.</p>
+        </div>
+        <a routerLink="/captures/new" class="premium-btn create-btn">Create Capture</a>
       </header>
 
       <div class="glass-card">
@@ -69,8 +72,17 @@ import { CaptureSortField, CaptureStateService } from '../../core/services/captu
     </div>
   `,
   styles: [`
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
     h1 { font-size: 3rem; margin-bottom: 0.5rem; letter-spacing: -1px; }
-    header p { color: #94a3b8; margin-bottom: 2rem; font-size: 1.05rem; }
+    header p { color: #94a3b8; margin: 0; font-size: 1.05rem; }
+    .create-btn { text-decoration: none; display: inline-flex; align-items: center; }
 
     .captures-table {
       width: 100%;
