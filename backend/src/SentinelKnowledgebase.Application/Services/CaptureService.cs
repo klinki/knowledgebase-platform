@@ -109,6 +109,11 @@ public class CaptureService : ICaptureService
             return false;
         }
 
+        if (capture.Status == CaptureStatus.Completed)
+        {
+            return false;
+        }
+
         capture.Status = CaptureStatus.Pending;
         capture.ProcessedAt = null;
         capture.Metadata = ClearProcessingError(capture.Metadata);

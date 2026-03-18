@@ -121,6 +121,33 @@ public class CaptureServiceTests
         result.Should().HaveCount(2);
     }
     
+
+    [Fact]
+    public async Task RetryCaptureAsync_ShouldReturnFalse_WhenCaptureIsCompleted()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var captureId = Guid.NewGuid();
+        var completedCapture = new RawCapture
+        {
+            Id = captureId,
+            OwnerUserId = ownerUserId,
+            SourceUrl = "https://example.com",
+            ContentType = ContentType.Article,
+            RawContent = "Test",
+            Status = CaptureStatus.Completed,
+            ProcessedAt = DateTime.UtcNow
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(captureId, ownerUserId)
+            .Returns(completedCapture);
+
+        var retried = await _service.RetryCaptureAsync(ownerUserId, captureId);
+
+        retried.Should().BeFalse();
+        await _unitOfWork.RawCaptures.DidNotReceive().UpdateAsync(Arg.Any<RawCapture>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync();
+    }
+
     [Fact]
     public async Task DeleteCaptureAsync_ShouldCallDelete()
     {
