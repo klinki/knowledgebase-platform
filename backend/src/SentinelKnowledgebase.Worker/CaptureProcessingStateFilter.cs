@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Hangfire.Common;
 using Hangfire.States;
 using Hangfire.Storage;
-using Microsoft.EntityFrameworkCore;
 using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Infrastructure.Data;
 
@@ -9,6 +9,7 @@ namespace SentinelKnowledgebase.Worker;
 
 public sealed class CaptureProcessingStateFilter : IApplyStateFilter
 {
+    private const string ProcessingErrorMetadataKey = "lastProcessingError";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<CaptureProcessingStateFilter> _logger;
 
@@ -30,10 +31,10 @@ public sealed class CaptureProcessingStateFilter : IApplyStateFilter
         switch (context.NewState)
         {
             case ScheduledState:
-                UpdateCaptureStatus(rawCaptureId, CaptureStatus.Pending, "pending for retry");
+                UpdateCaptureStatus(rawCaptureId, CaptureStatus.Pending, null, "pending for retry");
                 break;
             case FailedState:
-                UpdateCaptureStatus(rawCaptureId, CaptureStatus.Failed, "failed permanently");
+                UpdateCaptureStatus(rawCaptureId, CaptureStatus.Failed, "Processing failed after retries. Please retry from the captures page.", "failed permanently");
                 break;
         }
     }
@@ -59,7 +60,7 @@ public sealed class CaptureProcessingStateFilter : IApplyStateFilter
         };
     }
 
-    private void UpdateCaptureStatus(Guid rawCaptureId, CaptureStatus status, string reason)
+    private void UpdateCaptureStatus(Guid rawCaptureId, CaptureStatus status, string? failureReason, string reason)
     {
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -71,6 +72,7 @@ public sealed class CaptureProcessingStateFilter : IApplyStateFilter
         }
 
         capture.Status = status;
+        capture.Metadata = UpdateMetadata(capture.Metadata, failureReason);
         dbContext.SaveChanges();
 
         _logger.LogInformation(
@@ -79,4 +81,37 @@ public sealed class CaptureProcessingStateFilter : IApplyStateFilter
             status,
             reason);
     }
+
+    private static string? UpdateMetadata(string? metadata, string? failureReason)
+    {
+        var payload = ParseMetadata(metadata);
+
+        if (string.IsNullOrWhiteSpace(failureReason))
+        {
+            payload.Remove(ProcessingErrorMetadataKey);
+            return payload.Count == 0 ? null : JsonSerializer.Serialize(payload);
+        }
+
+        payload[ProcessingErrorMetadataKey] = failureReason;
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static Dictionary<string, object?> ParseMetadata(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return new Dictionary<string, object?>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, object?>>(metadata)
+                ?? new Dictionary<string, object?>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, object?>();
+        }
+    }
+
 }

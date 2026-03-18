@@ -97,6 +97,32 @@ public class CaptureController : ControllerBase
         return Ok(responses);
     }
     
+
+    [HttpPost("{id:guid}/retry")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RetryCapture(Guid id)
+    {
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var retried = await _captureService.RetryCaptureAsync(userId, id);
+        if (!retried)
+        {
+            return NotFound();
+        }
+
+        var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(id));
+        _logger.LogInformation(
+            "Capture {CaptureId} retry requested; Hangfire job {JobId} enqueued",
+            id,
+            jobId);
+
+        return Accepted(new { message = "Capture retry accepted and processing enqueued" });
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -61,7 +61,12 @@ import { CaptureSortField, CaptureStateService } from '../../core/services/captu
                 <tr (click)="openCapture(capture.id)" tabindex="0" (keyup.enter)="openCapture(capture.id)">
                   <td><span class="type-pill">{{ capture.contentType }}</span></td>
                   <td>{{ capture.createdAt | date:'medium' }}</td>
-                  <td><span class="status-pill" [class]="statusClass(capture.status)">{{ capture.status }}</span></td>
+                  <td>
+                    <span class="status-pill" [class]="statusClass(capture.status)">{{ capture.status }}</span>
+                    @if (capture.status.toLowerCase() === 'failed') {
+                      <div class="failure-reason">{{ capture.failureReason || 'Processing failed. Open detail to retry.' }}</div>
+                    }
+                  </td>
                   <td class="source-cell">{{ capture.sourceUrl }}</td>
                 </tr>
               }
@@ -161,6 +166,13 @@ import { CaptureSortField, CaptureStateService } from '../../core/services/captu
     .status-failed {
       color: #fecaca;
       background: rgba(239, 68, 68, 0.16);
+    }
+
+    .failure-reason {
+      margin-top: 0.45rem;
+      color: #fecaca;
+      font-size: 0.78rem;
+      max-width: 20rem;
     }
 
     .source-cell {

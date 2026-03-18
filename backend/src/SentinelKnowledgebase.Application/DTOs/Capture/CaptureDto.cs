@@ -21,6 +21,7 @@ public class CaptureResponseDto
     public DateTime? ProcessedAt { get; set; }
     public string RawContent { get; set; } = string.Empty;
     public string? Metadata { get; set; }
+    public string? FailureReason { get; set; }
     public List<string> Tags { get; set; } = new();
     public ProcessedInsightDto? ProcessedInsight { get; set; }
 }

@@ -12,6 +12,7 @@ namespace SentinelKnowledgebase.Application.Services;
 
 public class CaptureService : ICaptureService
 {
+    private const string ProcessingErrorMetadataKey = "lastProcessingError";
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly IMonitoringService _monitoringService;
@@ -99,6 +100,25 @@ public class CaptureService : ICaptureService
         return true;
     }
     
+
+    public async Task<bool> RetryCaptureAsync(Guid ownerUserId, Guid id)
+    {
+        var capture = await _unitOfWork.RawCaptures.GetByIdAsync(id, ownerUserId);
+        if (capture == null)
+        {
+            return false;
+        }
+
+        capture.Status = CaptureStatus.Pending;
+        capture.ProcessedAt = null;
+        capture.Metadata = ClearProcessingError(capture.Metadata);
+
+        await _unitOfWork.RawCaptures.UpdateAsync(capture);
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
+    }
+
     public async Task ProcessCaptureAsync(Guid rawCaptureId)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -189,6 +209,17 @@ public class CaptureService : ICaptureService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Capture {RawCaptureId} failed during processing", rawCaptureId);
+
+            var failedCapture = await _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId);
+            if (failedCapture != null)
+            {
+                failedCapture.Metadata = SetProcessingError(
+                    failedCapture.Metadata,
+                    ex.Message);
+                await _unitOfWork.RawCaptures.UpdateAsync(failedCapture);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
             throw;
         }
         finally
@@ -215,6 +246,7 @@ public class CaptureService : ICaptureService
             ProcessedAt = rawCapture.ProcessedAt,
             RawContent = rawCapture.RawContent,
             Metadata = rawCapture.Metadata,
+            FailureReason = GetProcessingError(rawCapture.Metadata),
             Tags = rawCapture.Tags.Select(t => t.Name).ToList(),
             ProcessedInsight = rawCapture.ProcessedInsight != null ? new ProcessedInsightDto
             {
@@ -230,4 +262,71 @@ public class CaptureService : ICaptureService
             } : null
         };
     }
+
+    private static string? GetProcessingError(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            var values = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(metadata);
+            if (values != null
+                && values.TryGetValue(ProcessingErrorMetadataKey, out var errorValue)
+                && errorValue.ValueKind == JsonValueKind.String)
+            {
+                return errorValue.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static string SetProcessingError(string? metadata, string message)
+    {
+        var payload = ParseMetadata(metadata);
+        payload[ProcessingErrorMetadataKey] = message;
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static string? ClearProcessingError(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return metadata;
+        }
+
+        var payload = ParseMetadata(metadata);
+        if (!payload.Remove(ProcessingErrorMetadataKey))
+        {
+            return metadata;
+        }
+
+        return payload.Count == 0 ? null : JsonSerializer.Serialize(payload);
+    }
+
+    private static Dictionary<string, object?> ParseMetadata(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return new Dictionary<string, object?>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, object?>>(metadata)
+                ?? new Dictionary<string, object?>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, object?>();
+        }
+    }
+
 }
