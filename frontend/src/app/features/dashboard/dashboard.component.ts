@@ -49,6 +49,30 @@ import { SearchStateService } from '../../core/services/search-state.service';
               </div>
             } @else {
               @for (item of items(); track item.id) {
+              @if (isSearchMode()) {
+              <div class="knowledge-item search-result-card">
+                <span class="status-dot"></span>
+                <div class="item-info">
+                  <span class="title">{{ item.title }}</span>
+                  <span class="meta">
+                    @if (item.capturedAt) {
+                      {{ item.capturedAt | date:'mediumDate' }} •
+                    }
+                    {{ item.sourceUrl }}
+                  </span>
+                  @if (item.summary) {
+                    <span class="summary">{{ item.summary }}</span>
+                  }
+                  @if (item.tags.length > 0) {
+                    <div class="item-tags">
+                      @for (tag of item.tags; track tag) {
+                        <span class="tag-chip">{{ tag }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+              } @else {
               <a class="knowledge-item" [routerLink]="['/captures', item.id]">
                 <span class="status-dot"></span>
                 <div class="item-info">
@@ -71,6 +95,7 @@ import { SearchStateService } from '../../core/services/search-state.service';
                   }
                 </div>
               </a>
+              }
               } @empty {
               @if (!loading()) {
                 <div class="empty-state">
@@ -227,6 +252,10 @@ import { SearchStateService } from '../../core/services/search-state.service';
         font-size: 0.75rem;
         padding: 4px 10px;
       }
+    }
+
+    .search-result-card {
+      cursor: default;
     }
 
     .secondary-column { display: flex; flex-direction: column; gap: 2rem; }

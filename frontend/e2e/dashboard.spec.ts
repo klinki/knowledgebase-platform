@@ -152,6 +152,19 @@ test.describe('Dashboard and Search', () => {
     await expect(items.first()).toContainText('DeepSeek-V3');
   });
 
+
+  test('should keep search results on the dashboard route', async ({ page }) => {
+    const searchInput = page.locator('.search-input');
+    await searchInput.fill('DeepSeek');
+
+    const searchResultCards = page.locator('.search-result-card');
+    await expect(searchResultCards).toHaveCount(1);
+    await expect(page.locator('a.knowledge-item')).toHaveCount(0);
+
+    await searchResultCards.first().click();
+    await expect(page).toHaveURL(/.*dashboard/);
+  });
+
   test('should show empty state when no results found', async ({ page }) => {
     const searchInput = page.locator('.search-input');
     await searchInput.fill('NonExistentItemXYZ');
