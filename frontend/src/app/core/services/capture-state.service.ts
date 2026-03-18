@@ -60,7 +60,8 @@ export class CaptureStateService {
         contentType: capture.contentType,
         status: capture.status,
         createdAt: capture.createdAt,
-        processedAt: capture.processedAt
+        processedAt: capture.processedAt,
+        failureReason: capture.failureReason
       })));
     } catch {
       this.capturesState.set([]);
@@ -130,6 +131,20 @@ export class CaptureStateService {
     } finally {
       this.creating.set(false);
     }
+  }
+
+
+  async retryCapture(id: string): Promise<void> {
+    if (!id) {
+      return;
+    }
+
+    await firstValueFrom(
+      this.http.post(`${this.apiUrl}/${id}/retry`, {})
+    );
+
+    this.captureDetailState.set(null);
+    await this.loadCaptures(true);
   }
 
   setSort(field: CaptureSortField): void {

@@ -3,7 +3,7 @@
  * Allows users to configure the API URL and browser-extension authentication
  */
 
-import { DEFAULT_API_URL } from './constants.js';
+import { DEFAULT_API_URL, DEFAULT_APP_URL } from './constants.js';
 
 interface DeviceStartResponse {
   deviceCode: string;
@@ -28,6 +28,7 @@ interface TokenResponse {
 // DOM Elements
 const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const apiUrlInput = document.getElementById('apiUrl') as HTMLInputElement;
+const appUrlInput = document.getElementById('appUrl') as HTMLInputElement;
 const bookmarkCaptureEnabledInput = document.getElementById('bookmarkCaptureEnabled') as HTMLInputElement;
 const autoConfirmWebpageCaptureInput = document.getElementById('autoConfirmWebpageCapture') as HTMLInputElement;
 const saveButton = document.getElementById('saveBtn') as HTMLButtonElement;
@@ -45,6 +46,7 @@ async function loadSettings(): Promise<void> {
     const result = await chrome.storage.local.get([
       'apiKey',
       'apiUrl',
+      'appUrl',
       'bookmarkCaptureEnabled',
       'autoConfirmWebpageCapture',
       'accessToken',
@@ -60,6 +62,12 @@ async function loadSettings(): Promise<void> {
       apiUrlInput.value = result.apiUrl;
     } else {
       apiUrlInput.value = DEFAULT_API_URL;
+    }
+
+    if (result.appUrl) {
+      appUrlInput.value = result.appUrl;
+    } else {
+      appUrlInput.value = DEFAULT_APP_URL;
     }
 
     if (result.bookmarkCaptureEnabled !== undefined) {
@@ -85,6 +93,7 @@ async function loadSettings(): Promise<void> {
 async function saveSettings(): Promise<void> {
   const apiKey = apiKeyInput.value.trim();
   const apiUrl = apiUrlInput.value.trim() || DEFAULT_API_URL;
+  const appUrl = appUrlInput.value.trim() || DEFAULT_APP_URL;
   const bookmarkCaptureEnabled = bookmarkCaptureEnabledInput.checked;
   const autoConfirmWebpageCapture = autoConfirmWebpageCaptureInput.checked;
 
@@ -92,6 +101,7 @@ async function saveSettings(): Promise<void> {
     await chrome.storage.local.set({
       apiKey,
       apiUrl,
+      appUrl,
       bookmarkCaptureEnabled,
       autoConfirmWebpageCapture
     });

@@ -4,13 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 
+import { RouterLink } from '@angular/router';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { SearchStateService } from '../../core/services/search-state.service';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="dashboard">
       <header class="dashboard-header">
@@ -48,7 +49,7 @@ import { SearchStateService } from '../../core/services/search-state.service';
               </div>
             } @else {
               @for (item of items(); track item.id) {
-              <div class="knowledge-item">
+              <a class="knowledge-item" [routerLink]="['/captures', item.id]">
                 <span class="status-dot"></span>
                 <div class="item-info">
                   <span class="title">{{ item.title }}</span>
@@ -69,11 +70,18 @@ import { SearchStateService } from '../../core/services/search-state.service';
                     </div>
                   }
                 </div>
-              </div>
+              </a>
               } @empty {
               @if (!loading()) {
                 <div class="empty-state">
                   <p>{{ emptyMessage() }}</p>
+                  @if (!isSearchMode()) {
+                    <div class="empty-actions">
+                      <a routerLink="/captures/new" class="premium-btn">Create Capture</a>
+                      <a routerLink="/captures" class="secondary-link">Connect browser extension</a>
+                      <a routerLink="/admin/invitations" class="secondary-link">Invite teammates</a>
+                    </div>
+                  }
                 </div>
               }
             }
@@ -194,6 +202,8 @@ import { SearchStateService } from '../../core/services/search-state.service';
     }
 
     .knowledge-item {
+      text-decoration: none;
+
       display: flex;
       align-items: center;
       gap: 1.5rem;
@@ -244,6 +254,8 @@ import { SearchStateService } from '../../core/services/search-state.service';
     }
 
     .empty-state { text-align: center; padding: 4rem 0; color: #64748b; }
+    .empty-actions { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+    .secondary-link { color: #c7d2fe; text-decoration: none; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 0.75rem 1rem; }
     .empty-state.compact { padding: 1rem 0 0; }
 
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

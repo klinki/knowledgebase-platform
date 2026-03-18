@@ -47,7 +47,13 @@ interface RenderNode {
             <dl class="overview-grid">
               <div>
                 <dt>Source</dt>
-                <dd><a [href]="capture()!.sourceUrl" target="_blank" rel="noreferrer">{{ capture()!.sourceUrl }}</a></dd>
+                <dd>
+                  @if (capture()!.sourceUrl) {
+                    <a [href]="capture()!.sourceUrl" target="_blank" rel="noreferrer">{{ capture()!.sourceUrl }}</a>
+                  } @else {
+                    Manual capture (no source URL)
+                  }
+                </dd>
               </div>
               <div>
                 <dt>Type</dt>
@@ -65,7 +71,21 @@ interface RenderNode {
                 <dt>Processed</dt>
                 <dd>{{ capture()!.processedAt ? (capture()!.processedAt | date:'medium') : 'Not processed yet' }}</dd>
               </div>
+              @if (capture()!.status.toLowerCase() === 'failed') {
+                <div>
+                  <dt>Failure reason</dt>
+                  <dd>{{ capture()!.failureReason || 'Capture processing failed. Retry from this page.' }}</dd>
+                </div>
+              }
             </dl>
+            @if (capture()!.status.toLowerCase() === 'failed') {
+              <div class="retry-row">
+                <button type="button" class="premium-btn" (click)="retryCapture()" [disabled]="retrying()">
+                  {{ retrying() ? 'Retrying...' : 'Retry Capture' }}
+                </button>
+              </div>
+            }
+
             @if (capture()!.tags.length > 0) {
               <div class="tag-list">
                 @for (tag of capture()!.tags; track tag) {
@@ -247,6 +267,15 @@ interface RenderNode {
       font-size: 0.92rem;
     }
 
+    .retry-row {
+      margin-top: 1rem;
+    }
+
+    .retry-row button {
+      border: none;
+      cursor: pointer;
+    }
+
     .tag-list {
       display: flex;
       flex-wrap: wrap;
@@ -314,6 +343,7 @@ export class CaptureDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
 
   capture = computed(() => this.captureState.captureDetail());
+  retrying = computed(() => this.captureState.loadingDetail());
   metadataNode = computed(() => this.parseContent(this.capture()?.metadata));
   keyInsightsNode = computed(() => this.parseContent(this.capture()?.processedInsight?.keyInsights));
   actionItemsNode = computed(() => this.parseContent(this.capture()?.processedInsight?.actionItems));
@@ -321,6 +351,25 @@ export class CaptureDetailComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id') ?? '';
     await this.captureState.loadCaptureDetail(id);
+  }
+
+  async retryCapture(): Promise<void> {
+    const id = this.capture()?.id;
+    if (!id) {
+      return;
+    }
+
+    this.captureState.loadingDetail.set(true);
+    this.captureState.detailError.set(null);
+
+    try {
+      await this.captureState.retryCapture(id);
+      await this.captureState.loadCaptureDetail(id);
+    } catch {
+      this.captureState.detailError.set('Capture retry could not be started.');
+    } finally {
+      this.captureState.loadingDetail.set(false);
+    }
   }
 
   ngOnDestroy(): void {

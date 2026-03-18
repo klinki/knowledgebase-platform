@@ -43,6 +43,7 @@ export interface CaptureListItem {
   status: string;
   createdAt: string;
   processedAt: string | null;
+  failureReason: string | null;
 }
 
 export interface CaptureProcessedInsight {
@@ -64,6 +65,7 @@ export interface CaptureDetail {
   status: string;
   createdAt: string;
   processedAt: string | null;
+  failureReason: string | null;
   rawContent: string;
   metadata: string | null;
   tags: string[];

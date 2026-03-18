@@ -229,7 +229,7 @@ function createSaveButton(tweetElement: HTMLElement): HTMLButtonElement {
       } catch (error) {
         console.error('[Sentinel] Failed to save tweet:', error);
         button.classList.remove('saving');
-        showTooltip(button, 'Failed to save. Check API key in settings.');
+        showTooltip(button, 'Failed to save. Sign in from extension settings, or use a legacy token as fallback.');
       }
     } else {
       showTooltip(button, 'Could not extract tweet data');
