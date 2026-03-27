@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
@@ -61,6 +62,62 @@ public class CaptureServiceTests
         result.SourceUrl.Should().Be(request.SourceUrl);
         result.ContentType.Should().Be(request.ContentType);
         result.Status.Should().Be(CaptureStatus.Pending);
+    }
+
+    [Fact]
+    public async Task CreateCaptureAsync_ShouldAutoFillSourceAndLanguageLabels()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://example.com/article",
+            ContentType = ContentType.Article,
+            RawContent = "Test content",
+            Metadata = """{"source":"webpage","metadata":{"language":"en-US"}}"""
+        };
+
+        _unitOfWork.LabelCategories.GetByNameAsync(ownerUserId, Arg.Any<string>())
+            .Returns((LabelCategory?)null);
+        _unitOfWork.LabelValues.GetByCategoryAndValueAsync(Arg.Any<Guid>(), Arg.Any<string>())
+            .Returns((LabelValue?)null);
+        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
+            .Returns(callInfo => callInfo.Arg<RawCapture>());
+        _unitOfWork.SaveChangesAsync().Returns(1);
+
+        var result = await _service.CreateCaptureAsync(ownerUserId, request);
+
+        result.Labels.Should().Contain(label => label.Category == "Source" && label.Value == "Web");
+        result.Labels.Should().Contain(label => label.Category == "Language" && label.Value == "English");
+    }
+
+    [Fact]
+    public async Task CreateCaptureAsync_ShouldPreferExplicitLabelsOverAutoFilledLabels()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://twitter.com/test/status/1",
+            ContentType = ContentType.Tweet,
+            RawContent = "Test tweet",
+            Metadata = """{"source":"twitter"}""",
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Source", Value = "Custom" }
+            ]
+        };
+
+        _unitOfWork.LabelCategories.GetByNameAsync(ownerUserId, Arg.Any<string>())
+            .Returns((LabelCategory?)null);
+        _unitOfWork.LabelValues.GetByCategoryAndValueAsync(Arg.Any<Guid>(), Arg.Any<string>())
+            .Returns((LabelValue?)null);
+        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
+            .Returns(callInfo => callInfo.Arg<RawCapture>());
+        _unitOfWork.SaveChangesAsync().Returns(1);
+
+        var result = await _service.CreateCaptureAsync(ownerUserId, request);
+
+        result.Labels.Should().ContainSingle(label => label.Category == "Source");
+        result.Labels.Should().Contain(label => label.Category == "Source" && label.Value == "Custom");
     }
     
     [Fact]
@@ -190,5 +247,66 @@ public class CaptureServiceTests
         deleted.Should().BeFalse();
         await _unitOfWork.RawCaptures.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task ProcessCaptureAsync_ShouldCopyRawLabelsToProcessedInsight()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var rawCaptureId = Guid.NewGuid();
+        var category = new LabelCategory
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            Name = "Language"
+        };
+        var value = new LabelValue
+        {
+            Id = Guid.NewGuid(),
+            LabelCategoryId = category.Id,
+            LabelCategory = category,
+            Value = "English"
+        };
+        var rawCapture = new RawCapture
+        {
+            Id = rawCaptureId,
+            OwnerUserId = ownerUserId,
+            SourceUrl = "https://example.com",
+            ContentType = ContentType.Article,
+            RawContent = "Test content",
+            LabelAssignments =
+            [
+                new RawCaptureLabelAssignment
+                {
+                    RawCaptureId = rawCaptureId,
+                    LabelCategoryId = category.Id,
+                    LabelCategory = category,
+                    LabelValueId = value.Id,
+                    LabelValue = value
+                }
+            ]
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId).Returns(rawCapture);
+        _contentProcessor.DenoiseContent(rawCapture.RawContent).Returns(rawCapture.RawContent);
+        _contentProcessor.ExtractInsightsAsync(rawCapture.RawContent, rawCapture.ContentType)
+            .Returns(new ContentInsights
+            {
+                Title = "Processed title",
+                Summary = "Processed summary",
+                KeyInsights = ["Key insight"],
+                ActionItems = ["Action item"],
+                SourceTitle = "Source title",
+                Author = "Author"
+            });
+        _contentProcessor.GenerateEmbeddingAsync("Processed summary").Returns([0.1f, 0.2f, 0.3f]);
+
+        await _service.ProcessCaptureAsync(rawCaptureId);
+
+        await _unitOfWork.ProcessedInsights.Received(1).AddAsync(
+            Arg.Is<ProcessedInsight>(insight =>
+                insight.LabelAssignments.Count == 1 &&
+                insight.LabelAssignments[0].LabelCategoryId == category.Id &&
+                insight.LabelAssignments[0].LabelValueId == value.Id));
     }
 }

@@ -1,4 +1,5 @@
 using SentinelKnowledgebase.Application.DTOs.Dashboard;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Infrastructure.Repositories;
@@ -48,7 +49,16 @@ public class DashboardService : IDashboardService
             SourceUrl = capture.SourceUrl,
             CapturedAt = capture.CreatedAt,
             Status = capture.Status,
-            Tags = capture.Tags.Select(tag => tag.Name).ToList()
+            Tags = capture.Tags.Select(tag => tag.Name).ToList(),
+            Labels = capture.LabelAssignments
+                .OrderBy(assignment => assignment.LabelCategory.Name)
+                .ThenBy(assignment => assignment.LabelValue.Value)
+                .Select(assignment => new LabelAssignmentDto
+                {
+                    Category = assignment.LabelCategory.Name,
+                    Value = assignment.LabelValue.Value
+                })
+                .ToList()
         };
     }
 

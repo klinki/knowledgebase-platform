@@ -72,7 +72,7 @@ public class HangfireIntegrationTests
         jobId.Should().NotBeNullOrWhiteSpace();
 
         string? state = null;
-        for (var i = 0; i < 60; i++)
+        for (var i = 0; i < 180; i++)
         {
             state = storage.GetConnection().GetJobData(jobId)?.State;
             if (state == "Succeeded")

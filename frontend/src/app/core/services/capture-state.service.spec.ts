@@ -39,6 +39,7 @@ describe('CaptureStateService', () => {
         processedAt: null,
         rawContent: 'older',
         metadata: null,
+        labels: [],
         tags: [],
         processedInsight: null
       },
@@ -51,6 +52,7 @@ describe('CaptureStateService', () => {
         processedAt: null,
         rawContent: 'newer',
         metadata: null,
+        labels: [],
         tags: [],
         processedInsight: null
       }
@@ -75,6 +77,7 @@ describe('CaptureStateService', () => {
         processedAt: null,
         rawContent: 'b',
         metadata: null,
+        labels: [],
         tags: [],
         processedInsight: null
       },
@@ -87,6 +90,7 @@ describe('CaptureStateService', () => {
         processedAt: null,
         rawContent: 'a',
         metadata: null,
+        labels: [],
         tags: [],
         processedInsight: null
       }
@@ -121,6 +125,7 @@ describe('CaptureStateService', () => {
     expect(request.request.body.contentType).toBe('Article');
     expect(request.request.body.rawContent).toBe('https://example.com/url-only');
     expect(request.request.body.tags).toEqual(['alpha', 'beta']);
+    expect(request.request.body.labels).toEqual([]);
     const urlOnlyMetadata = JSON.parse(request.request.body.metadata) as { source: string; capturedAt: string };
     expect(urlOnlyMetadata.source).toBe('frontend_url_input');
     expect(typeof urlOnlyMetadata.capturedAt).toBe('string');
@@ -134,7 +139,11 @@ describe('CaptureStateService', () => {
       sourceUrl: '   ',
       contentType: 'Note',
       rawContent: 'Manual body',
-      tags: [' one ', 'two']
+      tags: [' one ', 'two'],
+      labels: [
+        { category: 'Language', value: 'English' },
+        { category: 'Source', value: 'Web' }
+      ]
     });
 
     const request = http.expectOne('http://localhost:5000/api/v1/capture');
@@ -142,6 +151,10 @@ describe('CaptureStateService', () => {
     expect(request.request.body.contentType).toBe('Note');
     expect(request.request.body.rawContent).toBe('Manual body');
     expect(request.request.body.tags).toEqual(['one', 'two']);
+    expect(request.request.body.labels).toEqual([
+      { category: 'Language', value: 'English' },
+      { category: 'Source', value: 'Web' }
+    ]);
     const directMetadata = JSON.parse(request.request.body.metadata) as { source: string; capturedAt: string };
     expect(directMetadata.source).toBe('frontend_manual_input');
     expect(typeof directMetadata.capturedAt).toBe('string');

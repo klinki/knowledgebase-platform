@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 using Microsoft.Extensions.Logging;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
@@ -68,6 +70,9 @@ public class CaptureService : ICaptureService
                 rawCapture.Tags.Add(tag);
             }
         }
+
+        var resolvedLabels = await ResolveRawCaptureLabelsAsync(ownerUserId, rawCapture.Id, request);
+        rawCapture.LabelAssignments.AddRange(resolvedLabels);
         
         await _unitOfWork.RawCaptures.AddAsync(rawCapture);
         await _unitOfWork.SaveChangesAsync();
@@ -186,6 +191,20 @@ public class CaptureService : ICaptureService
             {
                 processedInsight.Tags = rawCapture.Tags.ToList();
             }
+
+            if (rawCapture.LabelAssignments.Any())
+            {
+                processedInsight.LabelAssignments = rawCapture.LabelAssignments
+                    .Select(assignment => new ProcessedInsightLabelAssignment
+                    {
+                        ProcessedInsightId = processedInsight.Id,
+                        LabelCategoryId = assignment.LabelCategoryId,
+                        LabelValueId = assignment.LabelValueId,
+                        LabelCategory = assignment.LabelCategory,
+                        LabelValue = assignment.LabelValue
+                    })
+                    .ToList();
+            }
             
             await _unitOfWork.ProcessedInsights.AddAsync(processedInsight);
             
@@ -253,6 +272,7 @@ public class CaptureService : ICaptureService
             Metadata = rawCapture.Metadata,
             FailureReason = GetProcessingError(rawCapture.Metadata),
             Tags = rawCapture.Tags.Select(t => t.Name).ToList(),
+            Labels = MapLabels(rawCapture.LabelAssignments),
             ProcessedInsight = rawCapture.ProcessedInsight != null ? new ProcessedInsightDto
             {
                 Id = rawCapture.ProcessedInsight.Id,
@@ -263,9 +283,208 @@ public class CaptureService : ICaptureService
                 SourceTitle = rawCapture.ProcessedInsight.SourceTitle,
                 Author = rawCapture.ProcessedInsight.Author,
                 ProcessedAt = rawCapture.ProcessedInsight.ProcessedAt,
-                Tags = rawCapture.ProcessedInsight.Tags.Select(t => t.Name).ToList()
+                Tags = rawCapture.ProcessedInsight.Tags.Select(t => t.Name).ToList(),
+                Labels = MapLabels(rawCapture.ProcessedInsight.LabelAssignments)
             } : null
         };
+    }
+
+    private async Task<List<RawCaptureLabelAssignment>> ResolveRawCaptureLabelsAsync(
+        Guid ownerUserId,
+        Guid rawCaptureId,
+        CaptureRequestDto request)
+    {
+        var mergedLabels = BuildMergedLabels(request);
+        var assignments = new List<RawCaptureLabelAssignment>(mergedLabels.Count);
+
+        foreach (var label in mergedLabels)
+        {
+            var category = await _unitOfWork.LabelCategories.GetByNameAsync(ownerUserId, label.Category);
+            if (category == null)
+            {
+                category = new LabelCategory
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = ownerUserId,
+                    Name = label.Category,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.LabelCategories.AddAsync(category);
+            }
+
+            var value = await _unitOfWork.LabelValues.GetByCategoryAndValueAsync(category.Id, label.Value);
+            if (value == null)
+            {
+                value = new LabelValue
+                {
+                    Id = Guid.NewGuid(),
+                    LabelCategoryId = category.Id,
+                    LabelCategory = category,
+                    Value = label.Value,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.LabelValues.AddAsync(value);
+            }
+
+            assignments.Add(new RawCaptureLabelAssignment
+            {
+                RawCaptureId = rawCaptureId,
+                LabelCategoryId = category.Id,
+                LabelCategory = category,
+                LabelValueId = value.Id,
+                LabelValue = value
+            });
+        }
+
+        return assignments;
+    }
+
+    private static List<LabelAssignmentDto> BuildMergedLabels(CaptureRequestDto request)
+    {
+        var labels = new Dictionary<string, LabelAssignmentDto>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var label in GetAutoLabels(request))
+        {
+            labels[label.Category] = label;
+        }
+
+        if (request.Labels != null)
+        {
+            foreach (var label in request.Labels)
+            {
+                var category = label.Category.Trim();
+                var value = label.Value.Trim();
+                if (category.Length == 0 || value.Length == 0)
+                {
+                    continue;
+                }
+
+                labels[category] = new LabelAssignmentDto
+                {
+                    Category = category,
+                    Value = value
+                };
+            }
+        }
+
+        return labels.Values
+            .OrderBy(label => label.Category)
+            .ThenBy(label => label.Value)
+            .ToList();
+    }
+
+    private static IEnumerable<LabelAssignmentDto> GetAutoLabels(CaptureRequestDto request)
+    {
+        var source = GetMetadataString(request.Metadata, "source")?.Trim().ToLowerInvariant();
+        if (source == "twitter" || request.ContentType == ContentType.Tweet)
+        {
+            yield return new LabelAssignmentDto
+            {
+                Category = "Source",
+                Value = "Twitter"
+            };
+        }
+        else if (source is "webpage" or "webpage_selection")
+        {
+            yield return new LabelAssignmentDto
+            {
+                Category = "Source",
+                Value = "Web"
+            };
+        }
+
+        if (source == "webpage")
+        {
+            var language = GetMetadataString(request.Metadata, "metadata", "language");
+            var normalizedLanguage = NormalizeLanguage(language);
+            if (!string.IsNullOrWhiteSpace(normalizedLanguage))
+            {
+                yield return new LabelAssignmentDto
+                {
+                    Category = "Language",
+                    Value = normalizedLanguage
+                };
+            }
+        }
+    }
+
+    private static string? NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        var normalized = language.Trim();
+        try
+        {
+            var culture = CultureInfo.GetCultureInfo(normalized.Replace('_', '-'));
+            if (!string.IsNullOrWhiteSpace(culture.Parent?.EnglishName) &&
+                !string.Equals(culture.Parent.Name, string.Empty, StringComparison.Ordinal))
+            {
+                return culture.Parent.EnglishName;
+            }
+
+            return culture.EnglishName;
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string? GetMetadataString(string? metadata, params string[] path)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadata);
+            JsonElement current = document.RootElement;
+
+            foreach (var segment in path)
+            {
+                if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(segment, out current))
+                {
+                    return null;
+                }
+            }
+
+            return current.ValueKind == JsonValueKind.String ? current.GetString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static List<LabelAssignmentDto> MapLabels(IEnumerable<RawCaptureLabelAssignment> assignments)
+    {
+        return assignments
+            .OrderBy(assignment => assignment.LabelCategory.Name)
+            .ThenBy(assignment => assignment.LabelValue.Value)
+            .Select(assignment => new LabelAssignmentDto
+            {
+                Category = assignment.LabelCategory.Name,
+                Value = assignment.LabelValue.Value
+            })
+            .ToList();
+    }
+
+    private static List<LabelAssignmentDto> MapLabels(IEnumerable<ProcessedInsightLabelAssignment> assignments)
+    {
+        return assignments
+            .OrderBy(assignment => assignment.LabelCategory.Name)
+            .ThenBy(assignment => assignment.LabelValue.Value)
+            .Select(assignment => new LabelAssignmentDto
+            {
+                Category = assignment.LabelCategory.Name,
+                Value = assignment.LabelValue.Value
+            })
+            .ToList();
     }
 
     private static string? GetProcessingError(string? metadata)

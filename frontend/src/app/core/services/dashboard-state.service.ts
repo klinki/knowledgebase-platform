@@ -3,7 +3,20 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { DashboardOverview } from '../../shared/models/knowledge.model';
+import { DashboardItem, DashboardOverview } from '../../shared/models/knowledge.model';
+
+interface LabelDto {
+  category: string;
+  value: string;
+}
+
+type DashboardItemWithLabels = DashboardItem & {
+  labels: LabelDto[];
+};
+
+type DashboardOverviewWithLabels = Omit<DashboardOverview, 'recentCaptures'> & {
+  recentCaptures: DashboardItemWithLabels[];
+};
 
 @Injectable({
   providedIn: 'root'
@@ -12,7 +25,7 @@ export class DashboardStateService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/dashboard`;
 
-  private overviewState = signal<DashboardOverview | null>(null);
+  private overviewState = signal<DashboardOverviewWithLabels | null>(null);
   loading = signal(false);
   error = signal<string | null>(null);
 
@@ -38,10 +51,10 @@ export class DashboardStateService {
 
     try {
       const overview = await firstValueFrom(
-        this.http.get<DashboardOverview>(`${this.apiUrl}/overview`)
+        this.http.get<DashboardOverviewWithLabels>(`${this.apiUrl}/overview`)
       );
 
-      this.overviewState.set(overview);
+      this.overviewState.set(this.normalizeOverview(overview));
     } catch {
       this.error.set('Dashboard data could not be loaded.');
       this.overviewState.set({
@@ -55,5 +68,28 @@ export class DashboardStateService {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private normalizeOverview(overview: DashboardOverviewWithLabels): DashboardOverviewWithLabels {
+    return {
+      ...overview,
+      recentCaptures: overview.recentCaptures.map(capture => this.normalizeDashboardItem(capture))
+    };
+  }
+
+  private normalizeDashboardItem(item: DashboardItemWithLabels): DashboardItemWithLabels {
+    return {
+      ...item,
+      labels: this.normalizeLabels(item.labels)
+    };
+  }
+
+  private normalizeLabels(labels: LabelDto[] | null | undefined): LabelDto[] {
+    return (labels ?? [])
+      .map(label => ({
+        category: label.category.trim(),
+        value: label.value.trim()
+      }))
+      .filter(label => label.category.length > 0 && label.value.length > 0);
   }
 }

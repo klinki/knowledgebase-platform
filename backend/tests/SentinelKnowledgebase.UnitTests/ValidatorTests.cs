@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Validators;
 using Xunit;
@@ -13,12 +14,14 @@ public class ValidatorTests
     private readonly CaptureRequestValidator _captureValidator;
     private readonly SemanticSearchRequestValidator _semanticSearchValidator;
     private readonly TagSearchRequestValidator _tagSearchValidator;
+    private readonly LabelSearchRequestValidator _labelSearchValidator;
     
     public ValidatorTests()
     {
         _captureValidator = new CaptureRequestValidator();
         _semanticSearchValidator = new SemanticSearchRequestValidator();
         _tagSearchValidator = new TagSearchRequestValidator();
+        _labelSearchValidator = new LabelSearchRequestValidator();
     }
     
     [Fact]
@@ -96,6 +99,47 @@ public class ValidatorTests
         
         result.IsValid.Should().BeFalse();
     }
+
+    [Fact]
+    public void CaptureRequest_WithValidLabels_ShouldPassValidation()
+    {
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://example.com",
+            ContentType = Domain.Enums.ContentType.Article,
+            RawContent = "Test content",
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Language", Value = "English" },
+                new LabelAssignmentDto { Category = "Source", Value = "Web" }
+            ]
+        };
+
+        var result = _captureValidator.Validate(request);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CaptureRequest_WithDuplicateLabelCategories_ShouldFailValidation()
+    {
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://example.com",
+            ContentType = Domain.Enums.ContentType.Article,
+            RawContent = "Test content",
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Language", Value = "English" },
+                new LabelAssignmentDto { Category = " language ", Value = "German" }
+            ]
+        };
+
+        var result = _captureValidator.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName == "Labels");
+    }
     
     [Fact]
     public void SemanticSearchRequest_WithValidQuery_ShouldPassValidation()
@@ -163,6 +207,35 @@ public class ValidatorTests
         
         var result = _tagSearchValidator.Validate(request);
         
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void LabelSearchRequest_WithValidLabels_ShouldPassValidation()
+    {
+        var request = new LabelSearchRequestDto
+        {
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Language", Value = "English" }
+            ]
+        };
+
+        var result = _labelSearchValidator.Validate(request);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void LabelSearchRequest_WithEmptyLabels_ShouldFailValidation()
+    {
+        var request = new LabelSearchRequestDto
+        {
+            Labels = []
+        };
+
+        var result = _labelSearchValidator.Validate(request);
+
         result.IsValid.Should().BeFalse();
     }
 }

@@ -1,4 +1,5 @@
 using FluentValidation;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 
 namespace SentinelKnowledgebase.Application.Validators;
 
@@ -16,6 +17,14 @@ public class CaptureRequestValidator : AbstractValidator<DTOs.Capture.CaptureReq
         
         RuleFor(x => x.ContentType)
             .IsInEnum();
+
+        RuleForEach(x => x.Labels)
+            .SetValidator(new LabelAssignmentValidator());
+
+        RuleFor(x => x.Labels)
+            .Must(NotContainDuplicateCategories)
+            .When(x => x.Labels != null)
+            .WithMessage("Each label category may appear only once per capture.");
     }
     
     private bool BeEmptyOrValidUrl(string? url)
@@ -27,6 +36,20 @@ public class CaptureRequestValidator : AbstractValidator<DTOs.Capture.CaptureReq
 
         return Uri.TryCreate(url, UriKind.Absolute, out var uri) && 
                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private static bool NotContainDuplicateCategories(List<LabelAssignmentDto>? labels)
+    {
+        if (labels == null)
+        {
+            return true;
+        }
+
+        return labels
+            .Where(label => !string.IsNullOrWhiteSpace(label.Category))
+            .Select(label => label.Category.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() == labels.Count(label => !string.IsNullOrWhiteSpace(label.Category));
     }
 }
 
@@ -58,5 +81,31 @@ public class TagSearchRequestValidator : AbstractValidator<DTOs.Search.TagSearch
         RuleForEach(x => x.Tags)
             .NotEmpty()
             .MaximumLength(100);
+    }
+}
+
+public class LabelAssignmentValidator : AbstractValidator<LabelAssignmentDto>
+{
+    public LabelAssignmentValidator()
+    {
+        RuleFor(x => x.Category)
+            .NotEmpty()
+            .MaximumLength(100);
+
+        RuleFor(x => x.Value)
+            .NotEmpty()
+            .MaximumLength(100);
+    }
+}
+
+public class LabelSearchRequestValidator : AbstractValidator<DTOs.Search.LabelSearchRequestDto>
+{
+    public LabelSearchRequestValidator()
+    {
+        RuleFor(x => x.Labels)
+            .NotEmpty().WithMessage("At least one label is required");
+
+        RuleForEach(x => x.Labels)
+            .SetValidator(new LabelAssignmentValidator());
     }
 }

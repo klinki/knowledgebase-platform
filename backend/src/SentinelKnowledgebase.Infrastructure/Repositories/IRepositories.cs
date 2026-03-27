@@ -21,6 +21,7 @@ public interface IProcessedInsightRepository
     Task<IEnumerable<ProcessedInsight>> GetAllAsync();
     Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold);
     Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(Guid ownerUserId, IReadOnlyCollection<string> tags, bool matchAll);
+    Task<IEnumerable<LabelSearchRecord>> SearchByLabelsAsync(Guid ownerUserId, IReadOnlyCollection<LabelRecord> labels, bool matchAll);
     Task UpdateAsync(ProcessedInsight processedInsight);
     Task DeleteAsync(Guid id);
 }
@@ -33,6 +34,7 @@ public class SemanticSearchRecord
     public string SourceUrl { get; set; } = string.Empty;
     public double Similarity { get; set; }
     public List<string> Tags { get; set; } = new();
+    public List<LabelRecord> Labels { get; set; } = new();
 }
 
 public class TagSearchRecord
@@ -42,7 +44,25 @@ public class TagSearchRecord
     public string Summary { get; set; } = string.Empty;
     public string SourceUrl { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
+    public List<LabelRecord> Labels { get; set; } = new();
     public DateTime ProcessedAt { get; set; }
+}
+
+public class LabelSearchRecord
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public List<string> Tags { get; set; } = new();
+    public List<LabelRecord> Labels { get; set; } = new();
+    public DateTime ProcessedAt { get; set; }
+}
+
+public class LabelRecord
+{
+    public string Category { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
 }
 
 public class TagSummaryRecord
@@ -62,6 +82,26 @@ public interface ITagRepository
     Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null);
     Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(Tag tag);
+    Task DeleteAsync(Guid id);
+}
+
+public interface ILabelCategoryRepository
+{
+    Task<LabelCategory> AddAsync(LabelCategory category);
+    Task<LabelCategory?> GetByIdAsync(Guid id);
+    Task<LabelCategory?> GetByIdWithValuesAsync(Guid id);
+    Task<LabelCategory?> GetByNameAsync(Guid ownerUserId, string name);
+    Task<IEnumerable<LabelCategory>> GetAllWithValuesAsync(Guid ownerUserId);
+    Task UpdateAsync(LabelCategory category);
+    Task DeleteAsync(Guid id);
+}
+
+public interface ILabelValueRepository
+{
+    Task<LabelValue> AddAsync(LabelValue value);
+    Task<LabelValue?> GetByIdAsync(Guid id);
+    Task<LabelValue?> GetByCategoryAndValueAsync(Guid categoryId, string value);
+    Task UpdateAsync(LabelValue value);
     Task DeleteAsync(Guid id);
 }
 

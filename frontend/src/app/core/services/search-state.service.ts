@@ -5,6 +5,19 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { DashboardItem, SemanticSearchResult } from '../../shared/models/knowledge.model';
 
+interface LabelDto {
+  category: string;
+  value: string;
+}
+
+type DashboardItemWithLabels = DashboardItem & {
+  labels: LabelDto[];
+};
+
+type SemanticSearchResultWithLabels = SemanticSearchResult & {
+  labels: LabelDto[];
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -12,7 +25,7 @@ export class SearchStateService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/search`;
 
-  results = signal<DashboardItem[]>([]);
+  results = signal<DashboardItemWithLabels[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
 
@@ -34,7 +47,7 @@ export class SearchStateService {
 
     try {
       const results = await firstValueFrom(
-        this.http.post<SemanticSearchResult[]>(`${this.apiUrl}/semantic`, {
+        this.http.post<SemanticSearchResultWithLabels[]>(`${this.apiUrl}/semantic`, {
           query: normalizedQuery,
           topK: 10,
           threshold: 0.3
@@ -49,7 +62,8 @@ export class SearchStateService {
         status: null,
         tags: result.tags,
         summary: result.summary,
-        similarity: result.similarity
+        similarity: result.similarity,
+        labels: this.normalizeLabels(result.labels)
       })));
     } catch {
       this.results.set([]);
@@ -57,5 +71,14 @@ export class SearchStateService {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private normalizeLabels(labels: LabelDto[] | null | undefined): LabelDto[] {
+    return (labels ?? [])
+      .map(label => ({
+        category: label.category.trim(),
+        value: label.value.trim()
+      }))
+      .filter(label => label.category.length > 0 && label.value.length > 0);
   }
 }

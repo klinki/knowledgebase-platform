@@ -25,6 +25,10 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
     {
         return await _context.ProcessedInsights
             .Include(p => p.Tags)
+            .Include(p => p.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(p => p.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
             .Include(p => p.EmbeddingVector)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
@@ -33,6 +37,10 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
     {
         return await _context.ProcessedInsights
             .Include(p => p.Tags)
+            .Include(p => p.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(p => p.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
             .Include(p => p.EmbeddingVector)
             .ToListAsync();
     }
@@ -51,7 +59,16 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                 Summary = p.Summary,
                 SourceUrl = p.RawCapture.SourceUrl,
                 Similarity = 1 - p.EmbeddingVector!.Vector.CosineDistance(queryVector),
-                Tags = p.Tags.Select(t => t.Name).ToList()
+                Tags = p.Tags.Select(t => t.Name).ToList(),
+                Labels = p.LabelAssignments
+                    .OrderBy(a => a.LabelCategory.Name)
+                    .ThenBy(a => a.LabelValue.Value)
+                    .Select(a => new LabelRecord
+                    {
+                        Category = a.LabelCategory.Name,
+                        Value = a.LabelValue.Value
+                    })
+                    .ToList()
             })
             .Where(r => r.Similarity >= threshold)
             .OrderByDescending(r => r.Similarity)
@@ -90,6 +107,80 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                 Summary = p.Summary,
                 SourceUrl = p.RawCapture.SourceUrl,
                 Tags = p.Tags.Select(t => t.Name).ToList(),
+                Labels = p.LabelAssignments
+                    .OrderBy(a => a.LabelCategory.Name)
+                    .ThenBy(a => a.LabelValue.Value)
+                    .Select(a => new LabelRecord
+                    {
+                        Category = a.LabelCategory.Name,
+                        Value = a.LabelValue.Value
+                    })
+                    .ToList(),
+                ProcessedAt = p.ProcessedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<LabelSearchRecord>> SearchByLabelsAsync(
+        Guid ownerUserId,
+        IReadOnlyCollection<LabelRecord> labels,
+        bool matchAll)
+    {
+        var normalizedLabels = labels
+            .Where(label =>
+                !string.IsNullOrWhiteSpace(label.Category) &&
+                !string.IsNullOrWhiteSpace(label.Value))
+            .Select(label => new LabelRecord
+            {
+                Category = label.Category.Trim(),
+                Value = label.Value.Trim()
+            })
+            .GroupBy(label => $"{label.Category}\u001f{label.Value}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (normalizedLabels.Count == 0)
+        {
+            return [];
+        }
+
+        var normalizedKeys = normalizedLabels
+            .Select(label => $"{label.Category}\u001f{label.Value}")
+            .ToList();
+
+        var query = _context.ProcessedInsights
+            .AsNoTracking()
+            .Where(p => p.OwnerUserId == ownerUserId)
+            .Where(p => p.LabelAssignments.Any(a =>
+                normalizedKeys.Contains(a.LabelCategory.Name + "\u001f" + a.LabelValue.Value)));
+
+        if (matchAll)
+        {
+            query = query.Where(p =>
+                p.LabelAssignments
+                    .Where(a => normalizedKeys.Contains(a.LabelCategory.Name + "\u001f" + a.LabelValue.Value))
+                    .Select(a => a.LabelCategory.Name + "\u001f" + a.LabelValue.Value)
+                    .Distinct()
+                    .Count() == normalizedKeys.Count);
+        }
+
+        return await query
+            .Select(p => new LabelSearchRecord
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Summary = p.Summary,
+                SourceUrl = p.RawCapture.SourceUrl,
+                Tags = p.Tags.Select(t => t.Name).ToList(),
+                Labels = p.LabelAssignments
+                    .OrderBy(a => a.LabelCategory.Name)
+                    .ThenBy(a => a.LabelValue.Value)
+                    .Select(a => new LabelRecord
+                    {
+                        Category = a.LabelCategory.Name,
+                        Value = a.LabelValue.Value
+                    })
+                    .ToList(),
                 ProcessedAt = p.ProcessedAt
             })
             .ToListAsync();

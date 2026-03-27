@@ -1,4 +1,5 @@
 using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 
 namespace SentinelKnowledgebase.Application.DTOs.Dashboard;
 
@@ -17,6 +18,7 @@ public class CaptureListItemDto
     public DateTime CapturedAt { get; set; }
     public CaptureStatus Status { get; set; }
     public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
 }
 
 public class TagSummaryDto

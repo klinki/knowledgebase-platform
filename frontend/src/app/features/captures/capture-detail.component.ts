@@ -93,6 +93,14 @@ interface RenderNode {
                 }
               </div>
             }
+
+            @if (capture()!.labels.length > 0) {
+              <div class="label-list">
+                @for (label of capture()!.labels; track label.category + ':' + label.value) {
+                  <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+                }
+              </div>
+            }
           </section>
 
           <section class="glass-card">
@@ -168,6 +176,14 @@ interface RenderNode {
               <div class="tag-list">
                 @for (tag of insight.tags; track tag) {
                   <span class="tag-chip">{{ tag }}</span>
+                }
+              </div>
+            }
+
+            @if (insight.labels.length > 0) {
+              <div class="label-list">
+                @for (label of insight.labels; track label.category + ':' + label.value) {
+                  <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
                 }
               </div>
             }
@@ -283,6 +299,13 @@ interface RenderNode {
       margin-top: 1.2rem;
     }
 
+    .label-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.8rem;
+    }
+
     .tag-chip {
       display: inline-flex;
       padding: 0.35rem 0.7rem;
@@ -290,6 +313,15 @@ interface RenderNode {
       background: rgba(99, 102, 241, 0.14);
       color: #c7d2fe;
       border: 1px solid rgba(129, 140, 248, 0.16);
+    }
+
+    .label-chip {
+      display: inline-flex;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.12);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.18);
     }
 
     .value-list {

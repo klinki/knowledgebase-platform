@@ -6,6 +6,17 @@ import { CaptureStateService } from '../../core/services/capture-state.service';
 
 type ManualContentType = 'Article' | 'Code' | 'Note' | 'Other';
 
+interface LabelRow {
+  id: number;
+  category: string;
+  value: string;
+}
+
+interface CaptureLabelDto {
+  category: string;
+  value: string;
+}
+
 @Component({
   selector: 'app-create-capture',
   standalone: true,
@@ -92,8 +103,37 @@ type ManualContentType = 'Article' | 'Code' | 'Note' | 'Other';
             />
           </div>
 
+          <div class="form-group">
+            <div class="field-header">
+              <label>Labels</label>
+              <button type="button" class="secondary-action" (click)="addLabelRow()">+ Add label</button>
+            </div>
+            <div class="label-rows">
+              @for (row of labelRows; track row.id) {
+                <div class="label-row">
+                  <input
+                    type="text"
+                    [name]="'labelCategory-' + row.id"
+                    [(ngModel)]="row.category"
+                    placeholder="Category"
+                  />
+                  <input
+                    type="text"
+                    [name]="'labelValue-' + row.id"
+                    [(ngModel)]="row.value"
+                    placeholder="Value"
+                  />
+                  <button type="button" class="remove-label-button" (click)="removeLabelRow(row.id)">
+                    Remove
+                  </button>
+                </div>
+              }
+            </div>
+            <p class="help-text">Repeat categories are blocked before submission. Leave a row blank to skip it.</p>
+          </div>
+
           <div class="actions">
-            <button type="submit" class="premium-btn" [disabled]="captureState.creating()">
+            <button type="submit" class="premium-btn" [disabled]="captureState.creating() || hasInvalidLabelRows()">
               {{ captureState.creating() ? 'Creating capture...' : 'Create Capture' }}
             </button>
           </div>
@@ -135,6 +175,14 @@ type ManualContentType = 'Article' | 'Code' | 'Note' | 'Other';
       margin-top: 1.25rem;
     }
 
+    .field-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.45rem;
+    }
+
     label {
       display: block;
       color: #f8fafc;
@@ -163,6 +211,35 @@ type ManualContentType = 'Article' | 'Code' | 'Note' | 'Other';
       margin-top: 0.45rem;
       color: #94a3b8;
       font-size: 0.88rem;
+    }
+
+    .label-rows {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .label-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .secondary-action,
+    .remove-label-button {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.03);
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .secondary-action:hover,
+    .remove-label-button:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     .content-meta {
@@ -200,10 +277,12 @@ export class CreateCaptureComponent {
 
   captureState = inject(CaptureStateService);
   private router = inject(Router);
+  private nextLabelRowId = 1;
 
   sourceUrl = '';
   rawContent = '';
   tags = '';
+  labelRows: LabelRow[] = [this.createLabelRow()];
   selectedContentType = signal<string>('');
   validationError = signal<string | null>(null);
   submissionError = signal<string | null>(null);
@@ -220,6 +299,7 @@ export class CreateCaptureComponent {
     const normalizedUrl = this.sourceUrl.trim();
     const normalizedContent = this.rawContent.trim();
     const normalizedType = this.isUrlOnlyMode() ? 'Article' : this.selectedContentType().trim();
+    const labels = this.collectLabels(true);
 
     if (!normalizedUrl && !normalizedContent) {
       this.validationError.set('Provide a URL or direct content.');
@@ -236,12 +316,17 @@ export class CreateCaptureComponent {
       return;
     }
 
+    if (labels === null) {
+      return;
+    }
+
     try {
       const accepted = await this.captureState.createCapture({
         sourceUrl: normalizedUrl,
         contentType: normalizedType,
         rawContent: normalizedContent,
-        tags: this.tags.split(',')
+        tags: this.tags.split(','),
+        labels
       });
 
       this.successMessage.set('Capture created successfully.');
@@ -249,5 +334,65 @@ export class CreateCaptureComponent {
     } catch {
       this.submissionError.set(this.captureState.createError() ?? 'Capture could not be created.');
     }
+  }
+
+  addLabelRow(): void {
+    this.labelRows = [...this.labelRows, this.createLabelRow()];
+  }
+
+  removeLabelRow(id: number): void {
+    if (this.labelRows.length === 1) {
+      this.labelRows = [this.createLabelRow()];
+      return;
+    }
+
+    this.labelRows = this.labelRows.filter(row => row.id !== id);
+  }
+
+  hasInvalidLabelRows(): boolean {
+    return this.collectLabels(false) === null;
+  }
+
+  private createLabelRow(): LabelRow {
+    return {
+      id: this.nextLabelRowId++,
+      category: '',
+      value: ''
+    };
+  }
+
+  private collectLabels(setError: boolean): CaptureLabelDto[] | null {
+    const seenCategories = new Set<string>();
+    const labels: CaptureLabelDto[] = [];
+
+    for (const row of this.labelRows) {
+      const category = row.category.trim();
+      const value = row.value.trim();
+      const isBlank = category.length === 0 && value.length === 0;
+
+      if (isBlank) {
+        continue;
+      }
+
+      if (category.length === 0 || value.length === 0) {
+        if (setError) {
+          this.validationError.set('Each label row needs both a category and a value.');
+        }
+        return null;
+      }
+
+      const normalizedCategory = category.toLowerCase();
+      if (seenCategories.has(normalizedCategory)) {
+        if (setError) {
+          this.validationError.set(`The label category "${category}" can only be used once.`);
+        }
+        return null;
+      }
+
+      seenCategories.add(normalizedCategory);
+      labels.push({ category, value });
+    }
+
+    return labels;
   }
 }

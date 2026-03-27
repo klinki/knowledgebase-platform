@@ -73,4 +73,32 @@ public class SearchController : ControllerBase
             return StatusCode(500, "An error occurred during tag search");
         }
     }
+
+    [HttpPost("labels")]
+    [ProducesResponseType(typeof(IEnumerable<LabelSearchResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> LabelSearch([FromBody] LabelSearchRequestDto request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var results = await _searchService.SearchByLabelsAsync(userId, request);
+            return Ok(results);
+        }
+        catch (Exception ex)
+        {
+            var labels = request.Labels.Select(label => $"{label.Category}={label.Value}");
+            _logger.LogError(ex, "Label search failed for labels: {Labels}", string.Join(", ", labels));
+            return StatusCode(500, "An error occurred during label search");
+        }
+    }
 }

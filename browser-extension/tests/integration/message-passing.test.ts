@@ -55,6 +55,16 @@ describe('Message Passing Integration', () => {
       })
 
       expect(sendResponse).toHaveBeenCalledWith({ success: true })
+
+      const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+      const body = JSON.parse(fetchCall[1].body)
+      expect(body.tags).toEqual(['twitter'])
+      expect(body.labels).toEqual([
+        {
+          category: 'Source',
+          value: 'Twitter',
+        },
+      ])
     })
 
     it('handles SAVE_TWEET message and returns error when extension auth is missing', async () => {
@@ -137,6 +147,20 @@ describe('Message Passing Integration', () => {
       expect(global.fetch).toHaveBeenCalledWith(
         `${DEFAULT_API_URL}/api/v1/capture`,
         expect.objectContaining({ method: 'POST' })
+      )
+
+      const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+      const body = JSON.parse(fetchCall[1].body)
+      expect(body.labels).toEqual(
+        expect.arrayContaining([
+          {
+            category: 'Source',
+            value: 'Web',
+          },
+          expect.objectContaining({
+            category: 'Language',
+          }),
+        ])
       )
     })
 

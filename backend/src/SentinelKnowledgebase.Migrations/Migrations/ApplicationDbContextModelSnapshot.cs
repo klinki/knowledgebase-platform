@@ -210,6 +210,60 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.ToTable("EmbeddingVectors");
                 });
 
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("LabelCategories");
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("LabelCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LabelCategoryId", "Value")
+                        .IsUnique();
+
+                    b.ToTable("LabelValues");
+                });
+
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.ProcessedInsight", b =>
                 {
                     b.Property<Guid>("Id")
@@ -260,6 +314,26 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.ToTable("ProcessedInsights");
                 });
 
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.ProcessedInsightLabelAssignment", b =>
+                {
+                    b.Property<Guid>("ProcessedInsightId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LabelCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LabelValueId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ProcessedInsightId", "LabelCategoryId");
+
+                    b.HasIndex("LabelCategoryId");
+
+                    b.HasIndex("LabelValueId");
+
+                    b.ToTable("ProcessedInsightLabelAssignments");
+                });
+
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.RawCapture", b =>
                 {
                     b.Property<Guid>("Id")
@@ -302,6 +376,26 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.HasIndex("OwnerUserId", "CreatedAt");
 
                     b.ToTable("RawCaptures");
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.RawCaptureLabelAssignment", b =>
+                {
+                    b.Property<Guid>("RawCaptureId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LabelCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LabelValueId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("RawCaptureId", "LabelCategoryId");
+
+                    b.HasIndex("LabelCategoryId");
+
+                    b.HasIndex("LabelValueId");
+
+                    b.ToTable("RawCaptureLabelAssignments");
                 });
 
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.Tag", b =>
@@ -641,6 +735,26 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("ProcessedInsight");
                 });
 
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelCategory", b =>
+                {
+                    b.HasOne("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelValue", b =>
+                {
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.LabelCategory", "LabelCategory")
+                        .WithMany("Values")
+                        .HasForeignKey("LabelCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LabelCategory");
+                });
+
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.ProcessedInsight", b =>
                 {
                     b.HasOne("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", null)
@@ -658,6 +772,33 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("RawCapture");
                 });
 
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.ProcessedInsightLabelAssignment", b =>
+                {
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.LabelCategory", "LabelCategory")
+                        .WithMany()
+                        .HasForeignKey("LabelCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.LabelValue", "LabelValue")
+                        .WithMany("ProcessedInsightAssignments")
+                        .HasForeignKey("LabelValueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.ProcessedInsight", "ProcessedInsight")
+                        .WithMany("LabelAssignments")
+                        .HasForeignKey("ProcessedInsightId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LabelCategory");
+
+                    b.Navigation("LabelValue");
+
+                    b.Navigation("ProcessedInsight");
+                });
+
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.RawCapture", b =>
                 {
                     b.HasOne("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", null)
@@ -665,6 +806,33 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                         .HasForeignKey("OwnerUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.RawCaptureLabelAssignment", b =>
+                {
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.LabelCategory", "LabelCategory")
+                        .WithMany()
+                        .HasForeignKey("LabelCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.LabelValue", "LabelValue")
+                        .WithMany("RawCaptureAssignments")
+                        .HasForeignKey("LabelValueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SentinelKnowledgebase.Domain.Entities.RawCapture", "RawCapture")
+                        .WithMany("LabelAssignments")
+                        .HasForeignKey("RawCaptureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LabelCategory");
+
+                    b.Navigation("LabelValue");
+
+                    b.Navigation("RawCapture");
                 });
 
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.Tag", b =>
@@ -715,13 +883,29 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("InvitedByUser");
                 });
 
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelCategory", b =>
+                {
+                    b.Navigation("Values");
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelValue", b =>
+                {
+                    b.Navigation("ProcessedInsightAssignments");
+
+                    b.Navigation("RawCaptureAssignments");
+                });
+
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.ProcessedInsight", b =>
                 {
                     b.Navigation("EmbeddingVector");
+
+                    b.Navigation("LabelAssignments");
                 });
 
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.RawCapture", b =>
                 {
+                    b.Navigation("LabelAssignments");
+
                     b.Navigation("ProcessedInsight");
                 });
 #pragma warning restore 612, 618

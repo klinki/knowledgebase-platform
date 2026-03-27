@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SentinelKnowledgebase.Application.DTOs.Auth;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Infrastructure.Data;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -85,6 +87,8 @@ public class IntegrationTestFixture : IAsyncLifetime
                     {
                         options.UseNpgsql(_container.GetConnectionString(), o => o.UseVector());
                     });
+
+                    services.AddScoped<IContentProcessor, FakeContentProcessor>();
                 });
             });
     }
@@ -183,4 +187,45 @@ public class IntegrationTestFixture : IAsyncLifetime
 [CollectionDefinition("IntegrationTests")]
 public class IntegrationTestCollection : ICollectionFixture<IntegrationTestFixture>
 {
+}
+
+internal sealed class FakeContentProcessor : IContentProcessor
+{
+    public string DenoiseContent(string content)
+    {
+        return content.Trim();
+    }
+
+    public Task<ContentInsights> ExtractInsightsAsync(string content, ContentType contentType)
+    {
+        return Task.FromResult(new ContentInsights
+        {
+            Title = $"{contentType} insight",
+            Summary = content,
+            KeyInsights = ["Insight"],
+            ActionItems = ["Action"]
+        });
+    }
+
+    public Task<float[]> GenerateEmbeddingAsync(string text)
+    {
+        var random = new Random(42);
+        var vector = new float[1536];
+
+        for (var index = 0; index < vector.Length; index++)
+        {
+            vector[index] = (float)random.NextDouble() * 2 - 1;
+        }
+
+        var norm = (float)Math.Sqrt(vector.Sum(value => value * value));
+        if (norm > 0)
+        {
+            for (var index = 0; index < vector.Length; index++)
+            {
+                vector[index] /= norm;
+            }
+        }
+
+        return Task.FromResult(vector);
+    }
 }

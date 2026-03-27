@@ -34,6 +34,8 @@ public class RawCapture
     public DateTime? ProcessedAt { get; set; }
     
     public List<Tag> Tags { get; set; } = new();
+
+    public List<RawCaptureLabelAssignment> LabelAssignments { get; set; } = new();
     
     public ProcessedInsight? ProcessedInsight { get; set; }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { handleSaveTweet, handleSaveWebpage, extractWebpageData } from '../../src/background.js'
+import { handleSaveTweet, handleSaveWebpage, captureSelection, extractWebpageData } from '../../src/background.js'
 import { chromeMock, mockStorageLocal } from '../../src/test-utils/setup.js'
 import { mockFetchResponse, resetChromeMocks } from '../../src/test-utils/helpers.js'
 import { DEFAULT_API_URL } from '../../src/constants.js'
@@ -177,6 +177,13 @@ describe('handleSaveTweet', () => {
     expect(body.contentType).toBe('Tweet')
     expect(body.rawContent).toBe(mockTweetData.content.text)
     expect(body.metadata).toBeTypeOf('string')
+    expect(body.tags).toEqual(['twitter'])
+    expect(body.labels).toEqual([
+      {
+        category: 'Source',
+        value: 'Twitter',
+      },
+    ])
   })
 })
 
@@ -227,6 +234,20 @@ describe('handleSaveWebpage', () => {
         method: 'POST',
       })
     )
+
+    const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const body = JSON.parse(fetchCall[1].body)
+    expect(body.labels).toEqual(
+      expect.arrayContaining([
+        {
+          category: 'Source',
+          value: 'Web',
+        },
+        expect.objectContaining({
+          category: 'Language',
+        }),
+      ])
+    )
   })
 
   it('returns error when extension auth is not configured', async () => {
@@ -253,6 +274,45 @@ describe('handleSaveWebpage', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toContain('API error: 500')
+  })
+})
+
+describe('captureSelection', () => {
+  beforeEach(() => {
+    resetChromeMocks()
+    mockStorageLocal.data = {}
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('adds selection tags and web source label', async () => {
+    mockStorageLocal.data = {
+      apiKey: 'test-api-key',
+    }
+
+    mockFetchResponse({ ok: true, json: { id: '123' } })
+
+    const result = await captureSelection(
+      'https://example.com/article',
+      'Test Article',
+      'Selected text'
+    )
+
+    expect(result).toEqual({ success: true })
+
+    const fetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const body = JSON.parse(fetchCall[1].body)
+
+    expect(body.tags).toEqual(['selection'])
+    expect(body.labels).toEqual([
+      {
+        category: 'Source',
+        value: 'Web',
+      },
+    ])
   })
 })
 
