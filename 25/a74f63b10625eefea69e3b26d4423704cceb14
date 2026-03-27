@@ -1,0 +1,37 @@
+browser-extension/openapi.json
+  1ffdaaf2d20d0f33 312-316,386-957,972-976,990-1009,1037-1052,1155-1172,1213-1234,1265-1424
+  3a8bd3b45ef6fc9d 1-311,317-385,958-971,977-989,1010-1036,1053-1154,1173-1212,1235-1264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "25a74f63b10625eefea69e3b26d4423704cceb14",
+  "prompts": {
+    "1ffdaaf2d20d0f33": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d2e0b-05cf-7a23-b377-a367d99e9460",
+        "model": "gpt-5.4-mini"
+      },
+      "human_author": "David Klingenberg <dklingenberg@gmail.com>",
+      "messages": [],
+      "total_additions": 818,
+      "total_deletions": 90,
+      "accepted_lines": 818,
+      "overriden_lines": 0
+    },
+    "3a8bd3b45ef6fc9d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d02dd-5a81-77e3-81f6-39e383ef3612",
+        "model": "unknown"
+      },
+      "human_author": "David Klingenberg <dklingenberg@gmail.com>",
+      "messages": [],
+      "total_additions": 1426,
+      "total_deletions": 46,
+      "accepted_lines": 1326,
+      "overriden_lines": 0
+    }
+  }
+}
