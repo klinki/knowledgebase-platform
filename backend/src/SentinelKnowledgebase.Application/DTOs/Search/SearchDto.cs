@@ -1,3 +1,5 @@
+using SentinelKnowledgebase.Application.DTOs.Labels;
+
 namespace SentinelKnowledgebase.Application.DTOs.Search;
 
 public class SemanticSearchRequestDto
@@ -15,6 +17,7 @@ public class SemanticSearchResultDto
     public string SourceUrl { get; set; } = string.Empty;
     public double Similarity { get; set; }
     public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
 }
 
 public class TagSearchRequestDto
@@ -30,5 +33,23 @@ public class TagSearchResultDto
     public string Summary { get; set; } = string.Empty;
     public string SourceUrl { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
+    public DateTime ProcessedAt { get; set; }
+}
+
+public class LabelSearchRequestDto
+{
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
+    public bool MatchAll { get; set; } = false;
+}
+
+public class LabelSearchResultDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
     public DateTime ProcessedAt { get; set; }
 }

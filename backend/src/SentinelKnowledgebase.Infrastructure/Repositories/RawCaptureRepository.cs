@@ -23,7 +23,18 @@ public class RawCaptureRepository : IRawCaptureRepository
     {
         return await _context.RawCaptures
             .Include(r => r.Tags)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
             .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.Tags)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.LabelAssignments)
+                    .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.LabelAssignments)
+                    .ThenInclude(a => a.LabelValue)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
@@ -31,7 +42,18 @@ public class RawCaptureRepository : IRawCaptureRepository
     {
         return await _context.RawCaptures
             .Include(r => r.Tags)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
             .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.Tags)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.LabelAssignments)
+                    .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.LabelAssignments)
+                    .ThenInclude(a => a.LabelValue)
             .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
     }
     
@@ -39,7 +61,18 @@ public class RawCaptureRepository : IRawCaptureRepository
     {
         return await _context.RawCaptures
             .Include(r => r.Tags)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
             .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.Tags)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.LabelAssignments)
+                    .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.LabelAssignments)
+                    .ThenInclude(a => a.LabelValue)
             .Where(r => r.OwnerUserId == ownerUserId)
             .ToListAsync();
     }
@@ -48,6 +81,10 @@ public class RawCaptureRepository : IRawCaptureRepository
     {
         return await _context.RawCaptures
             .Include(r => r.Tags)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
             .Include(r => r.ProcessedInsight)
             .Where(r => r.OwnerUserId == ownerUserId)
             .OrderByDescending(r => r.CreatedAt)

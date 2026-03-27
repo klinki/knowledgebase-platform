@@ -16,6 +16,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RawCapture> RawCaptures { get; set; }
     public DbSet<ProcessedInsight> ProcessedInsights { get; set; }
     public DbSet<Tag> Tags { get; set; }
+    public DbSet<LabelCategory> LabelCategories { get; set; }
+    public DbSet<LabelValue> LabelValues { get; set; }
+    public DbSet<RawCaptureLabelAssignment> RawCaptureLabelAssignments { get; set; }
+    public DbSet<ProcessedInsightLabelAssignment> ProcessedInsightLabelAssignments { get; set; }
     public DbSet<EmbeddingVector> EmbeddingVectors { get; set; }
     public DbSet<UserInvitation> UserInvitations { get; set; }
     public DbSet<DeviceAuthorization> DeviceAuthorizations { get; set; }
@@ -44,6 +48,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             
             entity.HasMany(e => e.Tags)
                 .WithMany(t => t.RawCaptures);
+
+            entity.HasMany(e => e.LabelAssignments)
+                .WithOne(a => a.RawCapture)
+                .HasForeignKey(a => a.RawCaptureId)
+                .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasOne(e => e.ProcessedInsight)
                 .WithOne(p => p.RawCapture)
@@ -66,6 +75,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             
             entity.HasMany(e => e.Tags)
                 .WithMany(t => t.ProcessedInsights);
+
+            entity.HasMany(e => e.LabelAssignments)
+                .WithOne(a => a.ProcessedInsight)
+                .HasForeignKey(a => a.ProcessedInsightId)
+                .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasOne(e => e.EmbeddingVector)
                 .WithOne(e => e.ProcessedInsight)
@@ -85,6 +99,69 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.OwnerUserId, e.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<LabelCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.OwnerUserId, e.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<LabelValue>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Value).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.LabelCategory)
+                .WithMany(c => c.Values)
+                .HasForeignKey(e => e.LabelCategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.LabelCategoryId, e.Value }).IsUnique();
+        });
+
+        modelBuilder.Entity<RawCaptureLabelAssignment>(entity =>
+        {
+            entity.HasKey(e => new { e.RawCaptureId, e.LabelCategoryId });
+
+            entity.HasOne(e => e.LabelCategory)
+                .WithMany()
+                .HasForeignKey(e => e.LabelCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.LabelValue)
+                .WithMany(v => v.RawCaptureAssignments)
+                .HasForeignKey(e => e.LabelValueId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.LabelValueId);
+        });
+
+        modelBuilder.Entity<ProcessedInsightLabelAssignment>(entity =>
+        {
+            entity.HasKey(e => new { e.ProcessedInsightId, e.LabelCategoryId });
+
+            entity.HasOne(e => e.LabelCategory)
+                .WithMany()
+                .HasForeignKey(e => e.LabelCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.LabelValue)
+                .WithMany(v => v.ProcessedInsightAssignments)
+                .HasForeignKey(e => e.LabelValueId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.LabelValueId);
         });
         
         modelBuilder.Entity<EmbeddingVector>(entity =>

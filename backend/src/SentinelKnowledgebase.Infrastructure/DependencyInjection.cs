@@ -115,6 +115,8 @@ public static class DependencyInjection
         services.AddScoped<IRawCaptureRepository, RawCaptureRepository>();
         services.AddScoped<IProcessedInsightRepository, ProcessedInsightRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<ILabelCategoryRepository, LabelCategoryRepository>();
+        services.AddScoped<ILabelValueRepository, LabelValueRepository>();
         services.AddScoped<IEmbeddingVectorRepository, EmbeddingVectorRepository>();
         services.AddScoped<TokenService>();
         services.AddScoped<IdentityBootstrapper>();

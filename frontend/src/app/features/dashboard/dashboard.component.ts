@@ -70,6 +70,13 @@ import { SearchStateService } from '../../core/services/search-state.service';
                       }
                     </div>
                   }
+                  @if (item.labels.length > 0) {
+                    <div class="item-labels">
+                      @for (label of item.labels; track label.category + ':' + label.value) {
+                        <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+                      }
+                    </div>
+                  }
                 </div>
               </div>
               } @else {
@@ -90,6 +97,13 @@ import { SearchStateService } from '../../core/services/search-state.service';
                     <div class="item-tags">
                       @for (tag of item.tags; track tag) {
                         <span class="tag-chip">{{ tag }}</span>
+                      }
+                    </div>
+                  }
+                  @if (item.labels.length > 0) {
+                    <div class="item-labels">
+                      @for (label of item.labels; track label.category + ':' + label.value) {
+                        <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
                       }
                     </div>
                   }
@@ -244,11 +258,20 @@ import { SearchStateService } from '../../core/services/search-state.service';
       .meta { font-size: 0.85rem; color: #64748b; }
       .summary { margin-top: 8px; color: #cbd5e1; font-size: 0.9rem; }
       .item-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .item-labels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
       .tag-chip {
         background: rgba(99, 102, 241, 0.12);
         border: 1px solid rgba(129, 140, 248, 0.16);
         border-radius: 999px;
         color: #c7d2fe;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+      }
+      .label-chip {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.18);
+        border-radius: 999px;
+        color: #fde68a;
         font-size: 0.75rem;
         padding: 4px 10px;
       }

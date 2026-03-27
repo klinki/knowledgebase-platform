@@ -1,4 +1,5 @@
 using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 
 namespace SentinelKnowledgebase.Application.DTOs.Capture;
 
@@ -9,6 +10,7 @@ public class CaptureRequestDto
     public string RawContent { get; set; } = string.Empty;
     public string? Metadata { get; set; }
     public List<string>? Tags { get; set; }
+    public List<LabelAssignmentDto>? Labels { get; set; }
 }
 
 public class CaptureResponseDto
@@ -23,6 +25,7 @@ public class CaptureResponseDto
     public string? Metadata { get; set; }
     public string? FailureReason { get; set; }
     public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
     public ProcessedInsightDto? ProcessedInsight { get; set; }
 }
 
@@ -43,4 +46,5 @@ public class ProcessedInsightDto
     public string? Author { get; set; }
     public DateTime ProcessedAt { get; set; }
     public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
 }

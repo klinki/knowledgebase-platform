@@ -53,6 +53,8 @@ describe('CreateCaptureComponent', () => {
     fixture.componentInstance.rawContent = 'Manual content';
     fixture.componentInstance.selectedContentType.set('Note');
     fixture.componentInstance.tags = ' alpha, beta ';
+    fixture.componentInstance.labelRows[0].category = 'Language';
+    fixture.componentInstance.labelRows[0].value = 'English';
 
     await fixture.componentInstance.submit();
 
@@ -60,8 +62,47 @@ describe('CreateCaptureComponent', () => {
       sourceUrl: '',
       contentType: 'Note',
       rawContent: 'Manual content',
-      tags: [' alpha', ' beta ']
+      tags: [' alpha', ' beta '],
+      labels: [
+        { category: 'Language', value: 'English' }
+      ]
     });
     expect(navigateSpy).toHaveBeenCalledWith(['/captures', 'capture-1']);
+  });
+
+  it('blocks duplicate label categories client-side', async () => {
+    const captureStateStub = {
+      creating: signal(false),
+      createError: signal<string | null>(null),
+      createCapture: vi.fn()
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [CreateCaptureComponent],
+      providers: [
+        provideRouter([]),
+        { provide: CaptureStateService, useValue: captureStateStub }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(CreateCaptureComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.sourceUrl = 'https://example.com/item';
+    fixture.componentInstance.labelRows[0].category = 'Source';
+    fixture.componentInstance.labelRows[0].value = 'Twitter';
+    fixture.componentInstance.addLabelRow();
+    fixture.componentInstance.labelRows[1].category = 'source';
+    fixture.componentInstance.labelRows[1].value = 'Web';
+
+    expect(fixture.componentInstance.hasInvalidLabelRows()).toBe(true);
+
+    await fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    expect(captureStateStub.createCapture).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.hasInvalidLabelRows()).toBe(true);
+    const submitButton = fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    expect(submitButton?.disabled).toBe(true);
   });
 });

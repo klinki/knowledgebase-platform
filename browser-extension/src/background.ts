@@ -40,6 +40,12 @@ interface CaptureRequestPayload {
   rawContent: string;
   metadata: string;
   tags?: string[];
+  labels?: LabelAssignment[];
+}
+
+interface LabelAssignment {
+  category: string;
+  value: string;
 }
 
 interface AuthTokensResponse {
@@ -577,12 +583,25 @@ function mapTweetToCaptureRequest(tweetData: TweetData): CaptureRequestPayload {
       timestamp: tweetData.content.timestamp,
       capturedAt: tweetData.captured_at
     }),
-    tags: ['twitter']
+    tags: ['twitter'],
+    labels: [
+      {
+        category: 'Source',
+        value: 'Twitter'
+      }
+    ]
   };
 }
 
 function mapWebpageToCaptureRequest(webpageData: WebpageData): CaptureRequestPayload {
   const rawContent = webpageData.content.text || webpageData.description || webpageData.title || webpageData.url;
+  const labels = [
+    {
+      category: 'Source',
+      value: 'Web'
+    },
+    ...buildLanguageLabel(webpageData.metadata.language)
+  ];
 
   return {
     sourceUrl: webpageData.url,
@@ -600,7 +619,8 @@ function mapWebpageToCaptureRequest(webpageData: WebpageData): CaptureRequestPay
       },
       metadata: webpageData.metadata,
       capturedAt: webpageData.captured_at
-    })
+    }),
+    labels
   };
 }
 
@@ -616,8 +636,50 @@ function mapSelectionToCaptureRequest(selectionData: SelectionData): CaptureRequ
       context: selectionData.context,
       capturedAt: selectionData.captured_at
     }),
-    tags: ['selection']
+    tags: ['selection'],
+    labels: [
+      {
+        category: 'Source',
+        value: 'Web'
+      }
+    ]
   };
+}
+
+function buildLanguageLabel(language: string | null): LabelAssignment[] {
+  if (!language) {
+    return [];
+  }
+
+  const normalized = normalizeLanguageValue(language);
+  if (!normalized) {
+    return [];
+  }
+
+  return [
+    {
+      category: 'Language',
+      value: normalized
+    }
+  ];
+}
+
+function normalizeLanguageValue(language: string): string | null {
+  const trimmed = language.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (typeof Intl === 'undefined' || typeof Intl.DisplayNames === 'undefined') {
+    return trimmed;
+  }
+
+  try {
+    const displayNames = new Intl.DisplayNames(['en'], { type: 'language' });
+    return displayNames.of(trimmed.replaceAll('_', '-')) ?? trimmed;
+  } catch {
+    return trimmed;
+  }
 }
 
 async function getAuthorizationToken(baseUrl: string): Promise<string | null> {

@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Domain.Enums;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -63,6 +64,38 @@ public class CaptureControllerTests
         var content = await response.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
         content.Should().NotBeNull();
         content!.Id.Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public async Task CreateCapture_ShouldPersistExplicitLabels_ForOwner()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = $"https://example.com/{Guid.NewGuid():N}",
+            ContentType = ContentType.Article,
+            RawContent = "Labeled content",
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Language", Value = "English" },
+                new LabelAssignmentDto { Category = "Source", Value = "Web" }
+            ]
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/capture", request);
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+
+        var accepted = await response.Content.ReadFromJsonAsync<CaptureAcceptedDto>();
+        accepted.Should().NotBeNull();
+
+        var capture = await client.GetFromJsonAsync<CaptureResponseDto>(
+            $"/api/v1/capture/{accepted!.Id}",
+            ResponseJsonOptions);
+
+        capture.Should().NotBeNull();
+        capture!.Labels.Should().Contain(label => label.Category == "Language" && label.Value == "English");
+        capture.Labels.Should().Contain(label => label.Category == "Source" && label.Value == "Web");
     }
     
     [Fact]

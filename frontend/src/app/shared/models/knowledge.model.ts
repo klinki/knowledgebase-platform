@@ -5,8 +5,14 @@ export interface DashboardItem {
   capturedAt: string | null;
   status: string | null;
   tags: string[];
+  labels: LabelAssignment[];
   summary: string | null;
   similarity: number | null;
+}
+
+export interface LabelAssignment {
+  category: string;
+  value: string;
 }
 
 export interface TagSummary {
@@ -14,6 +20,31 @@ export interface TagSummary {
   name: string;
   count: number;
   lastUsedAt: string | null;
+}
+
+export interface LabelValueSummary {
+  id: string;
+  value: string;
+  count: number;
+  lastUsedAt: string | null;
+}
+
+export interface LabelCategorySummary {
+  id: string;
+  name: string;
+  count: number;
+  lastUsedAt: string | null;
+  values: LabelValueSummary[];
+}
+
+export interface LabelSearchResult {
+  id: string;
+  title: string;
+  summary: string | null;
+  sourceUrl: string;
+  processedAt: string | null;
+  tags: string[];
+  labels: LabelAssignment[];
 }
 
 export interface DashboardStats {
@@ -34,6 +65,7 @@ export interface SemanticSearchResult {
   sourceUrl: string;
   similarity: number;
   tags: string[];
+  labels: LabelAssignment[];
 }
 
 export interface CaptureListItem {
@@ -56,6 +88,7 @@ export interface CaptureProcessedInsight {
   author: string | null;
   processedAt: string;
   tags: string[];
+  labels: LabelAssignment[];
 }
 
 export interface CaptureDetail {
@@ -69,6 +102,7 @@ export interface CaptureDetail {
   rawContent: string;
   metadata: string | null;
   tags: string[];
+  labels: LabelAssignment[];
   processedInsight: CaptureProcessedInsight | null;
 }
 
@@ -77,6 +111,7 @@ export interface CaptureCreateRequest {
   contentType: string;
   rawContent: string;
   tags: string[];
+  labels?: LabelAssignment[];
 }
 
 export interface CaptureAccepted {

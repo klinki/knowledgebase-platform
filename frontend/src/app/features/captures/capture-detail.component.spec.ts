@@ -21,6 +21,7 @@ describe('CaptureDetailComponent', () => {
         processedAt: '2026-03-16T10:10:00Z',
         rawContent: 'Raw payload',
         metadata: JSON.stringify({ author: 'A. Writer' }),
+        labels: [{ category: 'Language', value: 'English' }],
         tags: ['alpha'],
         processedInsight: {
           id: 'insight-1',
@@ -31,6 +32,7 @@ describe('CaptureDetailComponent', () => {
           sourceTitle: 'Source title',
           author: 'Author',
           processedAt: '2026-03-16T10:10:00Z',
+          labels: [{ category: 'Source', value: 'Web' }],
           tags: ['alpha']
         }
       }),
@@ -66,6 +68,8 @@ describe('CaptureDetailComponent', () => {
     expect(compiled.textContent).toContain('Insight title');
     expect(compiled.textContent).toContain('First');
     expect(compiled.textContent).toContain('A. Writer');
+    expect(compiled.textContent).toContain('Language: English');
+    expect(compiled.textContent).toContain('Source: Web');
   });
 
   it('renders a local not found state for missing captures', async () => {

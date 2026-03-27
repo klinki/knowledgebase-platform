@@ -37,6 +37,8 @@ public class ProcessedInsight
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
     
     public List<Tag> Tags { get; set; } = new();
+
+    public List<ProcessedInsightLabelAssignment> LabelAssignments { get; set; } = new();
     
     public EmbeddingVector? EmbeddingVector { get; set; }
 }

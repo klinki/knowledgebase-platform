@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using NSubstitute;
+using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -45,7 +46,11 @@ public class SearchServiceTests
                 Summary = "Test summary",
                 Similarity = 0.95,
                 SourceUrl = "https://example.com",
-                Tags = new List<string>()
+                Tags = new List<string>(),
+                Labels = new List<LabelRecord>
+                {
+                    new() { Category = "Language", Value = "English" }
+                }
             }
         };
         
@@ -56,6 +61,7 @@ public class SearchServiceTests
         var result = await _service.SemanticSearchAsync(ownerUserId, request);
         
         result.Should().NotBeEmpty();
+        result.First().Labels.Should().ContainSingle(label => label.Category == "Language" && label.Value == "English");
     }
     
     [Fact]
@@ -100,6 +106,10 @@ public class SearchServiceTests
                 Title = "Test",
                 Summary = "Summary",
                 Tags = new List<string> { "test" },
+                Labels = new List<LabelRecord>
+                {
+                    new() { Category = "Source", Value = "Twitter" }
+                },
                 ProcessedAt = DateTime.UtcNow,
                 SourceUrl = "https://example.com"
             }
@@ -112,6 +122,7 @@ public class SearchServiceTests
         
         result.Should().HaveCount(1);
         result.First().Title.Should().Be("Test");
+        result.First().Labels.Should().ContainSingle(label => label.Category == "Source" && label.Value == "Twitter");
     }
     
     [Fact]
@@ -130,5 +141,47 @@ public class SearchServiceTests
         var result = await _service.SearchByTagsAsync(ownerUserId, request);
         
         result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchByLabelsAsync_ShouldReturnMatchingInsights()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new LabelSearchRequestDto
+        {
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Language", Value = "English" }
+            ],
+            MatchAll = false
+        };
+
+        var insights = new List<LabelSearchRecord>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Title = "Labeled Insight",
+                Summary = "Summary",
+                Tags = ["test"],
+                Labels =
+                [
+                    new LabelRecord { Category = "Language", Value = "English" }
+                ],
+                ProcessedAt = DateTime.UtcNow,
+                SourceUrl = "https://example.com"
+            }
+        };
+
+        _unitOfWork.ProcessedInsights.SearchByLabelsAsync(
+                ownerUserId,
+                Arg.Any<IReadOnlyCollection<LabelRecord>>(),
+                request.MatchAll)
+            .Returns(insights);
+
+        var result = await _service.SearchByLabelsAsync(ownerUserId, request);
+
+        result.Should().ContainSingle();
+        result.First().Labels.Should().ContainSingle(label => label.Category == "Language" && label.Value == "English");
     }
 }

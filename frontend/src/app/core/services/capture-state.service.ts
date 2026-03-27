@@ -3,7 +3,29 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { CaptureAccepted, CaptureCreateRequest, CaptureDetail, CaptureListItem } from '../../shared/models/knowledge.model';
+import { CaptureAccepted, CaptureCreateRequest, CaptureDetail, CaptureListItem, CaptureProcessedInsight } from '../../shared/models/knowledge.model';
+
+interface CaptureLabelDto {
+  category: string;
+  value: string;
+}
+
+type CaptureListItemWithLabels = CaptureListItem & {
+  labels: CaptureLabelDto[];
+};
+
+type CaptureProcessedInsightWithLabels = CaptureProcessedInsight & {
+  labels: CaptureLabelDto[];
+};
+
+type CaptureDetailWithLabels = Omit<CaptureDetail, 'processedInsight'> & {
+  labels: CaptureLabelDto[];
+  processedInsight: CaptureProcessedInsightWithLabels | null;
+};
+
+type CaptureCreateRequestWithLabels = CaptureCreateRequest & {
+  labels?: CaptureLabelDto[];
+};
 
 export type CaptureSortField = 'contentType' | 'createdAt' | 'status' | 'sourceUrl';
 export type CaptureSortDirection = 'asc' | 'desc';
@@ -21,8 +43,8 @@ export class CaptureStateService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/capture`;
 
-  private capturesState = signal<CaptureListItem[]>([]);
-  private captureDetailState = signal<CaptureDetail | null>(null);
+  private capturesState = signal<CaptureListItemWithLabels[]>([]);
+  private captureDetailState = signal<CaptureDetailWithLabels | null>(null);
   private sortState = signal<CaptureSortState>({ field: 'createdAt', direction: 'desc' });
 
   loadingList = signal(false);
@@ -51,18 +73,10 @@ export class CaptureStateService {
 
     try {
       const captures = await firstValueFrom(
-        this.http.get<CaptureDetail[]>(this.apiUrl)
+        this.http.get<CaptureDetailWithLabels[]>(this.apiUrl)
       );
 
-      this.capturesState.set(captures.map(capture => ({
-        id: capture.id,
-        sourceUrl: capture.sourceUrl,
-        contentType: capture.contentType,
-        status: capture.status,
-        createdAt: capture.createdAt,
-        processedAt: capture.processedAt,
-        failureReason: capture.failureReason
-      })));
+      this.capturesState.set(captures.map(capture => this.mapCaptureListItem(capture)));
     } catch {
       this.capturesState.set([]);
       this.listError.set('Captures could not be loaded.');
@@ -85,10 +99,10 @@ export class CaptureStateService {
 
     try {
       const capture = await firstValueFrom(
-        this.http.get<CaptureDetail>(`${this.apiUrl}/${id}`)
+        this.http.get<CaptureDetailWithLabels>(`${this.apiUrl}/${id}`)
       );
 
-      this.captureDetailState.set(capture);
+      this.captureDetailState.set(this.normalizeCaptureDetail(capture));
     } catch (error: unknown) {
       this.captureDetailState.set(null);
 
@@ -113,7 +127,7 @@ export class CaptureStateService {
     this.loadingDetail.set(false);
   }
 
-  async createCapture(request: CaptureCreateRequest): Promise<CaptureAccepted> {
+  async createCapture(request: CaptureCreateRequestWithLabels): Promise<CaptureAccepted> {
     this.creating.set(true);
     this.createError.set(null);
 
@@ -163,7 +177,7 @@ export class CaptureStateService {
     });
   }
 
-  private sortCaptures(captures: CaptureListItem[], sort: CaptureSortState): CaptureListItem[] {
+  private sortCaptures(captures: CaptureListItemWithLabels[], sort: CaptureSortState): CaptureListItemWithLabels[] {
     return [...captures].sort((left, right) => {
       const leftValue = this.getSortValue(left, sort.field);
       const rightValue = this.getSortValue(right, sort.field);
@@ -190,18 +204,20 @@ export class CaptureStateService {
     }
   }
 
-  private mapCreateRequest(request: CaptureCreateRequest): {
+  private mapCreateRequest(request: CaptureCreateRequestWithLabels): {
     sourceUrl: string;
     contentType: string;
     rawContent: string;
     metadata: string;
     tags: string[];
+    labels: CaptureLabelDto[];
   } {
     const normalizedUrl = request.sourceUrl.trim();
     const normalizedContent = request.rawContent.trim();
     const tags = request.tags
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0);
+    const labels = this.normalizeLabels(request.labels);
 
     if (normalizedUrl && !normalizedContent) {
       return {
@@ -212,7 +228,8 @@ export class CaptureStateService {
           source: 'frontend_url_input',
           capturedAt: new Date().toISOString()
         }),
-        tags
+        tags,
+        labels
       };
     }
 
@@ -224,7 +241,8 @@ export class CaptureStateService {
         source: 'frontend_manual_input',
         capturedAt: new Date().toISOString()
       }),
-      tags
+      tags,
+      labels
     };
   }
 
@@ -232,5 +250,40 @@ export class CaptureStateService {
     return value.length <= CaptureStateService.maxRawContentLength
       ? value
       : value.slice(0, CaptureStateService.maxRawContentLength);
+  }
+
+  private mapCaptureListItem(capture: CaptureDetailWithLabels): CaptureListItemWithLabels {
+    return {
+      id: capture.id,
+      sourceUrl: capture.sourceUrl,
+      contentType: capture.contentType,
+      status: capture.status,
+      createdAt: capture.createdAt,
+      processedAt: capture.processedAt,
+      failureReason: capture.failureReason,
+      labels: this.normalizeLabels(capture.labels ?? capture.processedInsight?.labels)
+    };
+  }
+
+  private normalizeCaptureDetail(capture: CaptureDetailWithLabels): CaptureDetailWithLabels {
+    return {
+      ...capture,
+      labels: this.normalizeLabels(capture.labels),
+      processedInsight: capture.processedInsight
+        ? {
+            ...capture.processedInsight,
+            labels: this.normalizeLabels(capture.processedInsight.labels)
+          }
+        : null
+    };
+  }
+
+  private normalizeLabels(labels: CaptureLabelDto[] | null | undefined): CaptureLabelDto[] {
+    return (labels ?? [])
+      .map(label => ({
+        category: label.category.trim(),
+        value: label.value.trim()
+      }))
+      .filter(label => label.category.length > 0 && label.value.length > 0);
   }
 }
