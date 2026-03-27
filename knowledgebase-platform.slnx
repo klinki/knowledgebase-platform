@@ -4,6 +4,7 @@
     <Project Path="backend/src/SentinelKnowledgebase.Api/SentinelKnowledgebase.Api.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Application/SentinelKnowledgebase.Application.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj" />
+    <Project Path="backend/src/SentinelKnowledgebase.ImportCLI/SentinelKnowledgebase.ImportCLI.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.ServerCLI/SentinelKnowledgebase.ServerCLI.csproj" />

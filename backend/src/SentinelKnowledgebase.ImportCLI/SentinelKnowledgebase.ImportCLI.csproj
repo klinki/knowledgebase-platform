@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>sentinel-import</AssemblyName>
+    <RootNamespace>SentinelKnowledgebase.ImportCLI</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SentinelKnowledgebase.Application\SentinelKnowledgebase.Application.csproj" />
+    <ProjectReference Include="..\SentinelKnowledgebase.Domain\SentinelKnowledgebase.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
