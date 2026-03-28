@@ -36,10 +36,17 @@ public class TagRepository : ITagRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null)
+    public async Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null, bool includeZeroCount = false)
     {
-        IQueryable<TagSummaryRecord> query = _context.Tags
-            .Where(tag => tag.OwnerUserId == ownerUserId)
+        IQueryable<Tag> query = _context.Tags
+            .Where(tag => tag.OwnerUserId == ownerUserId);
+
+        if (!includeZeroCount)
+        {
+            query = query.Where(tag => tag.RawCaptures.Any());
+        }
+
+        IQueryable<TagSummaryRecord> summaryQuery = query
             .Select(tag => new TagSummaryRecord
             {
                 Id = tag.Id,
@@ -50,17 +57,16 @@ public class TagRepository : ITagRepository
                     .Select(capture => (DateTime?)capture.CreatedAt)
                     .FirstOrDefault()
             })
-            .Where(tag => tag.Count > 0)
             .OrderByDescending(tag => tag.Count)
             .ThenByDescending(tag => tag.LastUsedAt)
             .ThenBy(tag => tag.Name);
 
         if (take.HasValue)
         {
-            query = query.Take(take.Value);
+            summaryQuery = summaryQuery.Take(take.Value);
         }
 
-        return await query.ToListAsync();
+        return await summaryQuery.ToListAsync();
     }
 
     public Task<int> CountAsync(Guid ownerUserId)

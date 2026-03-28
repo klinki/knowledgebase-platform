@@ -79,7 +79,7 @@ public interface ITagRepository
     Task<Tag?> GetByIdAsync(Guid id);
     Task<Tag?> GetByNameAsync(Guid ownerUserId, string name);
     Task<IEnumerable<Tag>> GetAllAsync(Guid ownerUserId);
-    Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null);
+    Task<IEnumerable<TagSummaryRecord>> GetSummariesAsync(Guid ownerUserId, int? take = null, bool includeZeroCount = false);
     Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(Tag tag);
     Task DeleteAsync(Guid id);

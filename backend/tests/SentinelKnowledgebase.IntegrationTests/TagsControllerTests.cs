@@ -60,6 +60,24 @@ public class TagsControllerTests
     }
 
     [Fact]
+    public async Task GetTags_ShouldReturnUnusedTags_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var uniqueTag = $"unused-tag-{Guid.NewGuid():N}";
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/tags", new { name = uniqueTag });
+
+        createResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+
+        var tagsResponse = await client.GetAsync("/api/v1/tags");
+
+        tagsResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var tags = await tagsResponse.Content.ReadFromJsonAsync<List<TagSummaryDto>>();
+        tags.Should().NotBeNull();
+        tags!.Should().Contain(tag => tag.Name == uniqueTag && tag.Count == 0 && tag.LastUsedAt == null);
+    }
+
+    [Fact]
     public async Task GetTags_ShouldBeUserScoped_WhenDifferentUsersReuseSameTagName()
     {
         using var adminClient = await _fixture.CreateAuthenticatedClientAsync();

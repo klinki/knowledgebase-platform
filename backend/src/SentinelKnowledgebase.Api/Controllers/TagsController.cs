@@ -11,12 +11,10 @@ namespace SentinelKnowledgebase.Api.Controllers;
 [Route("api/v1/tags")]
 public class TagsController : ControllerBase
 {
-    private readonly IDashboardService _dashboardService;
     private readonly ITagService _tagService;
 
-    public TagsController(IDashboardService dashboardService, ITagService tagService)
+    public TagsController(ITagService tagService)
     {
-        _dashboardService = dashboardService;
         _tagService = tagService;
     }
 
@@ -29,7 +27,7 @@ public class TagsController : ControllerBase
             return Unauthorized();
         }
 
-        var tags = await _dashboardService.GetTagSummariesAsync(userId);
+        var tags = await _tagService.GetAllTagsAsync(userId);
         return Ok(tags);
     }
 

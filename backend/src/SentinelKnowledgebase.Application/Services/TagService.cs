@@ -14,6 +14,12 @@ public class TagService : ITagService
         _unitOfWork = unitOfWork;
     }
 
+    public async Task<IEnumerable<TagSummaryDto>> GetAllTagsAsync(Guid ownerUserId)
+    {
+        var tags = await _unitOfWork.Tags.GetSummariesAsync(ownerUserId, includeZeroCount: true);
+        return tags.Select(MapTag);
+    }
+
     public async Task<TagSummaryDto> CreateTagAsync(Guid ownerUserId, string name)
     {
         var normalized = name.Trim();
@@ -90,5 +96,16 @@ public class TagService : ITagService
         await _unitOfWork.Tags.DeleteAsync(tagId);
         await _unitOfWork.SaveChangesAsync();
         return true;
+    }
+
+    private static TagSummaryDto MapTag(TagSummaryRecord tag)
+    {
+        return new TagSummaryDto
+        {
+            Id = tag.Id,
+            Name = tag.Name,
+            Count = tag.Count,
+            LastUsedAt = tag.LastUsedAt
+        };
     }
 }
