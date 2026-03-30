@@ -35,6 +35,18 @@ interface CaptureSortState {
   direction: CaptureSortDirection;
 }
 
+export interface CaptureFilterState {
+  contentType: string | null;
+  status: string | null;
+}
+
+export interface CapturePaginationState {
+  page: number;
+  pageSize: number;
+}
+
+export const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -46,6 +58,8 @@ export class CaptureStateService {
   private capturesState = signal<CaptureListItemWithLabels[]>([]);
   private captureDetailState = signal<CaptureDetailWithLabels | null>(null);
   private sortState = signal<CaptureSortState>({ field: 'createdAt', direction: 'desc' });
+  private filterState = signal<CaptureFilterState>({ contentType: null, status: null });
+  private paginationState = signal<CapturePaginationState>({ page: 1, pageSize: 10 });
 
   loadingList = signal(false);
   loadingDetail = signal(false);
@@ -55,9 +69,61 @@ export class CaptureStateService {
   createError = signal<string | null>(null);
   detailNotFound = signal(false);
 
-  captures = computed(() => this.sortCaptures(this.capturesState(), this.sortState()));
+  /** All captures after filtering and sorting (before pagination). */
+  private filteredAndSorted = computed(() => {
+    const all = this.capturesState();
+    const filter = this.filterState();
+    const sort = this.sortState();
+
+    let result = all;
+
+    if (filter.contentType) {
+      const target = filter.contentType.toLowerCase();
+      result = result.filter(c => c.contentType.toLowerCase() === target);
+    }
+
+    if (filter.status) {
+      const target = filter.status.toLowerCase();
+      result = result.filter(c => c.status.toLowerCase() === target);
+    }
+
+    return this.sortCaptures(result, sort);
+  });
+
+  /** Total items after filtering (used for pagination UI). */
+  totalFilteredCount = computed(() => this.filteredAndSorted().length);
+
+  /** The current page slice of captures. */
+  captures = computed(() => {
+    const all = this.filteredAndSorted();
+    const { page, pageSize } = this.paginationState();
+    const start = (page - 1) * pageSize;
+    return all.slice(start, start + pageSize);
+  });
+
+  /** Total number of pages. */
+  totalPages = computed(() => {
+    const total = this.totalFilteredCount();
+    const { pageSize } = this.paginationState();
+    return Math.max(1, Math.ceil(total / pageSize));
+  });
+
+  /** Distinct content types from all loaded captures (for filter dropdown). */
+  availableContentTypes = computed(() => {
+    const types = new Set(this.capturesState().map(c => c.contentType));
+    return [...types].sort((a, b) => a.localeCompare(b));
+  });
+
+  /** Distinct statuses from all loaded captures (for filter dropdown). */
+  availableStatuses = computed(() => {
+    const statuses = new Set(this.capturesState().map(c => c.status));
+    return [...statuses].sort((a, b) => a.localeCompare(b));
+  });
+
   captureDetail = computed(() => this.captureDetailState());
   currentSort = computed(() => this.sortState());
+  currentFilter = computed(() => this.filterState());
+  currentPagination = computed(() => this.paginationState());
 
   async loadCaptures(force = false): Promise<void> {
     if (this.loadingList()) {
@@ -168,13 +234,35 @@ export class CaptureStateService {
         field,
         direction: currentSort.direction === 'asc' ? 'desc' : 'asc'
       });
-      return;
+    } else {
+      this.sortState.set({
+        field,
+        direction: field === 'createdAt' ? 'desc' : 'asc'
+      });
     }
 
-    this.sortState.set({
-      field,
-      direction: field === 'createdAt' ? 'desc' : 'asc'
-    });
+    // Reset to page 1 when sort changes
+    this.paginationState.update(p => ({ ...p, page: 1 }));
+  }
+
+  setFilter(filter: Partial<CaptureFilterState>): void {
+    this.filterState.update(current => ({ ...current, ...filter }));
+    // Reset to page 1 when filter changes
+    this.paginationState.update(p => ({ ...p, page: 1 }));
+  }
+
+  clearFilters(): void {
+    this.filterState.set({ contentType: null, status: null });
+    this.paginationState.update(p => ({ ...p, page: 1 }));
+  }
+
+  setPage(page: number): void {
+    const clamped = Math.max(1, Math.min(page, this.totalPages()));
+    this.paginationState.update(p => ({ ...p, page: clamped }));
+  }
+
+  setPageSize(pageSize: number): void {
+    this.paginationState.set({ page: 1, pageSize });
   }
 
   private sortCaptures(captures: CaptureListItemWithLabels[], sort: CaptureSortState): CaptureListItemWithLabels[] {
