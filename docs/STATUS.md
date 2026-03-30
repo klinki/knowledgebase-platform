@@ -16,8 +16,11 @@
 - [x] Frontend Direct Capture Creation (Ref: [docs/features/15-direct-capture-creation/feature-spec.md](features/15-direct-capture-creation/feature-spec.md))
 
 ## Backlog
+- [ ] Bulk Capture Import (Ref: [docs/features/18-bulk-capture-import/implementation-plan.md](features/18-bulk-capture-import/implementation-plan.md))
 - [ ] Twitter Archive Import (Ref: [docs/features/17-twitter-archive-import/implementation-plan.md](features/17-twitter-archive-import/implementation-plan.md))
 - [ ] 2D Labels (Ref: [docs/features/16-two-dimensional-labels/implementation-plan.md](features/16-two-dimensional-labels/implementation-plan.md))
 - [ ] User Authentication (Ref: [docs/features/10-user-authentication/feature-spec.md](features/10-user-authentication/feature-spec.md))
 - [ ] Folder Organization for Vault
 - [ ] Export to Markdown/PDF
+
+

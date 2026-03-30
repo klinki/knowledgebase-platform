@@ -34,50 +34,59 @@ public class CaptureService : ICaptureService
     
     public async Task<CaptureResponseDto> CreateCaptureAsync(Guid ownerUserId, CaptureRequestDto request)
     {
-        var rawCapture = new RawCapture
-        {
-            Id = Guid.NewGuid(),
-            OwnerUserId = ownerUserId,
-            SourceUrl = request.SourceUrl,
-            ContentType = request.ContentType,
-            RawContent = request.RawContent,
-            Metadata = request.Metadata,
-            Status = CaptureStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        };
-        
-        if (request.Tags != null && request.Tags.Any())
-        {
-            foreach (var tagName in request.Tags)
-            {
-                var normalizedTagName = tagName.Trim();
-                if (string.IsNullOrWhiteSpace(normalizedTagName))
-                {
-                    continue;
-                }
+        var responses = await CreateCapturesAsync(ownerUserId, [request]);
+        return responses[0];
+    }
 
-                var tag = await _unitOfWork.Tags.GetByNameAsync(ownerUserId, normalizedTagName);
-                if (tag == null)
-                {
-                    tag = new Tag
-                    {
-                        Id = Guid.NewGuid(),
-                        OwnerUserId = ownerUserId,
-                        Name = normalizedTagName
-                    };
-                    await _unitOfWork.Tags.AddAsync(tag);
-                }
-                rawCapture.Tags.Add(tag);
-            }
+    public async Task<IReadOnlyList<CaptureResponseDto>> CreateCapturesAsync(Guid ownerUserId, IReadOnlyList<CaptureRequestDto> requests)
+    {
+        if (requests.Count == 0)
+        {
+            return [];
         }
 
-        var resolvedLabels = await ResolveRawCaptureLabelsAsync(ownerUserId, rawCapture.Id, request);
-        rawCapture.LabelAssignments.AddRange(resolvedLabels);
-        
-        await _unitOfWork.RawCaptures.AddAsync(rawCapture);
-        await _unitOfWork.SaveChangesAsync();
+        var existingTags = (await _unitOfWork.Tags.GetAllAsync(ownerUserId))
+            .ToDictionary(tag => tag.Name, StringComparer.OrdinalIgnoreCase);
 
-        return MapToResponse(rawCapture);
+        var existingCategories = (await _unitOfWork.LabelCategories.GetAllWithValuesAsync(ownerUserId)).ToList();
+        var categoriesByName = existingCategories
+            .ToDictionary(category => category.Name, StringComparer.OrdinalIgnoreCase);
+        var valuesByCategoryId = existingCategories.ToDictionary(
+            category => category.Id,
+            category => category.Values.ToDictionary(value => value.Value, StringComparer.OrdinalIgnoreCase));
+
+        var responses = new List<CaptureResponseDto>(requests.Count);
+
+        foreach (var request in requests)
+        {
+            var rawCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = ownerUserId,
+                SourceUrl = request.SourceUrl,
+                ContentType = request.ContentType,
+                RawContent = request.RawContent,
+                Metadata = request.Metadata,
+                Status = CaptureStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await AttachTagsAsync(ownerUserId, rawCapture, request, existingTags);
+
+            var resolvedLabels = await ResolveRawCaptureLabelsAsync(
+                ownerUserId,
+                rawCapture.Id,
+                request,
+                categoriesByName,
+                valuesByCategoryId);
+            rawCapture.LabelAssignments.AddRange(resolvedLabels);
+
+            await _unitOfWork.RawCaptures.AddAsync(rawCapture);
+            responses.Add(MapToResponse(rawCapture));
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return responses;
     }
     
     public async Task<CaptureResponseDto?> GetCaptureByIdAsync(Guid ownerUserId, Guid id)
@@ -289,18 +298,56 @@ public class CaptureService : ICaptureService
         };
     }
 
+    private async Task AttachTagsAsync(
+        Guid ownerUserId,
+        RawCapture rawCapture,
+        CaptureRequestDto request,
+        IDictionary<string, Tag> tagsByName)
+    {
+        if (request.Tags == null || request.Tags.Count == 0)
+        {
+            return;
+        }
+
+        var requestTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var tagName in request.Tags)
+        {
+            var normalizedTagName = tagName.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedTagName) || !requestTags.Add(normalizedTagName))
+            {
+                continue;
+            }
+
+            if (!tagsByName.TryGetValue(normalizedTagName, out var tag))
+            {
+                tag = new Tag
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = ownerUserId,
+                    Name = normalizedTagName
+                };
+                await _unitOfWork.Tags.AddAsync(tag);
+                tagsByName[normalizedTagName] = tag;
+            }
+
+            rawCapture.Tags.Add(tag);
+        }
+    }
+
     private async Task<List<RawCaptureLabelAssignment>> ResolveRawCaptureLabelsAsync(
         Guid ownerUserId,
         Guid rawCaptureId,
-        CaptureRequestDto request)
+        CaptureRequestDto request,
+        IDictionary<string, LabelCategory> categoriesByName,
+        IDictionary<Guid, Dictionary<string, LabelValue>> valuesByCategoryId)
     {
         var mergedLabels = BuildMergedLabels(request);
         var assignments = new List<RawCaptureLabelAssignment>(mergedLabels.Count);
 
         foreach (var label in mergedLabels)
         {
-            var category = await _unitOfWork.LabelCategories.GetByNameAsync(ownerUserId, label.Category);
-            if (category == null)
+            if (!categoriesByName.TryGetValue(label.Category, out var category))
             {
                 category = new LabelCategory
                 {
@@ -310,10 +357,17 @@ public class CaptureService : ICaptureService
                     CreatedAt = DateTime.UtcNow
                 };
                 await _unitOfWork.LabelCategories.AddAsync(category);
+                categoriesByName[category.Name] = category;
+                valuesByCategoryId[category.Id] = new Dictionary<string, LabelValue>(StringComparer.OrdinalIgnoreCase);
             }
 
-            var value = await _unitOfWork.LabelValues.GetByCategoryAndValueAsync(category.Id, label.Value);
-            if (value == null)
+            if (!valuesByCategoryId.TryGetValue(category.Id, out var valuesByName))
+            {
+                valuesByName = new Dictionary<string, LabelValue>(StringComparer.OrdinalIgnoreCase);
+                valuesByCategoryId[category.Id] = valuesByName;
+            }
+
+            if (!valuesByName.TryGetValue(label.Value, out var value))
             {
                 value = new LabelValue
                 {
@@ -324,6 +378,7 @@ public class CaptureService : ICaptureService
                     CreatedAt = DateTime.UtcNow
                 };
                 await _unitOfWork.LabelValues.AddAsync(value);
+                valuesByName[value.Value] = value;
             }
 
             assignments.Add(new RawCaptureLabelAssignment

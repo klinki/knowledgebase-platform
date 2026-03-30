@@ -177,10 +177,10 @@ public class TwitterArchiveImportTests
         var captureClient = Substitute.For<ISentinelCaptureClient>();
         captureClient.GetExistingTweetIdsAsync("https://sentinel.example", Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new HashSet<string>(StringComparer.Ordinal) { "1" }));
-        captureClient.CreateCaptureAsync("https://sentinel.example", Arg.Any<CaptureRequestDto>(), Arg.Any<CancellationToken>())
-            .Returns(
-                Task.FromResult(new SubmitCaptureResult(true)),
-                Task.FromResult(new SubmitCaptureResult(false, "boom")));
+        captureClient.CreateCapturesAsync("https://sentinel.example", Arg.Any<IReadOnlyList<CaptureRequestDto>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new SubmitBulkCapturesResult(
+                1,
+                [new SubmitBulkCaptureFailure(1, "boom")])));
 
         var reporter = new TestImportReporter();
         var service = new TwitterLikesImportService(
@@ -189,7 +189,8 @@ public class TwitterArchiveImportTests
             mapper,
             captureClient,
             reporter,
-            new StubTimeProvider(DateTimeOffset.Parse("2026-03-27T10:00:00Z")));
+            new StubTimeProvider(DateTimeOffset.Parse("2026-03-27T10:00:00Z")),
+            submissionBatchSize: 2);
 
         var result = await service.ImportAsync(
             new TwitterLikesImportOptions("archive", "https://sentinel.example"),
@@ -201,6 +202,78 @@ public class TwitterArchiveImportTests
         result.FailedSubmissions.Should().Be(1);
         result.MalformedRecords.Should().Be(1);
         reporter.WarningMessages.Should().ContainSingle(message => message.Contains("tweet 3"));
-        await captureClient.Received(2).CreateCaptureAsync("https://sentinel.example", Arg.Any<CaptureRequestDto>(), Arg.Any<CancellationToken>());
+        await captureClient.Received(1).CreateCapturesAsync(
+            "https://sentinel.example",
+            Arg.Any<IReadOnlyList<CaptureRequestDto>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TwitterLikesImportService_ImportAsync_ShouldReportProgressWithEta()
+    {
+        var archive = Substitute.For<IArchiveDataSource>();
+        archive.DisplayName.Returns("test-archive");
+
+        var resolver = Substitute.For<IArchiveInputResolver>();
+        resolver.ResolveAsync("archive", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(archive));
+
+        var source = Substitute.For<ITwitterArchiveImportSource>();
+        source.ReadAsync(archive, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new TwitterArchiveLikeBatch(
+                new TwitterArchiveMetadata(null, null, null, null, null),
+                [
+                    new TwitterLikeRecord("1", "One", "https://twitter.com/i/web/status/1"),
+                    new TwitterLikeRecord("2", "Two", "https://twitter.com/i/web/status/2"),
+                    new TwitterLikeRecord("3", "Three", "https://twitter.com/i/web/status/3")
+                ],
+                TotalRecords: 3,
+                MalformedRecords: 0)));
+
+        var mapper = Substitute.For<ITwitterLikeCaptureMapper>();
+        mapper.Map(Arg.Any<TwitterLikeRecord>(), Arg.Any<TwitterArchiveMetadata>(), Arg.Any<DateTimeOffset>())
+            .Returns(call => new CaptureRequestDto
+            {
+                SourceUrl = $"https://twitter.com/i/web/status/{call.Arg<TwitterLikeRecord>().TweetId}",
+                ContentType = ContentType.Tweet,
+                RawContent = call.Arg<TwitterLikeRecord>().FullText ?? string.Empty
+            });
+
+        var captureClient = Substitute.For<ISentinelCaptureClient>();
+        captureClient.GetExistingTweetIdsAsync("https://sentinel.example", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new HashSet<string>(StringComparer.Ordinal)));
+        var timeProvider = new StubTimeProvider(DateTimeOffset.Parse("2026-03-27T10:00:00Z"));
+        captureClient.CreateCapturesAsync("https://sentinel.example", Arg.Any<IReadOnlyList<CaptureRequestDto>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                callInfo =>
+                {
+                    timeProvider.Advance(TimeSpan.FromSeconds(20));
+                    return Task.FromResult(new SubmitBulkCapturesResult(2, []));
+                },
+                callInfo =>
+                {
+                    timeProvider.Advance(TimeSpan.FromSeconds(10));
+                    return Task.FromResult(new SubmitBulkCapturesResult(1, []));
+                });
+
+        var reporter = new TestImportReporter();
+        var service = new TwitterLikesImportService(
+            resolver,
+            source,
+            mapper,
+            captureClient,
+            reporter,
+            timeProvider,
+            progressReportInterval: 2,
+            submissionBatchSize: 2);
+
+        await service.ImportAsync(
+            new TwitterLikesImportOptions("archive", "https://sentinel.example"),
+            CancellationToken.None);
+
+        reporter.InfoMessages.Should().Contain(message => message.Contains("Starting import of 3 liked tweets"));
+        reporter.InfoMessages.Should().Contain(message => message.Contains("Progress: 2/3") && message.Contains("eta 10s"));
+        reporter.InfoMessages.Should().Contain(message => message.Contains("Progress: 3/3") && message.Contains("eta 0s"));
     }
 }
+

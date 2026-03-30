@@ -1,6 +1,4 @@
 using AwesomeAssertions;
-using FluentValidation;
-using FluentValidation.Results;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.DTOs.Search;
@@ -12,6 +10,7 @@ namespace SentinelKnowledgebase.UnitTests;
 public class ValidatorTests
 {
     private readonly CaptureRequestValidator _captureValidator;
+    private readonly BulkCaptureRequestValidator _bulkCaptureValidator;
     private readonly SemanticSearchRequestValidator _semanticSearchValidator;
     private readonly TagSearchRequestValidator _tagSearchValidator;
     private readonly LabelSearchRequestValidator _labelSearchValidator;
@@ -19,6 +18,7 @@ public class ValidatorTests
     public ValidatorTests()
     {
         _captureValidator = new CaptureRequestValidator();
+        _bulkCaptureValidator = new BulkCaptureRequestValidator();
         _semanticSearchValidator = new SemanticSearchRequestValidator();
         _tagSearchValidator = new TagSearchRequestValidator();
         _labelSearchValidator = new LabelSearchRequestValidator();
@@ -98,6 +98,58 @@ public class ValidatorTests
         var result = _captureValidator.Validate(request);
         
         result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BulkCaptureRequest_WithEmptyList_ShouldFailValidation()
+    {
+        var result = _bulkCaptureValidator.Validate([]);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.ErrorMessage.Contains("At least one capture"));
+    }
+
+    [Fact]
+    public void BulkCaptureRequest_WithMoreThan500Items_ShouldFailValidation()
+    {
+        var requests = Enumerable.Range(0, BulkCaptureRequestValidator.MaxBatchSize + 1)
+            .Select(index => new CaptureRequestDto
+            {
+                SourceUrl = $"https://example.com/{index}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = $"Content {index}"
+            })
+            .ToList();
+
+        var result = _bulkCaptureValidator.Validate(requests);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.ErrorMessage.Contains("maximum of 500 captures"));
+    }
+
+    [Fact]
+    public void BulkCaptureRequest_WithInvalidItem_ShouldFailValidation()
+    {
+        var requests = new List<CaptureRequestDto>
+        {
+            new()
+            {
+                SourceUrl = "https://example.com/valid",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Valid"
+            },
+            new()
+            {
+                SourceUrl = "not-a-valid-url",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Invalid"
+            }
+        };
+
+        var result = _bulkCaptureValidator.Validate(requests);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName.Contains("[1].SourceUrl"));
     }
 
     [Fact]

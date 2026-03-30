@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using FluentValidation;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
@@ -28,6 +27,15 @@ public class CaptureServiceTests
         _monitoringService = Substitute.For<IMonitoringService>();
         _logger = Substitute.For<ILogger<CaptureService>>();
         _service = new CaptureService(_unitOfWork, _contentProcessor, _monitoringService, _logger);
+
+        _unitOfWork.Tags.GetAllAsync(Arg.Any<Guid>())
+            .Returns(Task.FromResult<IEnumerable<Tag>>([]));
+        _unitOfWork.LabelCategories.GetAllWithValuesAsync(Arg.Any<Guid>())
+            .Returns(Task.FromResult<IEnumerable<LabelCategory>>([]));
+        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
+            .Returns(callInfo => callInfo.Arg<RawCapture>());
+        _unitOfWork.SaveChangesAsync()
+            .Returns(1);
     }
     
     [Fact]
@@ -42,26 +50,70 @@ public class CaptureServiceTests
             Tags = new List<string> { "test" }
         };
         
-        var mockTag = new Tag { Id = Guid.NewGuid(), Name = "test" };
-        
-        _unitOfWork.Tags.GetByNameAsync(ownerUserId, "test")
-            .Returns((Tag?)null);
-        
-        _unitOfWork.Tags.AddAsync(Arg.Any<Tag>())
-            .Returns(mockTag);
-        
-        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
-            .Returns(callInfo => callInfo.Arg<RawCapture>());
-        
-        _unitOfWork.SaveChangesAsync()
-            .Returns(1);
-        
         var result = await _service.CreateCaptureAsync(ownerUserId, request);
         
         result.Should().NotBeNull();
         result.SourceUrl.Should().Be(request.SourceUrl);
         result.ContentType.Should().Be(request.ContentType);
         result.Status.Should().Be(CaptureStatus.Pending);
+        await _unitOfWork.Received(1).SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task CreateCapturesAsync_ShouldPersistBatchOnceAndReuseExistingTagsAndLabels()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var existingTag = new Tag { Id = Guid.NewGuid(), OwnerUserId = ownerUserId, Name = "existing-tag" };
+        var existingCategory = new LabelCategory
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            Name = "Source",
+            Values =
+            [
+                new LabelValue
+                {
+                    Id = Guid.NewGuid(),
+                    LabelCategoryId = Guid.Empty,
+                    Value = "Twitter"
+                }
+            ]
+        };
+        existingCategory.Values[0].LabelCategoryId = existingCategory.Id;
+        existingCategory.Values[0].LabelCategory = existingCategory;
+
+        _unitOfWork.Tags.GetAllAsync(ownerUserId)
+            .Returns(Task.FromResult<IEnumerable<Tag>>([existingTag]));
+        _unitOfWork.LabelCategories.GetAllWithValuesAsync(ownerUserId)
+            .Returns(Task.FromResult<IEnumerable<LabelCategory>>([existingCategory]));
+
+        var requests = new List<CaptureRequestDto>
+        {
+            new()
+            {
+                SourceUrl = "https://example.com/1",
+                ContentType = ContentType.Article,
+                RawContent = "One",
+                Tags = ["existing-tag", "new-tag"],
+                Labels = [new LabelAssignmentDto { Category = "Source", Value = "Twitter" }]
+            },
+            new()
+            {
+                SourceUrl = "https://example.com/2",
+                ContentType = ContentType.Article,
+                RawContent = "Two",
+                Tags = ["new-tag"],
+                Labels = [new LabelAssignmentDto { Category = "Source", Value = "Twitter" }]
+            }
+        };
+
+        var result = await _service.CreateCapturesAsync(ownerUserId, requests);
+
+        result.Should().HaveCount(2);
+        await _unitOfWork.Received(1).SaveChangesAsync();
+        await _unitOfWork.Tags.Received(1).AddAsync(Arg.Is<Tag>(tag => tag.Name == "new-tag"));
+        await _unitOfWork.LabelCategories.DidNotReceive().AddAsync(Arg.Any<LabelCategory>());
+        await _unitOfWork.LabelValues.DidNotReceive().AddAsync(Arg.Any<LabelValue>());
     }
 
     [Fact]
@@ -75,14 +127,6 @@ public class CaptureServiceTests
             RawContent = "Test content",
             Metadata = """{"source":"webpage","metadata":{"language":"en-US"}}"""
         };
-
-        _unitOfWork.LabelCategories.GetByNameAsync(ownerUserId, Arg.Any<string>())
-            .Returns((LabelCategory?)null);
-        _unitOfWork.LabelValues.GetByCategoryAndValueAsync(Arg.Any<Guid>(), Arg.Any<string>())
-            .Returns((LabelValue?)null);
-        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
-            .Returns(callInfo => callInfo.Arg<RawCapture>());
-        _unitOfWork.SaveChangesAsync().Returns(1);
 
         var result = await _service.CreateCaptureAsync(ownerUserId, request);
 
@@ -105,14 +149,6 @@ public class CaptureServiceTests
                 new LabelAssignmentDto { Category = "Source", Value = "Custom" }
             ]
         };
-
-        _unitOfWork.LabelCategories.GetByNameAsync(ownerUserId, Arg.Any<string>())
-            .Returns((LabelCategory?)null);
-        _unitOfWork.LabelValues.GetByCategoryAndValueAsync(Arg.Any<Guid>(), Arg.Any<string>())
-            .Returns((LabelValue?)null);
-        _unitOfWork.RawCaptures.AddAsync(Arg.Any<RawCapture>())
-            .Returns(callInfo => callInfo.Arg<RawCapture>());
-        _unitOfWork.SaveChangesAsync().Returns(1);
 
         var result = await _service.CreateCaptureAsync(ownerUserId, request);
 
@@ -310,3 +346,4 @@ public class CaptureServiceTests
                 insight.LabelAssignments[0].LabelValueId == value.Id));
     }
 }
+

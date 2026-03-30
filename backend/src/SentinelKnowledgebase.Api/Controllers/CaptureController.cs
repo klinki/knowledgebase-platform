@@ -64,6 +64,55 @@ public class CaptureController : ControllerBase
             return StatusCode(500, "An error occurred while processing the capture");
         }
     }
+
+    [HttpPost("bulk")]
+    [ProducesResponseType(typeof(IEnumerable<CaptureAcceptedDto>), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateCaptures([FromBody] List<CaptureRequestDto>? requests)
+    {
+        if (requests == null)
+        {
+            return BadRequest("Request body is required.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var responses = await _captureService.CreateCapturesAsync(userId, requests);
+            var accepted = new List<CaptureAcceptedDto>(responses.Count);
+
+            foreach (var response in responses)
+            {
+                _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
+                accepted.Add(new CaptureAcceptedDto
+                {
+                    Id = response.Id,
+                    Message = "Capture accepted and processing enqueued"
+                });
+            }
+
+            _logger.LogInformation(
+                "Accepted {CaptureCount} captures through bulk capture creation",
+                accepted.Count);
+
+            return Accepted(accepted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create {CaptureCount} captures through bulk capture creation", requests.Count);
+            return StatusCode(500, "An error occurred while processing the captures");
+        }
+    }
     
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CaptureResponseDto), StatusCodes.Status200OK)]

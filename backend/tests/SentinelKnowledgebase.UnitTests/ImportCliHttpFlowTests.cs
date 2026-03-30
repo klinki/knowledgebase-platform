@@ -186,7 +186,58 @@ public class ImportCliHttpFlowTests
     }
 
     [Fact]
-    public async Task CliApplication_InvokeAsync_FirstRunShouldAuthenticateAndSubmitCapture()
+    public async Task SentinelCaptureClient_CreateCapturesAsync_ShouldFallbackToSingleEndpointOn404()
+    {
+        using var temp = new TempDirectoryScope();
+        var cache = new FileTokenCache(ImportCliTestData.JsonOptions, System.IO.Path.Combine(temp.Path, "auth-cache.json"));
+        await cache.SaveAsync(new CachedAuthSession
+        {
+            ApiUrl = "https://sentinel.example",
+            AccessToken = "access-token",
+            RefreshToken = "refresh-token",
+            ExpiresAt = DateTimeOffset.Parse("2026-03-27T12:00:00Z"),
+            User = new AuthUserDto()
+        }, CancellationToken.None);
+
+        var handler = new DelegateHttpMessageHandler((request, log) =>
+        {
+            return (log.Method, log.Path) switch
+            {
+                ("POST", "/api/v1/capture/bulk") => new HttpResponseMessage(HttpStatusCode.NotFound),
+                ("POST", "/api/v1/capture") => ImportCliTestData.JsonResponse(HttpStatusCode.Accepted, new CaptureAcceptedDto
+                {
+                    Id = Guid.NewGuid(),
+                    Message = "accepted"
+                }),
+                _ => throw new InvalidOperationException($"Unexpected request {log.Method} {log.Path}")
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var authClient = new DeviceAuthClient(
+            httpClient,
+            cache,
+            new TestImportReporter(),
+            ImportCliTestData.JsonOptions,
+            new StubTimeProvider(DateTimeOffset.Parse("2026-03-27T10:00:00Z")));
+        var captureClient = new SentinelCaptureClient(httpClient, authClient, ImportCliTestData.JsonOptions);
+
+        var result = await captureClient.CreateCapturesAsync(
+            "https://sentinel.example",
+            [
+                new CaptureRequestDto { SourceUrl = "https://example.com/1", ContentType = ContentType.Article, RawContent = "One" },
+                new CaptureRequestDto { SourceUrl = "https://example.com/2", ContentType = ContentType.Article, RawContent = "Two" }
+            ],
+            CancellationToken.None);
+
+        result.SuccessfulCount.Should().Be(2);
+        result.Failures.Should().BeEmpty();
+        handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/capture/bulk");
+        handler.Logs.Count(log => log.Method == "POST" && log.Path == "/api/v1/capture").Should().Be(2);
+    }
+
+    [Fact]
+    public async Task CliApplication_InvokeAsync_FirstRunShouldAuthenticateAndSubmitBulkCapture()
     {
         using var temp = new TempDirectoryScope();
         ImportCliTestData.CreateArchiveDirectory(temp.Path, ImportCliTestData.SingleLikePayload(fullText: "CLI tweet"));
@@ -194,9 +245,9 @@ public class ImportCliHttpFlowTests
 
         var handler = new DelegateHttpMessageHandler((request, log) =>
         {
-            return log.Path switch
+            return (log.Method, log.Path) switch
             {
-                "/api/auth/device/start" => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new DeviceStartResponseDto
+                ("POST", "/api/auth/device/start") => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new DeviceStartResponseDto
                 {
                     DeviceCode = "device-code",
                     UserCode = "ABCD-1234",
@@ -204,7 +255,7 @@ public class ImportCliHttpFlowTests
                     ExpiresAt = DateTimeOffset.Parse("2026-03-27T11:00:00Z"),
                     IntervalSeconds = 0
                 }),
-                "/api/auth/device/poll" => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new TokenResponseDto
+                ("POST", "/api/auth/device/poll") => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new TokenResponseDto
                 {
                     AccessToken = "access-token",
                     RefreshToken = "refresh-token",
@@ -217,11 +268,14 @@ public class ImportCliHttpFlowTests
                         Role = "member"
                     }
                 }),
-                "/api/v1/capture" when log.Method == "GET" => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new List<CaptureResponseDto>()),
-                "/api/v1/capture" when log.Method == "POST" => ImportCliTestData.JsonResponse(HttpStatusCode.Accepted, new CaptureAcceptedDto
+                ("GET", "/api/v1/capture") => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new List<CaptureResponseDto>()),
+                ("POST", "/api/v1/capture/bulk") => ImportCliTestData.JsonResponse(HttpStatusCode.Accepted, new List<CaptureAcceptedDto>
                 {
-                    Id = Guid.NewGuid(),
-                    Message = "accepted"
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Message = "accepted"
+                    }
                 }),
                 _ => throw new InvalidOperationException($"Unexpected request {log.Method} {log.Path}")
             };
@@ -246,7 +300,7 @@ public class ImportCliHttpFlowTests
         var exitCode = await cli.InvokeAsync(["twitter", "likes", "--input", temp.Path, "--api-url", "https://sentinel.example"]);
 
         exitCode.Should().Be(0);
-        handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/capture");
+        handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/capture/bulk");
         output.ToString().Should().Contain("Successfully submitted captures: 1");
         error.ToString().Should().BeEmpty();
     }
@@ -268,9 +322,9 @@ public class ImportCliHttpFlowTests
 
         var handler = new DelegateHttpMessageHandler((request, log) =>
         {
-            return log.Path switch
+            return (log.Method, log.Path) switch
             {
-                "/api/v1/capture" when log.Method == "GET" => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new List<CaptureResponseDto>
+                ("GET", "/api/v1/capture") => ImportCliTestData.JsonResponse(HttpStatusCode.OK, new List<CaptureResponseDto>
                 {
                     new()
                     {
@@ -307,8 +361,9 @@ public class ImportCliHttpFlowTests
 
         exitCode.Should().Be(0);
         handler.Logs.Should().ContainSingle(log => log.Method == "GET" && log.Path == "/api/v1/capture");
-        handler.Logs.Should().NotContain(log => log.Method == "POST" && log.Path == "/api/v1/capture");
+        handler.Logs.Should().NotContain(log => log.Method == "POST" && log.Path == "/api/v1/capture/bulk");
         output.ToString().Should().Contain("Duplicates skipped: 1");
         error.ToString().Should().BeEmpty();
     }
 }
+

@@ -53,6 +53,25 @@ public class CaptureRequestValidator : AbstractValidator<DTOs.Capture.CaptureReq
     }
 }
 
+public class BulkCaptureRequestValidator : AbstractValidator<List<DTOs.Capture.CaptureRequestDto>>
+{
+    public const int MaxBatchSize = 500;
+
+    public BulkCaptureRequestValidator()
+    {
+        RuleFor(requests => requests)
+            .NotEmpty()
+            .WithMessage("At least one capture is required.");
+
+        RuleFor(requests => requests.Count)
+            .LessThanOrEqualTo(MaxBatchSize)
+            .WithMessage($"A maximum of {MaxBatchSize} captures is allowed per request.");
+
+        RuleForEach(requests => requests)
+            .SetValidator(new CaptureRequestValidator());
+    }
+}
+
 public class SemanticSearchRequestValidator : AbstractValidator<DTOs.Search.SemanticSearchRequestDto>
 {
     public SemanticSearchRequestValidator()

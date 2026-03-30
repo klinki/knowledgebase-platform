@@ -13,6 +13,8 @@ public sealed record TwitterLikesImportSummary(
     int MalformedRecords);
 
 internal sealed record SubmitCaptureResult(bool Success, string? ErrorMessage = null);
+internal sealed record SubmitBulkCaptureFailure(int RequestIndex, string ErrorMessage);
+internal sealed record SubmitBulkCapturesResult(int SuccessfulCount, IReadOnlyList<SubmitBulkCaptureFailure> Failures);
 
 internal sealed record TwitterArchiveMetadata(
     string? AccountId,
@@ -96,6 +98,7 @@ internal interface ISentinelCaptureClient
 {
     Task<HashSet<string>> GetExistingTweetIdsAsync(string apiUrl, CancellationToken cancellationToken);
     Task<SubmitCaptureResult> CreateCaptureAsync(string apiUrl, CaptureRequestDto request, CancellationToken cancellationToken);
+    Task<SubmitBulkCapturesResult> CreateCapturesAsync(string apiUrl, IReadOnlyList<CaptureRequestDto> requests, CancellationToken cancellationToken);
 }
 
 internal interface ITokenCache

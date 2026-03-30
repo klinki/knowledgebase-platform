@@ -72,6 +72,82 @@ internal sealed class SentinelCaptureClient : ISentinelCaptureClient
         return new SubmitCaptureResult(false, $"API returned {(int)response.StatusCode}: {errorText}");
     }
 
+    public async Task<SubmitBulkCapturesResult> CreateCapturesAsync(
+        string apiUrl,
+        IReadOnlyList<CaptureRequestDto> requests,
+        CancellationToken cancellationToken)
+    {
+        if (requests.Count == 0)
+        {
+            return new SubmitBulkCapturesResult(0, []);
+        }
+
+        using var response = await SendAuthorizedAsync(
+            apiUrl,
+            accessToken =>
+            {
+                var message = BuildRequest(HttpMethod.Post, $"{ApiUrlNormalizer.Normalize(apiUrl)}/api/v1/capture/bulk", accessToken);
+                message.Content = JsonContent.Create(requests, options: _jsonOptions);
+                return message;
+            },
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return await FallbackToSingleCaptureAsync(apiUrl, requests, cancellationToken);
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            var accepted = await response.Content.ReadFromJsonAsync<List<CaptureAcceptedDto>>(_jsonOptions, cancellationToken);
+            if (accepted?.Count == requests.Count)
+            {
+                return new SubmitBulkCapturesResult(accepted.Count, []);
+            }
+
+            return CreateBatchFailureResult(
+                requests.Count,
+                "Bulk API returned an unexpected number of accepted captures.");
+        }
+
+        var errorText = await response.Content.ReadAsStringAsync(cancellationToken);
+        return CreateBatchFailureResult(requests.Count, $"API returned {(int)response.StatusCode}: {errorText}");
+    }
+
+    private async Task<SubmitBulkCapturesResult> FallbackToSingleCaptureAsync(
+        string apiUrl,
+        IReadOnlyList<CaptureRequestDto> requests,
+        CancellationToken cancellationToken)
+    {
+        var successCount = 0;
+        var failures = new List<SubmitBulkCaptureFailure>();
+
+        for (var index = 0; index < requests.Count; index++)
+        {
+            var result = await CreateCaptureAsync(apiUrl, requests[index], cancellationToken);
+            if (result.Success)
+            {
+                successCount++;
+                continue;
+            }
+
+            failures.Add(new SubmitBulkCaptureFailure(
+                index,
+                result.ErrorMessage ?? "Bulk fallback submission failed."));
+        }
+
+        return new SubmitBulkCapturesResult(successCount, failures);
+    }
+
+    private static SubmitBulkCapturesResult CreateBatchFailureResult(int requestCount, string errorMessage)
+    {
+        return new SubmitBulkCapturesResult(
+            0,
+            Enumerable.Range(0, requestCount)
+                .Select(index => new SubmitBulkCaptureFailure(index, errorMessage))
+                .ToList());
+    }
+
     private async Task<HttpResponseMessage> SendAuthorizedAsync(
         string apiUrl,
         Func<string, HttpRequestMessage> requestFactory,

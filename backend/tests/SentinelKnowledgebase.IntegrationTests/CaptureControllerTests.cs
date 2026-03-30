@@ -67,6 +67,62 @@ public class CaptureControllerTests
     }
 
     [Fact]
+    public async Task CreateCapturesBulk_ShouldReturn202Accepted_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var requests = new List<CaptureRequestDto>
+        {
+            new()
+            {
+                SourceUrl = $"https://example.com/{Guid.NewGuid():N}",
+                ContentType = ContentType.Article,
+                RawContent = "Bulk one"
+            },
+            new()
+            {
+                SourceUrl = $"https://example.com/{Guid.NewGuid():N}",
+                ContentType = ContentType.Note,
+                RawContent = "Bulk two"
+            }
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/capture/bulk", requests);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+        var accepted = await response.Content.ReadFromJsonAsync<List<CaptureAcceptedDto>>();
+        accepted.Should().NotBeNull();
+        accepted!.Should().HaveCount(2);
+        accepted.Should().OnlyContain(item => item.Id != Guid.Empty);
+    }
+
+    [Fact]
+    public async Task CreateCapturesBulk_WithInvalidItem_ShouldReturn400_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var requests = new List<CaptureRequestDto>
+        {
+            new()
+            {
+                SourceUrl = $"https://example.com/{Guid.NewGuid():N}",
+                ContentType = ContentType.Article,
+                RawContent = "Bulk one"
+            },
+            new()
+            {
+                SourceUrl = "not-a-valid-url",
+                ContentType = ContentType.Article,
+                RawContent = "Bulk two"
+            }
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/capture/bulk", requests);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task CreateCapture_ShouldPersistExplicitLabels_ForOwner()
     {
         using var client = await _fixture.CreateAuthenticatedClientAsync();
