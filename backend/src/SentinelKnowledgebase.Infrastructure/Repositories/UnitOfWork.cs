@@ -6,6 +6,7 @@ namespace SentinelKnowledgebase.Infrastructure.Repositories;
 public interface IUnitOfWork : IDisposable
 {
     IRawCaptureRepository RawCaptures { get; }
+    ICaptureProcessingControlRepository CaptureProcessingControls { get; }
     IProcessedInsightRepository ProcessedInsights { get; }
     ITagRepository Tags { get; }
     ILabelCategoryRepository LabelCategories { get; }
@@ -19,6 +20,7 @@ public class UnitOfWork : IUnitOfWork
     private readonly ApplicationDbContext _context;
     
     public IRawCaptureRepository RawCaptures { get; }
+    public ICaptureProcessingControlRepository CaptureProcessingControls { get; }
     public IProcessedInsightRepository ProcessedInsights { get; }
     public ITagRepository Tags { get; }
     public ILabelCategoryRepository LabelCategories { get; }
@@ -29,6 +31,7 @@ public class UnitOfWork : IUnitOfWork
     {
         _context = context;
         RawCaptures = new RawCaptureRepository(_context);
+        CaptureProcessingControls = new CaptureProcessingControlRepository(_context);
         ProcessedInsights = new ProcessedInsightRepository(_context);
         Tags = new TagRepository(_context);
         LabelCategories = new LabelCategoryRepository(_context);

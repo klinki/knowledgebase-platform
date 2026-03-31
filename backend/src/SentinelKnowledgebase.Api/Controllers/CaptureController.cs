@@ -12,16 +12,24 @@ namespace SentinelKnowledgebase.Api.Controllers;
 [Route("api/v1/capture")]
 public class CaptureController : ControllerBase
 {
+    private const string AcceptedAndEnqueuedMessage = "Capture accepted and processing enqueued";
+    private const string AcceptedWhilePausedMessage = "Capture accepted; processing is currently paused";
+    private const string RetryAcceptedAndEnqueuedMessage = "Capture retry accepted and processing enqueued";
+    private const string RetryAcceptedWhilePausedMessage = "Capture retry accepted; processing is currently paused";
+
     private readonly ICaptureService _captureService;
+    private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
     private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<CaptureController> _logger;
     
     public CaptureController(
         ICaptureService captureService,
+        ICaptureProcessingAdminService captureProcessingAdminService,
         IBackgroundJobClient backgroundJobClient,
         ILogger<CaptureController> logger)
     {
         _captureService = captureService;
+        _captureProcessingAdminService = captureProcessingAdminService;
         _backgroundJobClient = backgroundJobClient;
         _logger = logger;
     }
@@ -45,17 +53,28 @@ public class CaptureController : ControllerBase
         try
         {
             var response = await _captureService.CreateCaptureAsync(userId, request);
-            var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
-            _logger.LogInformation(
-                "Capture {CaptureId} accepted for source {SourceUrl}; Hangfire job {JobId} enqueued",
-                response.Id,
-                request.SourceUrl,
-                jobId);
+            var isPaused = await _captureProcessingAdminService.IsPausedAsync();
+            if (!isPaused)
+            {
+                var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
+                _logger.LogInformation(
+                    "Capture {CaptureId} accepted for source {SourceUrl}; Hangfire job {JobId} enqueued",
+                    response.Id,
+                    request.SourceUrl,
+                    jobId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Capture {CaptureId} accepted for source {SourceUrl} while processing is paused",
+                    response.Id,
+                    request.SourceUrl);
+            }
 
             return Accepted(new CaptureAcceptedDto
             {
                 Id = response.Id,
-                Message = "Capture accepted and processing enqueued"
+                Message = isPaused ? AcceptedWhilePausedMessage : AcceptedAndEnqueuedMessage
             });
         }
         catch (Exception ex)
@@ -89,21 +108,30 @@ public class CaptureController : ControllerBase
         try
         {
             var responses = await _captureService.CreateCapturesAsync(userId, requests);
+            var isPaused = await _captureProcessingAdminService.IsPausedAsync();
             var accepted = new List<CaptureAcceptedDto>(responses.Count);
 
             foreach (var response in responses)
             {
-                _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
                 accepted.Add(new CaptureAcceptedDto
                 {
                     Id = response.Id,
-                    Message = "Capture accepted and processing enqueued"
+                    Message = isPaused ? AcceptedWhilePausedMessage : AcceptedAndEnqueuedMessage
                 });
             }
 
+            if (!isPaused)
+            {
+                foreach (var response in responses)
+                {
+                    _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(response.Id));
+                }
+            }
+
             _logger.LogInformation(
-                "Accepted {CaptureCount} captures through bulk capture creation",
-                accepted.Count);
+                "Accepted {CaptureCount} captures through bulk capture creation{PausedSuffix}",
+                accepted.Count,
+                isPaused ? " while processing is paused" : string.Empty);
 
             return Accepted(accepted);
         }
@@ -163,13 +191,23 @@ public class CaptureController : ControllerBase
             return NotFound();
         }
 
-        var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(id));
-        _logger.LogInformation(
-            "Capture {CaptureId} retry requested; Hangfire job {JobId} enqueued",
-            id,
-            jobId);
+        var isPaused = await _captureProcessingAdminService.IsPausedAsync();
+        if (!isPaused)
+        {
+            var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(id));
+            _logger.LogInformation(
+                "Capture {CaptureId} retry requested; Hangfire job {JobId} enqueued",
+                id,
+                jobId);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Capture {CaptureId} retry requested while processing is paused",
+                id);
+        }
 
-        return Accepted(new { message = "Capture retry accepted and processing enqueued" });
+        return Accepted(new { message = isPaused ? RetryAcceptedWhilePausedMessage : RetryAcceptedAndEnqueuedMessage });
     }
 
     [HttpDelete("{id:guid}")]

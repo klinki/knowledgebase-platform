@@ -7,6 +7,8 @@ import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { SearchStateService } from '../../core/services/search-state.service';
+import { AdminProcessingStateService } from '../../core/services/admin-processing-state.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -38,6 +40,98 @@ import { SearchStateService } from '../../core/services/search-state.service';
           }
         </div>
       </header>
+
+      @if (isAdmin()) {
+        <section class="glass-card ops-panel">
+          <div class="ops-header">
+            <div>
+              <h2>Processing Control</h2>
+              <p>Global capture processing state across all users and queued jobs.</p>
+            </div>
+
+            <div class="ops-actions">
+              <span class="ops-state" [class.paused]="adminProcessingState.isPaused()">
+                {{ adminProcessingState.isPaused() ? 'Paused' : 'Running' }}
+              </span>
+              <button
+                type="button"
+                class="premium-btn"
+                (click)="toggleProcessing()"
+                [disabled]="adminProcessingState.submitting() || adminProcessingState.loading()"
+              >
+                {{ adminProcessingState.submitting()
+                  ? (adminProcessingState.isPaused() ? 'Resuming...' : 'Pausing...')
+                  : (adminProcessingState.isPaused() ? 'Resume Processing' : 'Pause Processing') }}
+              </button>
+            </div>
+          </div>
+
+          @if (adminProcessingState.error()) {
+            <div class="search-error">{{ adminProcessingState.error() }}</div>
+          }
+
+          <div class="ops-meta">
+            @if (adminProcessingState.changedAt()) {
+              Last changed
+              @if (adminProcessingState.changedByDisplayName()) {
+                by {{ adminProcessingState.changedByDisplayName() }}
+              }
+              on {{ adminProcessingState.changedAt() | date:'medium' }}
+            } @else {
+              Processing has not been manually changed yet.
+            }
+          </div>
+
+          <div class="ops-grid">
+            <div class="ops-card">
+              <h3>Capture Status</h3>
+              <div class="ops-stats">
+                <div class="ops-stat"><span>Pending</span><strong>{{ adminProcessingState.captureCounts().pending }}</strong></div>
+                <div class="ops-stat"><span>Processing</span><strong>{{ adminProcessingState.captureCounts().processing }}</strong></div>
+                <div class="ops-stat"><span>Completed</span><strong>{{ adminProcessingState.captureCounts().completed }}</strong></div>
+                <div class="ops-stat"><span>Failed</span><strong>{{ adminProcessingState.captureCounts().failed }}</strong></div>
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <h3>Hangfire Jobs</h3>
+              <div class="ops-stats">
+                <div class="ops-stat"><span>Enqueued</span><strong>{{ adminProcessingState.jobCounts().enqueued }}</strong></div>
+                <div class="ops-stat"><span>Scheduled</span><strong>{{ adminProcessingState.jobCounts().scheduled }}</strong></div>
+                <div class="ops-stat"><span>Processing</span><strong>{{ adminProcessingState.jobCounts().processing }}</strong></div>
+                <div class="ops-stat"><span>Failed</span><strong>{{ adminProcessingState.jobCounts().failed }}</strong></div>
+              </div>
+            </div>
+
+            <div class="ops-card recent-system-captures">
+              <h3>Recent System Captures</h3>
+              @if (adminProcessingState.loading() && adminProcessingState.recentCaptures().length === 0) {
+                <div class="empty-state compact">
+                  <p>Loading processing controls...</p>
+                </div>
+              } @else if (adminProcessingState.recentCaptures().length === 0) {
+                <div class="empty-state compact">
+                  <p>No captures available yet.</p>
+                </div>
+              } @else {
+                <div class="ops-capture-list">
+                  @for (capture of adminProcessingState.recentCaptures(); track capture.id) {
+                    <div class="ops-capture-item">
+                      <div class="ops-capture-head">
+                        <span class="ops-capture-title">{{ capture.title || capture.sourceUrl || 'Untitled capture' }}</span>
+                        <span class="status-chip" [class.paused]="capture.status === 'Pending'">{{ capture.status }}</span>
+                      </div>
+                      <div class="ops-capture-meta">
+                        {{ capture.capturedAt | date:'medium' }} • {{ capture.sourceUrl || 'No source URL' }}
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      }
 
       <div class="main-grid">
         <section class="glass-card list-section">
@@ -221,6 +315,141 @@ import { SearchStateService } from '../../core/services/search-state.service';
       font-size: 0.9rem;
     }
 
+    .ops-panel {
+      margin-bottom: 2rem;
+    }
+
+    .ops-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+
+      h2 {
+        margin-bottom: 0.35rem;
+      }
+
+      p {
+        color: #94a3b8;
+        margin: 0;
+      }
+    }
+
+    .ops-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .ops-state {
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.14);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.25);
+
+      &.paused {
+        background: rgba(245, 158, 11, 0.14);
+        color: #fcd34d;
+        border-color: rgba(245, 158, 11, 0.25);
+      }
+    }
+
+    .ops-meta {
+      color: #94a3b8;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+    }
+
+    .ops-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .ops-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 1.25rem;
+
+      h3 {
+        margin: 0 0 1rem;
+        font-size: 1rem;
+        color: #f8fafc;
+      }
+    }
+
+    .ops-stats {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .ops-stat {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      color: #cbd5e1;
+
+      strong {
+        color: #f8fafc;
+      }
+    }
+
+    .recent-system-captures {
+      grid-column: span 1;
+    }
+
+    .ops-capture-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .ops-capture-item {
+      padding: 0.9rem 1rem;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .ops-capture-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 0.35rem;
+    }
+
+    .ops-capture-title {
+      color: #f8fafc;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+
+    .ops-capture-meta {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      overflow-wrap: anywhere;
+    }
+
+    .status-chip {
+      flex-shrink: 0;
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      background: rgba(99, 102, 241, 0.12);
+      color: #c7d2fe;
+      border: 1px solid rgba(129, 140, 248, 0.14);
+
+      &.paused {
+        background: rgba(245, 158, 11, 0.12);
+        color: #fde68a;
+        border-color: rgba(245, 158, 11, 0.18);
+      }
+    }
+
     .main-grid {
       display: grid;
       grid-template-columns: 2fr 1fr;
@@ -315,13 +544,34 @@ import { SearchStateService } from '../../core/services/search-state.service';
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    @media (max-width: 1100px) {
+      .ops-grid,
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .ops-header {
+        flex-direction: column;
+      }
+
+      .ops-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
   dashboardState = inject(DashboardStateService);
   searchState = inject(SearchStateService);
+  adminProcessingState = inject(AdminProcessingStateService);
+  authService = inject(AuthService);
 
   searchQuery = signal('');
+  isAdmin = computed(() => this.authService.currentUser()?.role === 'admin');
 
   isSearchMode = computed(() => this.searchQuery().trim().length > 0);
   items = computed(() =>
@@ -357,5 +607,21 @@ export class DashboardComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.dashboardState.loadOverview();
+    if (this.isAdmin()) {
+      await this.adminProcessingState.loadOverview();
+    }
+  }
+
+  async toggleProcessing(): Promise<void> {
+    if (!this.isAdmin()) {
+      return;
+    }
+
+    if (this.adminProcessingState.isPaused()) {
+      await this.adminProcessingState.resumeProcessing();
+      return;
+    }
+
+    await this.adminProcessingState.pauseProcessing();
   }
 }

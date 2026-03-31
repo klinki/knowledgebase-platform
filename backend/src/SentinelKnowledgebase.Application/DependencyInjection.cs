@@ -13,6 +13,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<ICaptureService, CaptureService>();
+        services.AddScoped<ICaptureProcessingAdminService, CaptureProcessingAdminService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ITagService, TagService>();

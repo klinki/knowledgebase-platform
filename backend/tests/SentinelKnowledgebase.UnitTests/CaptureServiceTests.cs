@@ -1,4 +1,7 @@
 using AwesomeAssertions;
+using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
@@ -17,6 +20,8 @@ public class CaptureServiceTests
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly IMonitoringService _monitoringService;
+    private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
+    private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<CaptureService> _logger;
     private readonly CaptureService _service;
     
@@ -25,8 +30,16 @@ public class CaptureServiceTests
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _contentProcessor = Substitute.For<IContentProcessor>();
         _monitoringService = Substitute.For<IMonitoringService>();
+        _captureProcessingAdminService = Substitute.For<ICaptureProcessingAdminService>();
+        _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
         _logger = Substitute.For<ILogger<CaptureService>>();
-        _service = new CaptureService(_unitOfWork, _contentProcessor, _monitoringService, _logger);
+        _service = new CaptureService(
+            _unitOfWork,
+            _contentProcessor,
+            _monitoringService,
+            _captureProcessingAdminService,
+            _backgroundJobClient,
+            _logger);
 
         _unitOfWork.Tags.GetAllAsync(Arg.Any<Guid>())
             .Returns(Task.FromResult<IEnumerable<Tag>>([]));
@@ -36,6 +49,10 @@ public class CaptureServiceTests
             .Returns(callInfo => callInfo.Arg<RawCapture>());
         _unitOfWork.SaveChangesAsync()
             .Returns(1);
+        _captureProcessingAdminService.IsPausedAsync()
+            .Returns(false);
+        _backgroundJobClient.Create(Arg.Any<Job>(), Arg.Any<IState>())
+            .Returns("job-1");
     }
     
     [Fact]
@@ -344,6 +361,57 @@ public class CaptureServiceTests
                 insight.LabelAssignments.Count == 1 &&
                 insight.LabelAssignments[0].LabelCategoryId == category.Id &&
                 insight.LabelAssignments[0].LabelValueId == value.Id));
+    }
+
+    [Fact]
+    public async Task ProcessCaptureAsync_ShouldScheduleRetryAndLeavePending_WhenPaused()
+    {
+        var rawCaptureId = Guid.NewGuid();
+        var rawCapture = new RawCapture
+        {
+            Id = rawCaptureId,
+            OwnerUserId = Guid.NewGuid(),
+            SourceUrl = "https://example.com",
+            ContentType = ContentType.Article,
+            RawContent = "Pending content",
+            Status = CaptureStatus.Pending
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId).Returns(rawCapture);
+        _captureProcessingAdminService.IsPausedAsync().Returns(true);
+
+        await _service.ProcessCaptureAsync(rawCaptureId);
+
+        await _unitOfWork.RawCaptures.DidNotReceive().UpdateAsync(Arg.Is<RawCapture>(capture => capture.Status == CaptureStatus.Processing));
+        await _unitOfWork.ProcessedInsights.DidNotReceive().AddAsync(Arg.Any<ProcessedInsight>());
+        _backgroundJobClient.Received(1).Create(
+            Arg.Any<Job>(),
+            Arg.Is<IState>(state => state is ScheduledState));
+    }
+
+    [Theory]
+    [InlineData(CaptureStatus.Completed)]
+    [InlineData(CaptureStatus.Processing)]
+    public async Task ProcessCaptureAsync_ShouldSkip_WhenCaptureAlreadyHandled(CaptureStatus status)
+    {
+        var rawCaptureId = Guid.NewGuid();
+        var rawCapture = new RawCapture
+        {
+            Id = rawCaptureId,
+            OwnerUserId = Guid.NewGuid(),
+            SourceUrl = "https://example.com",
+            ContentType = ContentType.Article,
+            RawContent = "Skipped content",
+            Status = status
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId).Returns(rawCapture);
+
+        await _service.ProcessCaptureAsync(rawCaptureId);
+
+        await _unitOfWork.RawCaptures.DidNotReceive().UpdateAsync(Arg.Any<RawCapture>());
+        await _unitOfWork.ProcessedInsights.DidNotReceive().AddAsync(Arg.Any<ProcessedInsight>());
+        _backgroundJobClient.DidNotReceive().Create(Arg.Any<Job>(), Arg.Any<IState>());
     }
 }
 

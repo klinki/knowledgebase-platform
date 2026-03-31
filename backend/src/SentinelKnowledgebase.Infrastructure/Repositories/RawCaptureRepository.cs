@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Infrastructure.Data;
 
 namespace SentinelKnowledgebase.Infrastructure.Repositories;
@@ -89,6 +90,40 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Where(r => r.OwnerUserId == ownerUserId)
             .OrderByDescending(r => r.CreatedAt)
             .Take(take)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<RawCapture>> GetRecentGlobalAsync(int take)
+    {
+        return await _context.RawCaptures
+            .Include(r => r.Tags)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelCategory)
+            .Include(r => r.LabelAssignments)
+                .ThenInclude(a => a.LabelValue)
+            .Include(r => r.ProcessedInsight)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyDictionary<CaptureStatus, int>> GetStatusCountsAsync()
+    {
+        return await _context.RawCaptures
+            .GroupBy(capture => capture.Status)
+            .Select(group => new
+            {
+                Status = group.Key,
+                Count = group.Count()
+            })
+            .ToDictionaryAsync(item => item.Status, item => item.Count);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetPendingIdsAsync()
+    {
+        return await _context.RawCaptures
+            .Where(capture => capture.Status == CaptureStatus.Pending)
+            .Select(capture => capture.Id)
             .ToListAsync();
     }
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using Hangfire;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using Microsoft.Extensions.Logging;
 using Pgvector;
@@ -18,17 +19,23 @@ public class CaptureService : ICaptureService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly IMonitoringService _monitoringService;
+    private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
+    private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<CaptureService> _logger;
     
     public CaptureService(
         IUnitOfWork unitOfWork,
         IContentProcessor contentProcessor,
         IMonitoringService monitoringService,
+        ICaptureProcessingAdminService captureProcessingAdminService,
+        IBackgroundJobClient backgroundJobClient,
         ILogger<CaptureService> logger)
     {
         _unitOfWork = unitOfWork;
         _contentProcessor = contentProcessor;
         _monitoringService = monitoringService;
+        _captureProcessingAdminService = captureProcessingAdminService;
+        _backgroundJobClient = backgroundJobClient;
         _logger = logger;
     }
     
@@ -152,6 +159,29 @@ public class CaptureService : ICaptureService
             {
                 processingStatus = "not_found";
                 _logger.LogWarning("Capture {RawCaptureId} was not found for processing", rawCaptureId);
+                return;
+            }
+
+            if (rawCapture.Status == CaptureStatus.Completed || rawCapture.Status == CaptureStatus.Processing)
+            {
+                processingStatus = "skipped";
+                _logger.LogInformation(
+                    "Capture {RawCaptureId} skipped because it is already {CaptureStatus}",
+                    rawCaptureId,
+                    rawCapture.Status);
+                return;
+            }
+
+            if (await _captureProcessingAdminService.IsPausedAsync())
+            {
+                processingStatus = "paused";
+                var jobId = _backgroundJobClient.Schedule<ICaptureService>(
+                    service => service.ProcessCaptureAsync(rawCaptureId),
+                    TimeSpan.FromSeconds(60));
+                _logger.LogInformation(
+                    "Capture {RawCaptureId} deferred because processing is paused; retry job {JobId} scheduled",
+                    rawCaptureId,
+                    jobId);
                 return;
             }
             

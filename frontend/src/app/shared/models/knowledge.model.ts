@@ -58,6 +58,29 @@ export interface DashboardOverview {
   stats: DashboardStats;
 }
 
+export interface CaptureProcessingCaptureCounts {
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+}
+
+export interface CaptureProcessingJobCounts {
+  enqueued: number;
+  scheduled: number;
+  processing: number;
+  failed: number;
+}
+
+export interface CaptureProcessingAdminOverview {
+  isPaused: boolean;
+  changedAt: string | null;
+  changedByDisplayName: string | null;
+  captureCounts: CaptureProcessingCaptureCounts;
+  jobCounts: CaptureProcessingJobCounts;
+  recentCaptures: DashboardItem[];
+}
+
 export interface SemanticSearchResult {
   id: string;
   title: string;

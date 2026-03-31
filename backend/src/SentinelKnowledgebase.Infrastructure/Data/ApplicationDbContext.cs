@@ -21,6 +21,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RawCaptureLabelAssignment> RawCaptureLabelAssignments { get; set; }
     public DbSet<ProcessedInsightLabelAssignment> ProcessedInsightLabelAssignments { get; set; }
     public DbSet<EmbeddingVector> EmbeddingVectors { get; set; }
+    public DbSet<CaptureProcessingControl> CaptureProcessingControls { get; set; }
     public DbSet<UserInvitation> UserInvitations { get; set; }
     public DbSet<DeviceAuthorization> DeviceAuthorizations { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -170,6 +171,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.ProcessedInsightId).IsRequired();
             entity.Property(e => e.Vector).HasColumnType("vector(1536)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<CaptureProcessingControl>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.IsPaused).HasDefaultValue(false);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.ChangedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasData(new CaptureProcessingControl
+            {
+                Id = CaptureProcessingControl.SingletonId,
+                IsPaused = false,
+                ChangedAt = null,
+                ChangedByUserId = null
+            });
         });
 
         modelBuilder.Entity<ApplicationUser>(entity =>

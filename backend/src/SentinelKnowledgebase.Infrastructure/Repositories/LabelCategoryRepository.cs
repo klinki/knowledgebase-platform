@@ -46,7 +46,6 @@ public class LabelCategoryRepository : ILabelCategoryRepository
     public async Task<IEnumerable<LabelCategory>> GetAllWithValuesAsync(Guid ownerUserId)
     {
         return await _context.LabelCategories
-            .AsNoTracking()
             .Where(category => category.OwnerUserId == ownerUserId)
             .Include(category => category.Values)
                 .ThenInclude(value => value.RawCaptureAssignments)

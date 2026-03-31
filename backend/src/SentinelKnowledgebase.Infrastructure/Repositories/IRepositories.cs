@@ -1,4 +1,5 @@
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
 
 namespace SentinelKnowledgebase.Infrastructure.Repositories;
 
@@ -9,9 +10,20 @@ public interface IRawCaptureRepository
     Task<RawCapture?> GetByIdAsync(Guid id, Guid ownerUserId);
     Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId);
     Task<IEnumerable<RawCapture>> GetRecentAsync(Guid ownerUserId, int take);
+    Task<IEnumerable<RawCapture>> GetRecentGlobalAsync(int take);
+    Task<IReadOnlyDictionary<CaptureStatus, int>> GetStatusCountsAsync();
+    Task<IReadOnlyList<Guid>> GetPendingIdsAsync();
     Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(RawCapture rawCapture);
     Task DeleteAsync(Guid id, Guid ownerUserId);
+}
+
+public interface ICaptureProcessingControlRepository
+{
+    Task<CaptureProcessingControl?> GetAsync();
+    Task<CaptureProcessingControl> AddAsync(CaptureProcessingControl control);
+    Task UpdateAsync(CaptureProcessingControl control);
+    Task<string?> GetDisplayNameAsync(Guid userId);
 }
 
 public interface IProcessedInsightRepository
