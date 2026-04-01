@@ -101,6 +101,20 @@ public class CaptureService : ICaptureService
         var rawCapture = await _unitOfWork.RawCaptures.GetByIdAsync(id, ownerUserId);
         return rawCapture != null ? MapToResponse(rawCapture) : null;
     }
+
+    public async Task<CaptureListPageDto> GetCaptureListPageAsync(Guid ownerUserId, CaptureListQueryDto query)
+    {
+        var options = NormalizeListQuery(query);
+        var result = await _unitOfWork.RawCaptures.GetPagedListAsync(ownerUserId, options);
+
+        return new CaptureListPageDto
+        {
+            Items = result.Items.Select(MapToListItem).ToList(),
+            TotalCount = result.TotalCount,
+            Page = options.Page,
+            PageSize = options.PageSize
+        };
+    }
     
     public async Task<IEnumerable<CaptureResponseDto>> GetAllCapturesAsync(Guid ownerUserId)
     {
@@ -326,6 +340,70 @@ public class CaptureService : ICaptureService
                 Labels = MapLabels(rawCapture.ProcessedInsight.LabelAssignments)
             } : null
         };
+    }
+
+    private static CaptureListItemDto MapToListItem(CaptureListRecord capture)
+    {
+        return new CaptureListItemDto
+        {
+            Id = capture.Id,
+            SourceUrl = capture.SourceUrl,
+            ContentType = capture.ContentType,
+            Status = capture.Status,
+            CreatedAt = capture.CreatedAt,
+            ProcessedAt = capture.ProcessedAt,
+            FailureReason = GetProcessingError(capture.Metadata)
+        };
+    }
+
+    private static CaptureListQueryOptions NormalizeListQuery(CaptureListQueryDto query)
+    {
+        var options = new CaptureListQueryOptions
+        {
+            Page = Math.Max(1, query.Page),
+            PageSize = Math.Clamp(query.PageSize, 1, 200),
+            SortField = NormalizeSortField(query.SortField),
+            SortDirection = NormalizeSortDirection(query.SortDirection)
+        };
+
+        if (!string.IsNullOrWhiteSpace(query.ContentType))
+        {
+            options.ContentType = ParseEnumFilter<ContentType>(query.ContentType, "contentType");
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            options.Status = ParseEnumFilter<CaptureStatus>(query.Status, "status");
+        }
+
+        return options;
+    }
+
+    private static string NormalizeSortField(string? sortField)
+    {
+        return sortField?.Trim() switch
+        {
+            "contentType" => "contentType",
+            "status" => "status",
+            "sourceUrl" => "sourceUrl",
+            _ => "createdAt"
+        };
+    }
+
+    private static string NormalizeSortDirection(string? sortDirection)
+    {
+        return string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
+    }
+
+    private static TEnum ParseEnumFilter<TEnum>(string rawValue, string parameterName)
+        where TEnum : struct, Enum
+    {
+        if (Enum.TryParse<TEnum>(rawValue.Trim(), ignoreCase: true, out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new ArgumentException($"Invalid {parameterName} filter.", parameterName);
     }
 
     private async Task AttachTagsAsync(

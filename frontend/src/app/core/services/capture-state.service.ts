@@ -3,16 +3,19 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { CaptureAccepted, CaptureCreateRequest, CaptureDetail, CaptureListItem, CaptureProcessedInsight } from '../../shared/models/knowledge.model';
+import {
+  CaptureAccepted,
+  CaptureCreateRequest,
+  CaptureDetail,
+  CaptureListItem,
+  CaptureListPage,
+  CaptureProcessedInsight
+} from '../../shared/models/knowledge.model';
 
 interface CaptureLabelDto {
   category: string;
   value: string;
 }
-
-type CaptureListItemWithLabels = CaptureListItem & {
-  labels: CaptureLabelDto[];
-};
 
 type CaptureProcessedInsightWithLabels = CaptureProcessedInsight & {
   labels: CaptureLabelDto[];
@@ -46,6 +49,8 @@ export interface CapturePaginationState {
 }
 
 export const PAGE_SIZE_OPTIONS = [10, 50, 100, 200] as const;
+const AVAILABLE_CONTENT_TYPES = ['Article', 'Code', 'Note', 'Other', 'Tweet'] as const;
+const AVAILABLE_STATUSES = ['Completed', 'Failed', 'Pending', 'Processing'] as const;
 
 @Injectable({
   providedIn: 'root'
@@ -55,8 +60,9 @@ export class CaptureStateService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/capture`;
 
-  private capturesState = signal<CaptureListItemWithLabels[]>([]);
+  private capturesState = signal<CaptureListItem[]>([]);
   private captureDetailState = signal<CaptureDetailWithLabels | null>(null);
+  private totalCountState = signal(0);
   private sortState = signal<CaptureSortState>({ field: 'createdAt', direction: 'desc' });
   private filterState = signal<CaptureFilterState>({ contentType: null, status: null });
   private paginationState = signal<CapturePaginationState>({ page: 1, pageSize: 10 });
@@ -69,56 +75,15 @@ export class CaptureStateService {
   createError = signal<string | null>(null);
   detailNotFound = signal(false);
 
-  /** All captures after filtering and sorting (before pagination). */
-  private filteredAndSorted = computed(() => {
-    const all = this.capturesState();
-    const filter = this.filterState();
-    const sort = this.sortState();
-
-    let result = all;
-
-    if (filter.contentType) {
-      const target = filter.contentType.toLowerCase();
-      result = result.filter(c => c.contentType.toLowerCase() === target);
-    }
-
-    if (filter.status) {
-      const target = filter.status.toLowerCase();
-      result = result.filter(c => c.status.toLowerCase() === target);
-    }
-
-    return this.sortCaptures(result, sort);
-  });
-
-  /** Total items after filtering (used for pagination UI). */
-  totalFilteredCount = computed(() => this.filteredAndSorted().length);
-
-  /** The current page slice of captures. */
-  captures = computed(() => {
-    const all = this.filteredAndSorted();
-    const { page, pageSize } = this.paginationState();
-    const start = (page - 1) * pageSize;
-    return all.slice(start, start + pageSize);
-  });
-
-  /** Total number of pages. */
+  totalFilteredCount = computed(() => this.totalCountState());
+  captures = computed(() => this.capturesState());
   totalPages = computed(() => {
     const total = this.totalFilteredCount();
     const { pageSize } = this.paginationState();
     return Math.max(1, Math.ceil(total / pageSize));
   });
-
-  /** Distinct content types from all loaded captures (for filter dropdown). */
-  availableContentTypes = computed(() => {
-    const types = new Set(this.capturesState().map(c => c.contentType));
-    return [...types].sort((a, b) => a.localeCompare(b));
-  });
-
-  /** Distinct statuses from all loaded captures (for filter dropdown). */
-  availableStatuses = computed(() => {
-    const statuses = new Set(this.capturesState().map(c => c.status));
-    return [...statuses].sort((a, b) => a.localeCompare(b));
-  });
+  availableContentTypes = computed(() => [...AVAILABLE_CONTENT_TYPES]);
+  availableStatuses = computed(() => [...AVAILABLE_STATUSES]);
 
   captureDetail = computed(() => this.captureDetailState());
   currentSort = computed(() => this.sortState());
@@ -138,13 +103,28 @@ export class CaptureStateService {
     this.listError.set(null);
 
     try {
-      const captures = await firstValueFrom(
-        this.http.get<CaptureDetailWithLabels[]>(this.apiUrl)
+      const { page, pageSize } = this.paginationState();
+      const sort = this.sortState();
+      const filter = this.filterState();
+
+      const response = await firstValueFrom(
+        this.http.get<CaptureListPage>(`${this.apiUrl}/list`, {
+          params: {
+            page,
+            pageSize,
+            sortField: sort.field,
+            sortDirection: sort.direction,
+            ...(filter.contentType ? { contentType: filter.contentType } : {}),
+            ...(filter.status ? { status: filter.status } : {})
+          }
+        })
       );
 
-      this.capturesState.set(captures.map(capture => this.mapCaptureListItem(capture)));
+      this.capturesState.set(response.items);
+      this.totalCountState.set(response.totalCount);
     } catch {
       this.capturesState.set([]);
+      this.totalCountState.set(0);
       this.listError.set('Captures could not be loaded.');
     } finally {
       this.loadingList.set(false);
@@ -204,6 +184,7 @@ export class CaptureStateService {
       );
 
       this.capturesState.set([]);
+      this.totalCountState.set(0);
       return accepted;
     } catch {
       this.createError.set('Capture could not be created.');
@@ -212,7 +193,6 @@ export class CaptureStateService {
       this.creating.set(false);
     }
   }
-
 
   async retryCapture(id: string): Promise<void> {
     if (!id) {
@@ -241,55 +221,31 @@ export class CaptureStateService {
       });
     }
 
-    // Reset to page 1 when sort changes
-    this.paginationState.update(p => ({ ...p, page: 1 }));
+    this.paginationState.update(pagination => ({ ...pagination, page: 1 }));
+    void this.loadCaptures(true);
   }
 
   setFilter(filter: Partial<CaptureFilterState>): void {
     this.filterState.update(current => ({ ...current, ...filter }));
-    // Reset to page 1 when filter changes
-    this.paginationState.update(p => ({ ...p, page: 1 }));
+    this.paginationState.update(pagination => ({ ...pagination, page: 1 }));
+    void this.loadCaptures(true);
   }
 
   clearFilters(): void {
     this.filterState.set({ contentType: null, status: null });
-    this.paginationState.update(p => ({ ...p, page: 1 }));
+    this.paginationState.update(pagination => ({ ...pagination, page: 1 }));
+    void this.loadCaptures(true);
   }
 
   setPage(page: number): void {
     const clamped = Math.max(1, Math.min(page, this.totalPages()));
-    this.paginationState.update(p => ({ ...p, page: clamped }));
+    this.paginationState.update(pagination => ({ ...pagination, page: clamped }));
+    void this.loadCaptures(true);
   }
 
   setPageSize(pageSize: number): void {
     this.paginationState.set({ page: 1, pageSize });
-  }
-
-  private sortCaptures(captures: CaptureListItemWithLabels[], sort: CaptureSortState): CaptureListItemWithLabels[] {
-    return [...captures].sort((left, right) => {
-      const leftValue = this.getSortValue(left, sort.field);
-      const rightValue = this.getSortValue(right, sort.field);
-
-      const comparison = leftValue.localeCompare(rightValue, undefined, {
-        numeric: true,
-        sensitivity: 'base'
-      });
-
-      return sort.direction === 'asc' ? comparison : -comparison;
-    });
-  }
-
-  private getSortValue(capture: CaptureListItem, field: CaptureSortField): string {
-    switch (field) {
-      case 'createdAt':
-        return capture.createdAt;
-      case 'contentType':
-        return capture.contentType;
-      case 'status':
-        return capture.status;
-      case 'sourceUrl':
-        return capture.sourceUrl;
-    }
+    void this.loadCaptures(true);
   }
 
   private mapCreateRequest(request: CaptureCreateRequestWithLabels): {
@@ -338,19 +294,6 @@ export class CaptureStateService {
     return value.length <= CaptureStateService.maxRawContentLength
       ? value
       : value.slice(0, CaptureStateService.maxRawContentLength);
-  }
-
-  private mapCaptureListItem(capture: CaptureDetailWithLabels): CaptureListItemWithLabels {
-    return {
-      id: capture.id,
-      sourceUrl: capture.sourceUrl,
-      contentType: capture.contentType,
-      status: capture.status,
-      createdAt: capture.createdAt,
-      processedAt: capture.processedAt,
-      failureReason: capture.failureReason,
-      labels: this.normalizeLabels(capture.labels ?? capture.processedInsight?.labels)
-    };
   }
 
   private normalizeCaptureDetail(capture: CaptureDetailWithLabels): CaptureDetailWithLabels {

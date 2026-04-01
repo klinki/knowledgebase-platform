@@ -25,90 +25,112 @@ describe('CaptureStateService', () => {
     TestBed.resetTestingModule();
   });
 
-  it('loads captures newest first by default', async () => {
+  it('loads captures from the paged backend endpoint with default query params', async () => {
     const loadPromise = service.loadCaptures(true);
 
-    const request = http.expectOne('http://localhost:5000/api/v1/capture');
-    request.flush([
-      {
-        id: 'older',
-        sourceUrl: 'https://example.com/older',
-        contentType: 'Article',
-        status: 'Completed',
-        createdAt: '2026-03-15T10:00:00Z',
-        processedAt: null,
-        rawContent: 'older',
-        metadata: null,
-        labels: [],
-        tags: [],
-        processedInsight: null
-      },
-      {
-        id: 'newer',
-        sourceUrl: 'https://example.com/newer',
-        contentType: 'Tweet',
-        status: 'Pending',
-        createdAt: '2026-03-16T10:00:00Z',
-        processedAt: null,
-        rawContent: 'newer',
-        metadata: null,
-        labels: [],
-        tags: [],
-        processedInsight: null
-      }
-    ]);
+    const request = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('page') === '1' &&
+      req.params.get('pageSize') === '10' &&
+      req.params.get('sortField') === 'createdAt' &&
+      req.params.get('sortDirection') === 'desc'
+    );
+
+    request.flush({
+      items: [
+        {
+          id: 'capture-1',
+          sourceUrl: 'https://example.com/1',
+          contentType: 'Article',
+          status: 'Completed',
+          createdAt: '2026-03-15T10:00:00Z',
+          processedAt: null,
+          failureReason: null
+        }
+      ],
+      totalCount: 23,
+      page: 1,
+      pageSize: 10
+    });
 
     await loadPromise;
 
-    expect(service.captures().map(item => item.id)).toEqual(['newer', 'older']);
+    expect(service.captures().map(item => item.id)).toEqual(['capture-1']);
+    expect(service.totalFilteredCount()).toBe(23);
+    expect(service.totalPages()).toBe(3);
   });
 
-  it('sorts by columns and toggles direction', async () => {
-    const loadPromise = service.loadCaptures(true);
-
-    const request = http.expectOne('http://localhost:5000/api/v1/capture');
-    request.flush([
-      {
-        id: 'b',
-        sourceUrl: 'https://example.com/b',
-        contentType: 'Tweet',
-        status: 'Pending',
-        createdAt: '2026-03-15T10:00:00Z',
-        processedAt: null,
-        rawContent: 'b',
-        metadata: null,
-        labels: [],
-        tags: [],
-        processedInsight: null
-      },
-      {
-        id: 'a',
-        sourceUrl: 'https://example.com/a',
-        contentType: 'Article',
-        status: 'Completed',
-        createdAt: '2026-03-14T10:00:00Z',
-        processedAt: null,
-        rawContent: 'a',
-        metadata: null,
-        labels: [],
-        tags: [],
-        processedInsight: null
-      }
-    ]);
-
-    await loadPromise;
+  it('requests backend sorting when sort changes', async () => {
+    const initialLoadPromise = service.loadCaptures(true);
+    http.expectOne(() => true).flush({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10
+    });
+    await initialLoadPromise;
 
     service.setSort('contentType');
-    expect(service.captures().map(item => item.id)).toEqual(['a', 'b']);
 
-    service.setSort('contentType');
-    expect(service.captures().map(item => item.id)).toEqual(['b', 'a']);
+    const request = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('sortField') === 'contentType' &&
+      req.params.get('sortDirection') === 'asc' &&
+      req.params.get('page') === '1'
+    );
 
-    service.setSort('status');
-    expect(service.captures().map(item => item.id)).toEqual(['a', 'b']);
+    request.flush({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10
+    });
 
-    service.setSort('sourceUrl');
-    expect(service.captures().map(item => item.id)).toEqual(['a', 'b']);
+    expect(service.currentSort()).toEqual({ field: 'contentType', direction: 'asc' });
+  });
+
+  it('requests backend filtering and page size changes', async () => {
+    const initialLoadPromise = service.loadCaptures(true);
+    http.expectOne(() => true).flush({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10
+    });
+    await initialLoadPromise;
+
+    service.setFilter({ contentType: 'Article', status: 'Failed' });
+
+    const filterRequest = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('contentType') === 'Article' &&
+      req.params.get('status') === 'Failed' &&
+      req.params.get('page') === '1'
+    );
+    filterRequest.flush({
+      items: [],
+      totalCount: 2,
+      page: 1,
+      pageSize: 10
+    });
+    await Promise.resolve();
+
+    service.setPageSize(50);
+
+    const pageSizeRequest = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('pageSize') === '50' &&
+      req.params.get('contentType') === 'Article' &&
+      req.params.get('status') === 'Failed'
+    );
+    pageSizeRequest.flush({
+      items: [],
+      totalCount: 2,
+      page: 1,
+      pageSize: 50
+    });
+
+    expect(service.currentPagination()).toEqual({ page: 1, pageSize: 50 });
   });
 
   it('maps URL-only create capture to Article with generated content', async () => {
@@ -161,5 +183,5 @@ describe('CaptureStateService', () => {
     request.flush({ id: 'capture-2', message: 'accepted' });
 
     await expect(createPromise).resolves.toEqual({ id: 'capture-2', message: 'accepted' });
-});
+  });
 });

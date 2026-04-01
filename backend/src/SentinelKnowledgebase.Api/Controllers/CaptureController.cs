@@ -160,6 +160,27 @@ public class CaptureController : ControllerBase
         
         return Ok(response);
     }
+
+    [HttpGet("list")]
+    [ProducesResponseType(typeof(CaptureListPageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetCaptureList([FromQuery] CaptureListQueryDto query)
+    {
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var response = await _captureService.GetCaptureListPageAsync(userId, query);
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
     
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<CaptureResponseDto>), StatusCodes.Status200OK)]

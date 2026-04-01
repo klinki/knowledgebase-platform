@@ -101,6 +101,13 @@ export interface CaptureListItem {
   failureReason: string | null;
 }
 
+export interface CaptureListPage {
+  items: CaptureListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface CaptureProcessedInsight {
   id: string;
   title: string;

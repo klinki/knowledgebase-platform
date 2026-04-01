@@ -227,10 +227,82 @@ public class CaptureServiceTests
             .Returns(captures);
         
         var result = await _service.GetAllCapturesAsync(ownerUserId);
-        
+
         result.Should().HaveCount(2);
     }
-    
+
+    [Fact]
+    public async Task GetCaptureListPageAsync_ShouldNormalizeQueryAndMapPagedResult()
+    {
+        var ownerUserId = Guid.NewGuid();
+        CaptureListQueryOptions? capturedOptions = null;
+        var createdAt = new DateTime(2026, 3, 31, 10, 15, 0, DateTimeKind.Utc);
+
+        _unitOfWork.RawCaptures.GetPagedListAsync(ownerUserId, Arg.Any<CaptureListQueryOptions>())
+            .Returns(callInfo =>
+            {
+                capturedOptions = callInfo.Arg<CaptureListQueryOptions>();
+                return Task.FromResult(new CaptureListQueryResult
+                {
+                    TotalCount = 37,
+                    Items =
+                    [
+                        new CaptureListRecord
+                        {
+                            Id = Guid.NewGuid(),
+                            SourceUrl = "https://example.com/article",
+                            ContentType = ContentType.Article,
+                            Status = CaptureStatus.Failed,
+                            CreatedAt = createdAt,
+                            ProcessedAt = null,
+                            Metadata = """{"lastProcessingError":"processor exploded"}"""
+                        }
+                    ]
+                });
+            });
+
+        var result = await _service.GetCaptureListPageAsync(ownerUserId, new CaptureListQueryDto
+        {
+            Page = 0,
+            PageSize = 999,
+            SortField = "sourceUrl",
+            SortDirection = "ASC",
+            ContentType = "article",
+            Status = "failed"
+        });
+
+        capturedOptions.Should().NotBeNull();
+        capturedOptions!.Page.Should().Be(1);
+        capturedOptions.PageSize.Should().Be(200);
+        capturedOptions.SortField.Should().Be("sourceUrl");
+        capturedOptions.SortDirection.Should().Be("asc");
+        capturedOptions.ContentType.Should().Be(ContentType.Article);
+        capturedOptions.Status.Should().Be(CaptureStatus.Failed);
+
+        result.TotalCount.Should().Be(37);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(200);
+        result.Items.Should().ContainSingle();
+        result.Items[0].SourceUrl.Should().Be("https://example.com/article");
+        result.Items[0].FailureReason.Should().Be("processor exploded");
+    }
+
+    [Fact]
+    public async Task GetCaptureListPageAsync_ShouldThrowArgumentException_WhenStatusFilterInvalid()
+    {
+        var ownerUserId = Guid.NewGuid();
+
+        var action = async () => await _service.GetCaptureListPageAsync(ownerUserId, new CaptureListQueryDto
+        {
+            Status = "not-a-status"
+        });
+
+        await action.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("Invalid status filter.*");
+        await _unitOfWork.RawCaptures.DidNotReceive()
+            .GetPagedListAsync(Arg.Any<Guid>(), Arg.Any<CaptureListQueryOptions>());
+    }
+ 
 
     [Fact]
     public async Task RetryCaptureAsync_ShouldReturnFalse_WhenCaptureIsCompleted()

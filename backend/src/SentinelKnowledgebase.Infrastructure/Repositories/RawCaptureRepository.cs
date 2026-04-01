@@ -57,6 +57,47 @@ public class RawCaptureRepository : IRawCaptureRepository
                     .ThenInclude(a => a.LabelValue)
             .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
     }
+
+    public async Task<CaptureListQueryResult> GetPagedListAsync(Guid ownerUserId, CaptureListQueryOptions options)
+    {
+        IQueryable<RawCapture> query = _context.RawCaptures
+            .AsNoTracking()
+            .Where(capture => capture.OwnerUserId == ownerUserId);
+
+        if (options.ContentType.HasValue)
+        {
+            query = query.Where(capture => capture.ContentType == options.ContentType.Value);
+        }
+
+        if (options.Status.HasValue)
+        {
+            query = query.Where(capture => capture.Status == options.Status.Value);
+        }
+
+        query = ApplySort(query, options);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .Skip((options.Page - 1) * options.PageSize)
+            .Take(options.PageSize)
+            .Select(capture => new CaptureListRecord
+            {
+                Id = capture.Id,
+                SourceUrl = capture.SourceUrl,
+                ContentType = capture.ContentType,
+                Status = capture.Status,
+                CreatedAt = capture.CreatedAt,
+                ProcessedAt = capture.ProcessedAt,
+                Metadata = capture.Metadata
+            })
+            .ToListAsync();
+
+        return new CaptureListQueryResult
+        {
+            Items = items,
+            TotalCount = totalCount
+        };
+    }
     
     public async Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId)
     {
@@ -146,5 +187,26 @@ public class RawCaptureRepository : IRawCaptureRepository
         {
             _context.RawCaptures.Remove(rawCapture);
         }
+    }
+
+    private static IQueryable<RawCapture> ApplySort(IQueryable<RawCapture> query, CaptureListQueryOptions options)
+    {
+        var descending = string.Equals(options.SortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+
+        return options.SortField switch
+        {
+            "contentType" => descending
+                ? query.OrderByDescending(capture => capture.ContentType).ThenByDescending(capture => capture.CreatedAt)
+                : query.OrderBy(capture => capture.ContentType).ThenByDescending(capture => capture.CreatedAt),
+            "status" => descending
+                ? query.OrderByDescending(capture => capture.Status).ThenByDescending(capture => capture.CreatedAt)
+                : query.OrderBy(capture => capture.Status).ThenByDescending(capture => capture.CreatedAt),
+            "sourceUrl" => descending
+                ? query.OrderByDescending(capture => capture.SourceUrl).ThenByDescending(capture => capture.CreatedAt)
+                : query.OrderBy(capture => capture.SourceUrl).ThenByDescending(capture => capture.CreatedAt),
+            _ => descending
+                ? query.OrderByDescending(capture => capture.CreatedAt)
+                : query.OrderBy(capture => capture.CreatedAt)
+        };
     }
 }

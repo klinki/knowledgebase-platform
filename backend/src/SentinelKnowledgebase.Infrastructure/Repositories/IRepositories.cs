@@ -8,6 +8,7 @@ public interface IRawCaptureRepository
     Task<RawCapture> AddAsync(RawCapture rawCapture);
     Task<RawCapture?> GetByIdAsync(Guid id);
     Task<RawCapture?> GetByIdAsync(Guid id, Guid ownerUserId);
+    Task<CaptureListQueryResult> GetPagedListAsync(Guid ownerUserId, CaptureListQueryOptions options);
     Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId);
     Task<IEnumerable<RawCapture>> GetRecentAsync(Guid ownerUserId, int take);
     Task<IEnumerable<RawCapture>> GetRecentGlobalAsync(int take);
@@ -16,6 +17,33 @@ public interface IRawCaptureRepository
     Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(RawCapture rawCapture);
     Task DeleteAsync(Guid id, Guid ownerUserId);
+}
+
+public class CaptureListQueryOptions
+{
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public string SortField { get; set; } = "createdAt";
+    public string SortDirection { get; set; } = "desc";
+    public ContentType? ContentType { get; set; }
+    public CaptureStatus? Status { get; set; }
+}
+
+public class CaptureListQueryResult
+{
+    public List<CaptureListRecord> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+}
+
+public class CaptureListRecord
+{
+    public Guid Id { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
+    public ContentType ContentType { get; set; }
+    public CaptureStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+    public string? Metadata { get; set; }
 }
 
 public interface ICaptureProcessingControlRepository

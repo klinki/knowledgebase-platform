@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Domain.Enums;
@@ -213,6 +214,101 @@ public class CaptureControllerTests
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
         var content = await response.Content.ReadFromJsonAsync<List<CaptureResponseDto>>(ResponseJsonOptions);
         content.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetCaptureList_ShouldApplyFilteringSortingPaginationAndOwnerScope()
+    {
+        using var ownerClient = await _fixture.CreateAuthenticatedClientAsync();
+        var member = await _fixture.CreateMemberClientAsync();
+        using var foreignClient = member.Client;
+
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var foreignUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var baseTime = new DateTime(2026, 3, 31, 8, 0, 0, DateTimeKind.Utc);
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.RawCaptures.AddRange(
+                new RawCapture
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/z-last",
+                    ContentType = ContentType.Article,
+                    RawContent = "Owner article 1",
+                    Status = CaptureStatus.Pending,
+                    CreatedAt = baseTime.AddMinutes(1)
+                },
+                new RawCapture
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/a-first",
+                    ContentType = ContentType.Article,
+                    RawContent = "Owner article 2",
+                    Status = CaptureStatus.Pending,
+                    CreatedAt = baseTime.AddMinutes(2),
+                    Metadata = """{"lastProcessingError":"stale error"}"""
+                },
+                new RawCapture
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/note",
+                    ContentType = ContentType.Note,
+                    RawContent = "Owner note",
+                    Status = CaptureStatus.Completed,
+                    CreatedAt = baseTime.AddMinutes(3)
+                },
+                new RawCapture
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = foreignUserId,
+                    SourceUrl = "https://example.com/foreign",
+                    ContentType = ContentType.Article,
+                    RawContent = "Foreign owner article",
+                    Status = CaptureStatus.Pending,
+                    CreatedAt = baseTime.AddMinutes(4)
+                });
+
+            await Task.CompletedTask;
+        });
+
+        var response = await ownerClient.GetAsync(
+            "/api/v1/capture/list?page=1&pageSize=1&sortField=sourceUrl&sortDirection=asc&contentType=Article&status=Pending");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<CaptureListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.TotalCount.Should().Be(2);
+        page.Page.Should().Be(1);
+        page.PageSize.Should().Be(1);
+        page.Items.Should().ContainSingle();
+        page.Items[0].SourceUrl.Should().Be("https://example.com/a-first");
+        page.Items[0].ContentType.Should().Be(ContentType.Article);
+        page.Items[0].Status.Should().Be(CaptureStatus.Pending);
+        page.Items[0].FailureReason.Should().Be("stale error");
+
+        var foreignResponse = await foreignClient.GetAsync(
+            "/api/v1/capture/list?page=1&pageSize=10&contentType=Article&status=Pending");
+
+        foreignResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var foreignPage = await foreignResponse.Content.ReadFromJsonAsync<CaptureListPageDto>(ResponseJsonOptions);
+        foreignPage.Should().NotBeNull();
+        foreignPage!.TotalCount.Should().Be(1);
+        foreignPage.Items.Should().ContainSingle();
+        foreignPage.Items[0].SourceUrl.Should().Be("https://example.com/foreign");
+    }
+
+    [Fact]
+    public async Task GetCaptureList_ShouldReturn400_WhenFilterInvalid()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetAsync("/api/v1/capture/list?status=definitely-invalid");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
     }
     
     [Fact]
