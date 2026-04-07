@@ -1,1 +1,6 @@
 <router-outlet></router-outlet>
+<footer class="build-footer" aria-label="Build information">
+  <span class="build-item">Version {{ buildInfo.version }}</span>
+  <span class="build-separator" aria-hidden="true">•</span>
+  <span class="build-item">Built {{ buildInfo.buildDate | date:'yyyy-MM-dd HH:mm':'UTC' }} UTC</span>
+</footer>

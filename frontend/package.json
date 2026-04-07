@@ -2,10 +2,15 @@
   "name": "frontend",
   "version": "0.0.0",
   "scripts": {
+    "generate-build-info": "node ./scripts/generate-build-info.mjs",
     "ng": "ng",
+    "prestart": "npm run generate-build-info",
     "start": "ng serve",
+    "prebuild": "npm run generate-build-info",
     "build": "ng build",
+    "prewatch": "npm run generate-build-info",
     "watch": "ng build --watch --configuration development",
+    "pretest": "npm run generate-build-info",
     "test": "ng test"
   },
   "private": true,
