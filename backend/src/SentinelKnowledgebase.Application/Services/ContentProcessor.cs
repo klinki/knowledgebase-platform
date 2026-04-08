@@ -1,11 +1,12 @@
 using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Enums;
-using System.Net.Http.Json;
 
 namespace SentinelKnowledgebase.Application.Services;
 
@@ -58,15 +59,11 @@ public class ContentProcessor : IContentProcessor
             
             var embeddingModel = _configuration["OpenAI:EmbeddingModel"] ?? "text-embedding-3-small";
             var apiKey = _configuration["OpenAI:ApiKey"];
-            
-            var requestBody = new
-            {
-                model = embeddingModel,
-                input = text
-            };
-            
+
+            var requestBody = CreateEmbeddingRequestBody(embeddingModel, text);
+
             _httpClient.DefaultRequestHeaders.Authorization = 
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+                new AuthenticationHeaderValue("Bearer", apiKey);
             
             var embeddingsUrl = _configuration["OpenAI:EmbeddingsUrl"] ?? "https://api.openai.com/v1/embeddings";
             var response = await _httpClient.PostAsJsonAsync(
@@ -211,6 +208,43 @@ Respond with valid JSON only.";
 
         _logger.LogError("OpenAI API key is not configured. Content processing cannot continue.");
         throw new InvalidOperationException("OpenAI API key is not configured.");
+    }
+
+    private Dictionary<string, object> CreateEmbeddingRequestBody(string embeddingModel, string text)
+    {
+        var requestBody = new Dictionary<string, object>
+        {
+            ["model"] = embeddingModel,
+            ["input"] = text
+        };
+
+        var embeddingDimensions = GetEmbeddingDimensions();
+        if (embeddingDimensions.HasValue)
+        {
+            requestBody["dimensions"] = embeddingDimensions.Value;
+        }
+
+        return requestBody;
+    }
+
+    private int? GetEmbeddingDimensions()
+    {
+        var configuredDimensions = _configuration["OpenAI:EmbeddingDimensions"];
+        if (string.IsNullOrWhiteSpace(configuredDimensions))
+        {
+            return null;
+        }
+
+        if (int.TryParse(configuredDimensions, out var embeddingDimensions) && embeddingDimensions > 0)
+        {
+            return embeddingDimensions;
+        }
+
+        _logger.LogWarning(
+            "OpenAI embedding dimensions value '{EmbeddingDimensions}' is invalid and will be ignored.",
+            configuredDimensions);
+
+        return null;
     }
     
     private bool IsNoiseLine(string line)

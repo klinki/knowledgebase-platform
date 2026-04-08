@@ -1,0 +1,27 @@
+services:
+  litellm:
+    image: ${LITELLM_IMAGE:-docker.litellm.ai/berriai/litellm:main-latest}
+    container_name: sentinel-litellm
+    restart: unless-stopped
+    command:
+      - --config
+      - /app/config.yaml
+      - --port
+      - "${LITELLM_INTERNAL_PORT:-4000}"
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /app/google-account.json
+      VERTEXAI_PROJECT: ${LITELLM_VERTEX_PROJECT}
+      VERTEXAI_LOCATION: ${LITELLM_VERTEX_LOCATION:-us-central1}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-}
+    ports:
+      - "${LITELLM_BIND:-127.0.0.1}:${LITELLM_PORT:-4000}:${LITELLM_INTERNAL_PORT:-4000}"
+    volumes:
+      - ./litellm.vertex.yaml:/app/config.yaml:ro
+      - ${LITELLM_GOOGLE_ACCOUNT_FILE}:/app/google-account.json:ro
+    networks:
+      - ai
+
+networks:
+  ai:
+    external: true
+    name: ${LITELLM_DOCKER_NETWORK:-sentinel-ai}

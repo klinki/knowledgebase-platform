@@ -42,6 +42,7 @@ services:
       OpenAI__ApiKey: ${OPENAI_API_KEY}
       OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
       OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OpenAI__EmbeddingDimensions: ${OPENAI_EMBEDDING_DIMENSIONS:-}
       OpenAI__EmbeddingsUrl: ${OPENAI_EMBEDDINGS_URL:-https://api.openai.com/v1/embeddings}
       OpenAI__ChatCompletionsUrl: ${OPENAI_CHAT_COMPLETIONS_URL:-https://api.openai.com/v1/chat/completions}
     depends_on:
@@ -65,6 +66,7 @@ services:
       OpenAI__ApiKey: ${OPENAI_API_KEY}
       OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
       OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OpenAI__EmbeddingDimensions: ${OPENAI_EMBEDDING_DIMENSIONS:-}
       OpenAI__EmbeddingsUrl: ${OPENAI_EMBEDDINGS_URL:-https://api.openai.com/v1/embeddings}
       OpenAI__ChatCompletionsUrl: ${OPENAI_CHAT_COMPLETIONS_URL:-https://api.openai.com/v1/chat/completions}
     depends_on:

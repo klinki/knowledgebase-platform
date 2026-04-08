@@ -39,6 +39,7 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres
       - OpenAI__ApiKey=${OPENAI_API_KEY}
+      - OpenAI__EmbeddingDimensions=${OPENAI_EMBEDDING_DIMENSIONS}
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
     ports:
@@ -59,6 +60,7 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres
       - OpenAI__ApiKey=${OPENAI_API_KEY}
+      - OpenAI__EmbeddingDimensions=${OPENAI_EMBEDDING_DIMENSIONS}
       - DOTNET_ENVIRONMENT=Development
     depends_on:
       postgres:
