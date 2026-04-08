@@ -104,6 +104,27 @@ Final important content.
         payload.TryGetProperty("dimensions", out _).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task ExtractInsightsAsync_ShouldParseJsonWrappedInCodeFence()
+    {
+        var handler = new RecordingHttpMessageHandler(CreateChatResponse("""
+            ```json
+            {"title":"Test title","summary":"Test summary","keyInsights":["One"],"actionItems":["Act"],"sourceTitle":"Source","author":"Author"}
+            ```
+            """));
+        var processor = CreateProcessor(
+            overrides: new Dictionary<string, string?>
+            {
+                { "OpenAI:ApiKey", "test-key" }
+            },
+            httpClient: new HttpClient(handler));
+
+        var result = await processor.ExtractInsightsAsync("Article content", ContentType.Article);
+
+        result.Title.Should().Be("Test title");
+        result.Summary.Should().Be("Test summary");
+    }
+
     private static ContentProcessor CreateProcessor(
         IDictionary<string, string?>? overrides = null,
         HttpClient? httpClient = null)
@@ -155,6 +176,31 @@ Final important content.
                 prompt_tokens = 1,
                 completion_tokens = 0,
                 total_tokens = 1
+            }
+        });
+
+        return new StringContent(payload, Encoding.UTF8, "application/json");
+    }
+
+    private static StringContent CreateChatResponse(string assistantContent)
+    {
+        var payload = JsonSerializer.Serialize(new
+        {
+            choices = new[]
+            {
+                new
+                {
+                    message = new
+                    {
+                        content = assistantContent
+                    }
+                }
+            },
+            usage = new
+            {
+                prompt_tokens = 1,
+                completion_tokens = 1,
+                total_tokens = 2
             }
         });
 

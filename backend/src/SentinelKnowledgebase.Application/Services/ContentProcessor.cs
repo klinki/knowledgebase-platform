@@ -195,8 +195,23 @@ Respond with valid JSON only.";
         {
             PropertyNameCaseInsensitive = true
         };
-        return JsonSerializer.Deserialize<ContentInsights>(json, options)
-            ?? throw new InvalidOperationException("Chat completions response contained an empty JSON payload.");
+
+        var normalizedJson = NormalizeJsonPayload(json);
+
+        try
+        {
+            return JsonSerializer.Deserialize<ContentInsights>(normalizedJson, options)
+                ?? throw new InvalidOperationException("Chat completions response contained an empty JSON payload.");
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to parse content insights JSON. Raw response: {ResponseBody}",
+                normalizedJson);
+
+            throw;
+        }
     }
 
     private void EnsureOpenAiApiKeyConfigured()
@@ -245,6 +260,30 @@ Respond with valid JSON only.";
             configuredDimensions);
 
         return null;
+    }
+
+    private static string NormalizeJsonPayload(string json)
+    {
+        var trimmedJson = json.Trim();
+        if (!trimmedJson.StartsWith("```", StringComparison.Ordinal))
+        {
+            return trimmedJson;
+        }
+
+        var firstNewLineIndex = trimmedJson.IndexOf('\n');
+        if (firstNewLineIndex < 0)
+        {
+            return trimmedJson.Trim('`').Trim();
+        }
+
+        var withoutOpeningFence = trimmedJson[(firstNewLineIndex + 1)..];
+        var lastFenceIndex = withoutOpeningFence.LastIndexOf("```", StringComparison.Ordinal);
+        if (lastFenceIndex >= 0)
+        {
+            withoutOpeningFence = withoutOpeningFence[..lastFenceIndex];
+        }
+
+        return withoutOpeningFence.Trim();
     }
     
     private bool IsNoiseLine(string line)
