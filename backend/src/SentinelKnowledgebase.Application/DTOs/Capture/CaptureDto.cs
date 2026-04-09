@@ -1,5 +1,6 @@
 using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Application.DTOs.Labels;
+using SentinelKnowledgebase.Application.DTOs.Clusters;
 
 namespace SentinelKnowledgebase.Application.DTOs.Capture;
 
@@ -76,4 +77,5 @@ public class ProcessedInsightDto
     public DateTime ProcessedAt { get; set; }
     public List<string> Tags { get; set; } = new();
     public List<LabelAssignmentDto> Labels { get; set; } = new();
+    public TopicClusterLinkDto? Cluster { get; set; }
 }

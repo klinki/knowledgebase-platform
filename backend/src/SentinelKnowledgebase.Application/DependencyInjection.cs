@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<ICaptureService, CaptureService>();
         services.AddScoped<ICaptureProcessingAdminService, CaptureProcessingAdminService>();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IInsightClusteringService, InsightClusteringService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ITagService, TagService>();
         services.AddScoped<ILabelService, LabelService>();

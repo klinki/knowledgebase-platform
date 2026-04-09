@@ -1,4 +1,5 @@
 using SentinelKnowledgebase.Application.DTOs.Dashboard;
+using SentinelKnowledgebase.Application.DTOs.Clusters;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
@@ -9,16 +10,19 @@ namespace SentinelKnowledgebase.Application.Services;
 public class DashboardService : IDashboardService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IInsightClusteringService _insightClusteringService;
 
-    public DashboardService(IUnitOfWork unitOfWork)
+    public DashboardService(IUnitOfWork unitOfWork, IInsightClusteringService insightClusteringService)
     {
         _unitOfWork = unitOfWork;
+        _insightClusteringService = insightClusteringService;
     }
 
     public async Task<DashboardOverviewDto> GetOverviewAsync(Guid ownerUserId)
     {
         var recentCaptures = await _unitOfWork.RawCaptures.GetRecentAsync(ownerUserId, 10);
         var topTags = await _unitOfWork.Tags.GetSummariesAsync(ownerUserId, 10);
+        var topicClusters = await _insightClusteringService.GetClusterSummariesAsync(ownerUserId, 5);
         var totalCaptures = await _unitOfWork.RawCaptures.CountAsync(ownerUserId);
         var activeTags = await _unitOfWork.Tags.CountAsync(ownerUserId);
 
@@ -26,6 +30,7 @@ public class DashboardService : IDashboardService
         {
             RecentCaptures = recentCaptures.Select(MapCapture).ToList(),
             TopTags = topTags.Select(MapTag).ToList(),
+            TopicClusters = topicClusters.ToList(),
             Stats = new DashboardStatsDto
             {
                 TotalCaptures = totalCaptures,

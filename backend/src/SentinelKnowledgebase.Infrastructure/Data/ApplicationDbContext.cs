@@ -21,6 +21,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RawCaptureLabelAssignment> RawCaptureLabelAssignments { get; set; }
     public DbSet<ProcessedInsightLabelAssignment> ProcessedInsightLabelAssignments { get; set; }
     public DbSet<EmbeddingVector> EmbeddingVectors { get; set; }
+    public DbSet<InsightCluster> InsightClusters { get; set; }
+    public DbSet<InsightClusterMembership> InsightClusterMemberships { get; set; }
     public DbSet<CaptureProcessingControl> CaptureProcessingControls { get; set; }
     public DbSet<UserInvitation> UserInvitations { get; set; }
     public DbSet<DeviceAuthorization> DeviceAuthorizations { get; set; }
@@ -86,6 +88,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasOne(e => e.EmbeddingVector)
                 .WithOne(e => e.ProcessedInsight)
                 .HasForeignKey<EmbeddingVector>(e => e.ProcessedInsightId);
+
+            entity.HasOne(e => e.ClusterMembership)
+                .WithOne(e => e.ProcessedInsight)
+                .HasForeignKey<InsightClusterMembership>(e => e.ProcessedInsightId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         
         modelBuilder.Entity<Tag>(entity =>
@@ -172,6 +179,42 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.ProcessedInsightId).IsRequired();
             entity.Property(e => e.Vector).HasColumnType("vector(1536)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<InsightCluster>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(60).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(160);
+            entity.Property(e => e.KeywordsJson).IsRequired();
+            entity.Property(e => e.LastComputedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.OwnerUserId, e.UpdatedAt });
+
+            entity.HasOne(e => e.RepresentativeProcessedInsight)
+                .WithMany()
+                .HasForeignKey(e => e.RepresentativeProcessedInsightId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<InsightClusterMembership>(entity =>
+        {
+            entity.HasKey(e => e.ProcessedInsightId);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.InsightClusterId, e.Rank });
+
+            entity.HasOne(e => e.InsightCluster)
+                .WithMany(e => e.Memberships)
+                .HasForeignKey(e => e.InsightClusterId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CaptureProcessingControl>(entity =>

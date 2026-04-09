@@ -41,4 +41,6 @@ public class ProcessedInsight
     public List<ProcessedInsightLabelAssignment> LabelAssignments { get; set; } = new();
     
     public EmbeddingVector? EmbeddingVector { get; set; }
+
+    public InsightClusterMembership? ClusterMembership { get; set; }
 }

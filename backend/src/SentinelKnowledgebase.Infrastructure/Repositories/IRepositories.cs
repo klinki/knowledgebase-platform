@@ -68,6 +68,7 @@ public interface IProcessedInsightRepository
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
         bool matchAllLabels);
+    Task<IReadOnlyList<ProcessedInsightEmbeddingRecord>> GetEmbeddingRecordsAsync(Guid ownerUserId);
     Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold);
     Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(Guid ownerUserId, IReadOnlyCollection<string> tags, bool matchAll);
     Task<IEnumerable<LabelSearchRecord>> SearchByLabelsAsync(Guid ownerUserId, IReadOnlyCollection<LabelRecord> labels, bool matchAll);
@@ -96,6 +97,16 @@ public class SemanticSearchRecord
     public double Similarity { get; set; }
     public List<string> Tags { get; set; } = new();
     public List<LabelRecord> Labels { get; set; } = new();
+}
+
+public class ProcessedInsightEmbeddingRecord
+{
+    public Guid Id { get; set; }
+    public Guid OwnerUserId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public float[] Embedding { get; set; } = [];
 }
 
 public class TagSearchRecord
@@ -172,4 +183,14 @@ public interface IEmbeddingVectorRepository
     Task<EmbeddingVector?> GetByProcessedInsightIdAsync(Guid processedInsightId);
     Task UpdateAsync(EmbeddingVector embeddingVector);
     Task DeleteAsync(Guid id);
+}
+
+public interface IInsightClusterRepository
+{
+    Task<InsightCluster> AddAsync(InsightCluster cluster);
+    Task AddMembershipsAsync(IEnumerable<InsightClusterMembership> memberships);
+    Task<InsightCluster?> GetByIdAsync(Guid ownerUserId, Guid clusterId);
+    Task<IReadOnlyList<InsightCluster>> GetTopAsync(Guid ownerUserId, int take);
+    Task<IReadOnlyList<Guid>> GetStaleOwnerIdsAsync(DateTime staleBefore, int take);
+    Task DeleteByOwnerAsync(Guid ownerUserId);
 }

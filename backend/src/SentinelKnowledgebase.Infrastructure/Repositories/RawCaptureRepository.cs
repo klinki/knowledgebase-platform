@@ -36,6 +36,9 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.ProcessedInsight)
                 .ThenInclude(p => p.LabelAssignments)
                     .ThenInclude(a => a.LabelValue)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.ClusterMembership)
+                    .ThenInclude(membership => membership.InsightCluster)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
@@ -55,6 +58,9 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.ProcessedInsight)
                 .ThenInclude(p => p.LabelAssignments)
                     .ThenInclude(a => a.LabelValue)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.ClusterMembership)
+                    .ThenInclude(membership => membership.InsightCluster)
             .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
     }
 
@@ -115,6 +121,9 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.ProcessedInsight)
                 .ThenInclude(p => p.LabelAssignments)
                     .ThenInclude(a => a.LabelValue)
+            .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.ClusterMembership)
+                    .ThenInclude(membership => membership.InsightCluster)
             .Where(r => r.OwnerUserId == ownerUserId)
             .ToListAsync();
     }
@@ -128,6 +137,8 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.LabelAssignments)
                 .ThenInclude(a => a.LabelValue)
             .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.ClusterMembership)
+                    .ThenInclude(membership => membership.InsightCluster)
             .Where(r => r.OwnerUserId == ownerUserId)
             .OrderByDescending(r => r.CreatedAt)
             .Take(take)
@@ -143,6 +154,8 @@ public class RawCaptureRepository : IRawCaptureRepository
             .Include(r => r.LabelAssignments)
                 .ThenInclude(a => a.LabelValue)
             .Include(r => r.ProcessedInsight)
+                .ThenInclude(p => p.ClusterMembership)
+                    .ThenInclude(membership => membership.InsightCluster)
             .OrderByDescending(r => r.CreatedAt)
             .Take(take)
             .ToListAsync();

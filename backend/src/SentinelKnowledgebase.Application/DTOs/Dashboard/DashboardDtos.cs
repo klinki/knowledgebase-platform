@@ -1,5 +1,6 @@
 using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Application.DTOs.Labels;
+using SentinelKnowledgebase.Application.DTOs.Clusters;
 
 namespace SentinelKnowledgebase.Application.DTOs.Dashboard;
 
@@ -7,6 +8,7 @@ public class DashboardOverviewDto
 {
     public List<CaptureListItemDto> RecentCaptures { get; set; } = new();
     public List<TagSummaryDto> TopTags { get; set; } = new();
+    public List<TopicClusterSummaryDto> TopicClusters { get; set; } = new();
     public DashboardStatsDto Stats { get; set; } = new();
 }
 

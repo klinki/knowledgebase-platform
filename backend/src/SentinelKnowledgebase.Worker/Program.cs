@@ -2,6 +2,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Serilog;
 using SentinelKnowledgebase.Application;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Infrastructure;
 using SentinelKnowledgebase.Worker;
 
@@ -39,4 +40,8 @@ builder.Services.AddHangfireServer();
 
 var host = builder.Build();
 GlobalJobFilters.Filters.Add(host.Services.GetRequiredService<CaptureProcessingStateFilter>());
+RecurringJob.AddOrUpdate<IInsightClusteringService>(
+    "refresh-stale-insight-clusters",
+    service => service.RebuildStaleOwnerClustersAsync(),
+    Cron.Daily);
 host.Run();

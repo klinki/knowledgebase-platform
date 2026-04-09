@@ -108,6 +108,13 @@ public class ContentProcessor : IContentProcessor
             _monitoringService.RecordEmbeddingGenerationLatency(stopwatch.Elapsed.TotalMilliseconds);
         }
     }
+
+    public async Task<ClusterMetadata> GenerateClusterMetadataAsync(IReadOnlyCollection<string> summaries)
+    {
+        var prompt = GenerateClusterPrompt(summaries);
+        EnsureOpenAiApiKeyConfigured();
+        return await CallOpenAIForClusterMetadata(prompt);
+    }
     
     private string GeneratePrompt(string content, ContentType contentType, string? outputLanguageCode)
     {
@@ -194,6 +201,55 @@ Respond with valid JSON only.";
 
         throw new HttpRequestException(
             $"Insight extraction request failed with status {(int)response.StatusCode}.",
+            null,
+            response.StatusCode);
+    }
+
+    private async Task<ClusterMetadata> CallOpenAIForClusterMetadata(string prompt)
+    {
+        var apiKey = _configuration["OpenAI:ApiKey"];
+        var model = _configuration["OpenAI:Model"] ?? "gpt-4";
+
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", apiKey);
+
+        var requestBody = new
+        {
+            model,
+            messages = new[]
+            {
+                new { role = "system", content = "You name semantic knowledge clusters. Always respond with valid JSON." },
+                new { role = "user", content = prompt }
+            },
+            temperature = 0.2
+        };
+
+        var chatCompletionsUrl = _configuration["OpenAI:ChatCompletionsUrl"] ?? "https://api.openai.com/v1/chat/completions";
+        var response = await _httpClient.PostAsJsonAsync(chatCompletionsUrl, requestBody);
+        if (response.IsSuccessStatusCode)
+        {
+            var responseContent = await response.Content.ReadFromJsonAsync<OpenAIChatResponse>();
+            var content = responseContent?.choices?[0].message?.content;
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                var normalizedJson = NormalizeJsonPayload(content);
+                return JsonSerializer.Deserialize<ClusterMetadata>(normalizedJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? throw new InvalidOperationException("Cluster metadata response contained an empty JSON payload.");
+            }
+
+            throw new InvalidOperationException("Chat completions response did not contain a cluster metadata payload.");
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        _logger.LogWarning(
+            "Cluster metadata request failed with status {StatusCode}. Response: {ResponseBody}",
+            (int)response.StatusCode,
+            responseBody);
+
+        throw new HttpRequestException(
+            $"Cluster metadata request failed with status {(int)response.StatusCode}.",
             null,
             response.StatusCode);
     }
@@ -293,6 +349,20 @@ Respond with valid JSON only.";
         }
 
         return withoutOpeningFence.Trim();
+    }
+
+    private static string GenerateClusterPrompt(IReadOnlyCollection<string> summaries)
+    {
+        var joinedSummaries = string.Join("\n---\n", summaries);
+        return $@"Given these related summaries, produce a JSON object with:
+1. title: concise topic title, max 60 chars
+2. description: one-line description, max 160 chars
+3. keywords: array of exactly 3 short keywords
+
+Summaries:
+{joinedSummaries}
+
+Respond with valid JSON only.";
     }
     
     private bool IsNoiseLine(string line)

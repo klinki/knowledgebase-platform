@@ -30,6 +30,8 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .Include(p => p.LabelAssignments)
                 .ThenInclude(a => a.LabelValue)
             .Include(p => p.EmbeddingVector)
+            .Include(p => p.ClusterMembership)
+                .ThenInclude(membership => membership.InsightCluster)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
     
@@ -42,6 +44,25 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .Include(p => p.LabelAssignments)
                 .ThenInclude(a => a.LabelValue)
             .Include(p => p.EmbeddingVector)
+            .Include(p => p.ClusterMembership)
+                .ThenInclude(membership => membership.InsightCluster)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<ProcessedInsightEmbeddingRecord>> GetEmbeddingRecordsAsync(Guid ownerUserId)
+    {
+        return await _context.ProcessedInsights
+            .AsNoTracking()
+            .Where(insight => insight.OwnerUserId == ownerUserId && insight.EmbeddingVector != null)
+            .Select(insight => new ProcessedInsightEmbeddingRecord
+            {
+                Id = insight.Id,
+                OwnerUserId = insight.OwnerUserId,
+                Title = insight.Title,
+                Summary = insight.Summary,
+                SourceUrl = insight.RawCapture.SourceUrl,
+                Embedding = insight.EmbeddingVector!.Vector.ToArray()
+            })
             .ToListAsync();
     }
 

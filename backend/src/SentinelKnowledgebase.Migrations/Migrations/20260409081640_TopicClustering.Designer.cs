@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using SentinelKnowledgebase.Infrastructure.Data;
 namespace SentinelKnowledgebase.Migrations.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409081640_TopicClustering")]
+    partial class TopicClustering
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -546,10 +549,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
-                    b.Property<string>("DefaultLanguageCode")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -753,25 +752,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                         .IsUnique();
 
                     b.ToTable("UserInvitations");
-                });
-
-            modelBuilder.Entity("SentinelKnowledgebase.Infrastructure.Authentication.UserPreservedLanguage", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("LanguageCode")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.HasKey("UserId", "LanguageCode");
-
-                    b.ToTable("UserPreservedLanguages");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -1057,16 +1037,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("InvitedByUser");
                 });
 
-            modelBuilder.Entity("SentinelKnowledgebase.Infrastructure.Authentication.UserPreservedLanguage", b =>
-                {
-                    b.HasOne("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", "User")
-                        .WithMany("PreservedLanguages")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.InsightCluster", b =>
                 {
                     b.Navigation("Memberships");
@@ -1098,11 +1068,6 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("LabelAssignments");
 
                     b.Navigation("ProcessedInsight");
-                });
-
-            modelBuilder.Entity("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", b =>
-                {
-                    b.Navigation("PreservedLanguages");
                 });
 #pragma warning restore 612, 618
         }

@@ -10,6 +10,13 @@ public class ContentInsights
     public string? Author { get; set; }
 }
 
+public class ClusterMetadata
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public List<string> Keywords { get; set; } = new();
+}
+
 public interface IContentProcessor
 {
     string DenoiseContent(string content);
@@ -18,4 +25,5 @@ public interface IContentProcessor
         Domain.Enums.ContentType contentType,
         string? outputLanguageCode = null);
     Task<float[]> GenerateEmbeddingAsync(string text);
+    Task<ClusterMetadata> GenerateClusterMetadataAsync(IReadOnlyCollection<string> summaries);
 }

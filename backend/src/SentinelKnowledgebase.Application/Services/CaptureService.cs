@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Hangfire;
 using SentinelKnowledgebase.Application.DTOs.Labels;
+using SentinelKnowledgebase.Application.DTOs.Clusters;
 using Microsoft.Extensions.Logging;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
@@ -20,6 +21,7 @@ public class CaptureService : ICaptureService
     private readonly IContentProcessor _contentProcessor;
     private readonly IUserLanguagePreferencesService _userLanguagePreferencesService;
     private readonly IMonitoringService _monitoringService;
+    private readonly IInsightClusteringService _insightClusteringService;
     private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
     private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<CaptureService> _logger;
@@ -29,6 +31,7 @@ public class CaptureService : ICaptureService
         IContentProcessor contentProcessor,
         IUserLanguagePreferencesService userLanguagePreferencesService,
         IMonitoringService monitoringService,
+        IInsightClusteringService insightClusteringService,
         ICaptureProcessingAdminService captureProcessingAdminService,
         IBackgroundJobClient backgroundJobClient,
         ILogger<CaptureService> logger)
@@ -37,6 +40,7 @@ public class CaptureService : ICaptureService
         _contentProcessor = contentProcessor;
         _userLanguagePreferencesService = userLanguagePreferencesService;
         _monitoringService = monitoringService;
+        _insightClusteringService = insightClusteringService;
         _captureProcessingAdminService = captureProcessingAdminService;
         _backgroundJobClient = backgroundJobClient;
         _logger = logger;
@@ -292,12 +296,15 @@ public class CaptureService : ICaptureService
             
             await _unitOfWork.SaveChangesAsync();
 
+            var clusteringJobId = _backgroundJobClient.Enqueue<IInsightClusteringService>(
+                service => service.RebuildOwnerClustersAsync(rawCapture.OwnerUserId));
             processingStatus = "completed";
             _monitoringService.IncrementProcessedCaptures();
             _logger.LogInformation(
-                "Capture {RawCaptureId} completed successfully as insight {ProcessedInsightId}",
+                "Capture {RawCaptureId} completed successfully as insight {ProcessedInsightId}; clustering job {ClusteringJobId} enqueued",
                 rawCaptureId,
-                processedInsight.Id);
+                processedInsight.Id,
+                clusteringJobId);
         }
         catch (Exception ex)
         {
@@ -354,6 +361,20 @@ public class CaptureService : ICaptureService
                 ProcessedAt = rawCapture.ProcessedInsight.ProcessedAt,
                 Tags = rawCapture.ProcessedInsight.Tags.Select(t => t.Name).ToList(),
                 Labels = MapLabels(rawCapture.ProcessedInsight.LabelAssignments)
+                ,
+                Cluster = rawCapture.ProcessedInsight.ClusterMembership?.InsightCluster == null
+                    ? null
+                    : new TopicClusterLinkDto
+                    {
+                        Id = rawCapture.ProcessedInsight.ClusterMembership.InsightCluster.Id,
+                        Title = rawCapture.ProcessedInsight.ClusterMembership.InsightCluster.Title,
+                        Description = rawCapture.ProcessedInsight.ClusterMembership.InsightCluster.Description,
+                        SuggestedLabel = new LabelAssignmentDto
+                        {
+                            Category = "Topic",
+                            Value = rawCapture.ProcessedInsight.ClusterMembership.InsightCluster.Title
+                        }
+                    }
             } : null
         };
     }

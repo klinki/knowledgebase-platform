@@ -119,6 +119,7 @@ public static class DependencyInjection
         services.AddScoped<ILabelCategoryRepository, LabelCategoryRepository>();
         services.AddScoped<ILabelValueRepository, LabelValueRepository>();
         services.AddScoped<IEmbeddingVectorRepository, EmbeddingVectorRepository>();
+        services.AddScoped<IInsightClusterRepository, InsightClusterRepository>();
         services.AddScoped<TokenService>();
         services.AddScoped<IdentityBootstrapper>();
         services.AddScoped<IUserLanguagePreferencesService, UserLanguagePreferencesService>();
