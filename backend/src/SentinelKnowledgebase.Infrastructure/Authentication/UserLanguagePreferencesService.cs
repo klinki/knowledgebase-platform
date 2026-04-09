@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
-using SentinelKnowledgebase.Application.Localization;
-using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Domain.Localization;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.Infrastructure.Data;
 
 namespace SentinelKnowledgebase.Infrastructure.Authentication;

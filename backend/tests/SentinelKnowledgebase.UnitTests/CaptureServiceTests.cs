@@ -10,6 +10,7 @@ using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.Infrastructure.Repositories;
 using Xunit;
 

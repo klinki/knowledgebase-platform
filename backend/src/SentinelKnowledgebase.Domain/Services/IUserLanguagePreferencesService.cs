@@ -1,4 +1,4 @@
-namespace SentinelKnowledgebase.Application.Services.Interfaces;
+namespace SentinelKnowledgebase.Domain.Services;
 
 public sealed class UserLanguagePreferencesSnapshot
 {

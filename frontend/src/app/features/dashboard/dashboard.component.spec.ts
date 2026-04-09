@@ -6,6 +6,7 @@ import { DashboardComponent } from './dashboard.component';
 import { AdminProcessingStateService } from '../../core/services/admin-processing-state.service';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
+import { SearchStateService } from '../../core/services/search-state.service';
 
 describe('DashboardComponent', () => {
   it('renders label chips on recent captures and no inline search box', async () => {

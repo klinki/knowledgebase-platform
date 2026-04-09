@@ -9,10 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Pgvector.EntityFrameworkCore;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure.Repositories;
-using SentinelKnowledgebase.Application.Services.Interfaces;
 
 namespace SentinelKnowledgebase.Infrastructure;
 

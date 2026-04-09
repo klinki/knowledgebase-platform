@@ -5,8 +5,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using SentinelKnowledgebase.Application.Localization;
 using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Domain.Localization;
 using SentinelKnowledgebase.Domain.Enums;
 
 namespace SentinelKnowledgebase.Application.Services;

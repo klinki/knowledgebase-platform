@@ -95,6 +95,18 @@ public class AuthControllerTests
     [Fact]
     public async Task Login_ShouldSeedDefaultLanguageFromAcceptLanguageHeader()
     {
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var bootstrapUser = await dbContext.Users
+                .SingleAsync(item => item.Email == IntegrationTestFixture.BootstrapAdminEmail);
+
+            bootstrapUser.DefaultLanguageCode = null;
+            dbContext.UserPreservedLanguages.RemoveRange(
+                dbContext.UserPreservedLanguages.Where(item => item.UserId == bootstrapUser.Id));
+
+            await dbContext.SaveChangesAsync();
+        });
+
         using var client = _fixture.CreateClient();
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("de-DE,de;q=0.9");
 

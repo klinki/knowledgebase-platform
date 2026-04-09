@@ -6,10 +6,11 @@ using SentinelKnowledgebase.Application.DTOs.Clusters;
 using Microsoft.Extensions.Logging;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
-using SentinelKnowledgebase.Application.Localization;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Domain.Localization;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.Infrastructure.Repositories;
 
 namespace SentinelKnowledgebase.Application.Services;

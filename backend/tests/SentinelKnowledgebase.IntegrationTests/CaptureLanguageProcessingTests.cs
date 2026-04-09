@@ -2,12 +2,14 @@ using System.Net;
 using System.Net.Http.Json;
 
 using AwesomeAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using SentinelKnowledgebase.Application.DTOs.Auth;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 

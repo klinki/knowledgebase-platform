@@ -72,10 +72,10 @@ describe('SettingsComponent', () => {
 
     expect(updatePreferences).toHaveBeenCalledWith({
       defaultLanguageCode: 'de',
-      preservedLanguageCodes: ['en']
+      preservedLanguageCodes: ['en', 'fr']
     });
     expect(currentUser().defaultLanguageCode).toBe('de');
-    expect(currentUser().preservedLanguageCodes).toEqual(['en']);
+    expect(currentUser().preservedLanguageCodes).toEqual(['en', 'fr']);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Language preferences saved.');
   });
 });

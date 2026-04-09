@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace SentinelKnowledgebase.Application.Localization;
+namespace SentinelKnowledgebase.Domain.Localization;
 
 public sealed class SupportedLanguageDefinition
 {

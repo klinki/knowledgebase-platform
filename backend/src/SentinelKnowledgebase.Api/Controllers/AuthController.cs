@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 using SentinelKnowledgebase.Application.DTOs.Auth;
-using SentinelKnowledgebase.Application.Localization;
-using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Api.Extensions;
+using SentinelKnowledgebase.Domain.Localization;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 
