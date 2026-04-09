@@ -1,0 +1,21 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.5",
+  "base_commit_sha": "f2d7c6e37534856f57399e91d672b88e384b4678",
+  "prompts": {
+    "c6be2543cf85de4d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d6f0e-4b61-7d83-9ffa-55961088d8fe",
+        "model": "gpt-5.4"
+      },
+      "human_author": "David Klingenberg",
+      "messages": [],
+      "total_additions": 18893,
+      "total_deletions": 140,
+      "accepted_lines": 18893,
+      "overriden_lines": 0
+    }
+  }
+}
