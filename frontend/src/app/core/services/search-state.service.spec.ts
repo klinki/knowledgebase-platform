@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { convertToParamMap } from '@angular/router';
 
-import { SearchStateService } from './search-state.service';
+import { SearchCriteria, SearchStateService } from './search-state.service';
 
 describe('SearchStateService', () => {
   let service: SearchStateService;
@@ -25,19 +26,85 @@ describe('SearchStateService', () => {
     TestBed.resetTestingModule();
   });
 
-  it('passes labels through semantic search results', async () => {
-    const searchPromise = service.search('language');
+  it('parses URL query params into search criteria', () => {
+    const criteria = service.parseQueryParams(convertToParamMap({
+      q: 'angular',
+      tag: ['frontend', 'angular'],
+      label: ['Language::English', 'Source::Docs'],
+      tagMode: 'all',
+      labelMode: 'any'
+    }));
 
-    const request = http.expectOne('http://localhost:5000/api/v1/search/semantic');
+    expect(criteria).toEqual({
+      query: 'angular',
+      tags: ['frontend', 'angular'],
+      tagMatchMode: 'all',
+      labels: [
+        { category: 'Language', value: 'English' },
+        { category: 'Source', value: 'Docs' }
+      ],
+      labelMatchMode: 'any',
+      limit: 20,
+      threshold: 0.3
+    });
+  });
+
+  it('builds URL query params from normalized search criteria', () => {
+    const criteria: SearchCriteria = {
+      query: '  angular  ',
+      tags: ['frontend', 'Frontend', 'angular'],
+      tagMatchMode: 'all',
+      labels: [
+        { category: 'Language', value: 'English' },
+        { category: ' Language ', value: ' English ' }
+      ],
+      labelMatchMode: 'all',
+      limit: 20,
+      threshold: 0.3
+    };
+
+    expect(service.buildQueryParams(criteria)).toEqual({
+      q: 'angular',
+      tag: ['frontend', 'angular'],
+      label: ['Language::English'],
+      tagMode: 'all',
+      labelMode: null
+    });
+  });
+
+  it('posts combined search payloads and normalizes results', async () => {
+    const criteria: SearchCriteria = {
+      query: 'angular',
+      tags: ['frontend'],
+      tagMatchMode: 'all',
+      labels: [{ category: 'Language', value: 'English' }],
+      labelMatchMode: 'any',
+      limit: 20,
+      threshold: 0.3
+    };
+
+    const searchPromise = service.search(criteria);
+
+    const request = http.expectOne('http://localhost:5000/api/v1/search');
     expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      query: 'angular',
+      tags: ['frontend'],
+      tagMatchMode: 'all',
+      labels: [{ category: 'Language', value: 'English' }],
+      labelMatchMode: 'any',
+      limit: 20,
+      threshold: 0.3
+    });
     request.flush([
       {
         id: 'result-1',
         title: 'Result',
-        summary: 'Summary',
+        summary: ' Summary ',
         sourceUrl: 'https://example.com/item',
+        processedAt: '2026-04-09T09:00:00Z',
         similarity: 0.92,
-        tags: ['alpha'],
+        tags: ['frontend'],
         labels: [{ category: 'Language', value: 'English' }]
       }
     ]);
@@ -48,12 +115,11 @@ describe('SearchStateService', () => {
       {
         id: 'result-1',
         title: 'Result',
-        sourceUrl: 'https://example.com/item',
-        capturedAt: null,
-        status: null,
-        tags: ['alpha'],
         summary: 'Summary',
+        sourceUrl: 'https://example.com/item',
+        processedAt: '2026-04-09T09:00:00Z',
         similarity: 0.92,
+        tags: ['frontend'],
         labels: [{ category: 'Language', value: 'English' }]
       }
     ]);

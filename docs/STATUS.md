@@ -16,6 +16,7 @@
 - [x] Frontend Direct Capture Creation (Ref: [docs/features/15-direct-capture-creation/feature-spec.md](features/15-direct-capture-creation/feature-spec.md))
 
 ## Backlog
+- [ ] Search Page (Ref: [docs/features/21-search-page/implementation-plan.md](features/21-search-page/implementation-plan.md))
 - [ ] Admin Capture Processing Control (Ref: [docs/features/19-admin-processing-control/implementation-plan.md](features/19-admin-processing-control/implementation-plan.md))
 - [ ] Preserved Languages (Ref: [docs/features/20-preserved-languages/implementation-plan.md](features/20-preserved-languages/implementation-plan.md))
 - [ ] Bulk Capture Import (Ref: [docs/features/18-bulk-capture-import/implementation-plan.md](features/18-bulk-capture-import/implementation-plan.md))

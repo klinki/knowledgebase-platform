@@ -45,6 +45,81 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<SearchRecord>> SearchAsync(
+        Guid ownerUserId,
+        float[]? queryEmbedding,
+        double threshold,
+        int limit,
+        IReadOnlyCollection<string> tags,
+        bool matchAllTags,
+        IReadOnlyCollection<LabelRecord> labels,
+        bool matchAllLabels)
+    {
+        var query = ApplyTagAndLabelFilters(
+            _context.ProcessedInsights
+                .AsNoTracking()
+                .Where(p => p.OwnerUserId == ownerUserId),
+            tags,
+            matchAllTags,
+            labels,
+            matchAllLabels);
+
+        if (queryEmbedding is not null)
+        {
+            var queryVector = new Vector(queryEmbedding);
+
+            return await query
+                .Where(p => p.EmbeddingVector != null)
+                .Select(p => new SearchRecord
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    Summary = p.Summary,
+                    SourceUrl = p.RawCapture.SourceUrl,
+                    ProcessedAt = p.ProcessedAt,
+                    Similarity = 1 - p.EmbeddingVector!.Vector.CosineDistance(queryVector),
+                    Tags = p.Tags.Select(t => t.Name).ToList(),
+                    Labels = p.LabelAssignments
+                        .OrderBy(a => a.LabelCategory.Name)
+                        .ThenBy(a => a.LabelValue.Value)
+                        .Select(a => new LabelRecord
+                        {
+                            Category = a.LabelCategory.Name,
+                            Value = a.LabelValue.Value
+                        })
+                        .ToList()
+                })
+                .Where(result => result.Similarity >= threshold)
+                .OrderByDescending(result => result.Similarity)
+                .Take(limit)
+                .ToListAsync();
+        }
+
+        return await query
+            .Select(p => new SearchRecord
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Summary = p.Summary,
+                SourceUrl = p.RawCapture.SourceUrl,
+                ProcessedAt = p.ProcessedAt,
+                Similarity = null,
+                Tags = p.Tags.Select(t => t.Name).ToList(),
+                Labels = p.LabelAssignments
+                    .OrderBy(a => a.LabelCategory.Name)
+                    .ThenBy(a => a.LabelValue.Value)
+                    .Select(a => new LabelRecord
+                    {
+                        Category = a.LabelCategory.Name,
+                        Value = a.LabelValue.Value
+                    })
+                    .ToList()
+            })
+            .OrderByDescending(result => result.ProcessedAt)
+            .Take(limit)
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold)
     {
         var queryVector = new Vector(queryEmbedding);
@@ -199,5 +274,69 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         {
             _context.ProcessedInsights.Remove(processedInsight);
         }
+    }
+
+    private static IQueryable<ProcessedInsight> ApplyTagAndLabelFilters(
+        IQueryable<ProcessedInsight> query,
+        IReadOnlyCollection<string> tags,
+        bool matchAllTags,
+        IReadOnlyCollection<LabelRecord> labels,
+        bool matchAllLabels)
+    {
+        var normalizedTags = tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedTags.Count > 0)
+        {
+            query = query.Where(p => p.Tags.Any(tag => normalizedTags.Contains(tag.Name)));
+
+            if (matchAllTags)
+            {
+                query = query.Where(p =>
+                    p.Tags
+                        .Where(tag => normalizedTags.Contains(tag.Name))
+                        .Select(tag => tag.Name)
+                        .Distinct()
+                        .Count() == normalizedTags.Count);
+            }
+        }
+
+        var normalizedLabels = labels
+            .Where(label =>
+                !string.IsNullOrWhiteSpace(label.Category) &&
+                !string.IsNullOrWhiteSpace(label.Value))
+            .Select(label => new LabelRecord
+            {
+                Category = label.Category.Trim(),
+                Value = label.Value.Trim()
+            })
+            .GroupBy(label => $"{label.Category}\u001f{label.Value}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (normalizedLabels.Count > 0)
+        {
+            var normalizedKeys = normalizedLabels
+                .Select(label => $"{label.Category}\u001f{label.Value}")
+                .ToList();
+
+            query = query.Where(p => p.LabelAssignments.Any(assignment =>
+                normalizedKeys.Contains(assignment.LabelCategory.Name + "\u001f" + assignment.LabelValue.Value)));
+
+            if (matchAllLabels)
+            {
+                query = query.Where(p =>
+                    p.LabelAssignments
+                        .Where(assignment => normalizedKeys.Contains(assignment.LabelCategory.Name + "\u001f" + assignment.LabelValue.Value))
+                        .Select(assignment => assignment.LabelCategory.Name + "\u001f" + assignment.LabelValue.Value)
+                        .Distinct()
+                        .Count() == normalizedKeys.Count);
+            }
+        }
+
+        return query;
     }
 }

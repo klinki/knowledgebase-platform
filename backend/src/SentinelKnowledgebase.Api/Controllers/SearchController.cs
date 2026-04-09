@@ -19,6 +19,38 @@ public class SearchController : ControllerBase
         _searchService = searchService;
         _logger = logger;
     }
+
+    [HttpPost]
+    [ProducesResponseType(typeof(IEnumerable<SearchResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Search([FromBody] SearchRequestDto request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var results = await _searchService.SearchAsync(userId, request);
+            return Ok(results);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Combined search request was invalid.");
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Combined search failed.");
+            return StatusCode(500, "An error occurred during search");
+        }
+    }
     
     [HttpPost("semantic")]
     [ProducesResponseType(typeof(IEnumerable<SemanticSearchResultDto>), StatusCodes.Status200OK)]

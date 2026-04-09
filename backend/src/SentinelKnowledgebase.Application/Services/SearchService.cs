@@ -7,6 +7,8 @@ namespace SentinelKnowledgebase.Application.Services;
 
 public class SearchService : ISearchService
 {
+    private const int DefaultLimit = 20;
+    private const double DefaultThreshold = 0.3;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     
@@ -14,6 +16,49 @@ public class SearchService : ISearchService
     {
         _unitOfWork = unitOfWork;
         _contentProcessor = contentProcessor;
+    }
+
+    public async Task<IEnumerable<SearchResultDto>> SearchAsync(Guid ownerUserId, SearchRequestDto request)
+    {
+        var normalizedQuery = NormalizeQuery(request.Query);
+        var normalizedTags = NormalizeTags(request.Tags);
+        var normalizedLabels = NormalizeLabels(request.Labels);
+
+        if (normalizedQuery is null && normalizedTags.Count == 0 && normalizedLabels.Count == 0)
+        {
+            throw new ArgumentException("At least one search criterion is required.", nameof(request));
+        }
+
+        var limit = request.Limit > 0 ? request.Limit : DefaultLimit;
+        var threshold = request.Threshold >= 0 ? request.Threshold : DefaultThreshold;
+        float[]? queryEmbedding = null;
+
+        if (normalizedQuery is not null)
+        {
+            queryEmbedding = await _contentProcessor.GenerateEmbeddingAsync(normalizedQuery);
+        }
+
+        var results = await _unitOfWork.ProcessedInsights.SearchAsync(
+            ownerUserId,
+            queryEmbedding,
+            threshold,
+            limit,
+            normalizedTags,
+            SearchMatchModes.IsAll(request.TagMatchMode),
+            normalizedLabels,
+            SearchMatchModes.IsAll(request.LabelMatchMode));
+
+        return results.Select(result => new SearchResultDto
+        {
+            Id = result.Id,
+            Title = result.Title,
+            Summary = result.Summary,
+            SourceUrl = result.SourceUrl,
+            ProcessedAt = result.ProcessedAt,
+            Tags = result.Tags,
+            Labels = MapLabels(result.Labels),
+            Similarity = result.Similarity
+        });
     }
     
     public async Task<IEnumerable<SemanticSearchResultDto>> SemanticSearchAsync(Guid ownerUserId, SemanticSearchRequestDto request)
@@ -84,6 +129,41 @@ public class SearchService : ISearchService
                 Category = label.Category,
                 Value = label.Value
             })
+            .ToList();
+    }
+
+    private static string? NormalizeQuery(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return null;
+        }
+
+        return query.Trim();
+    }
+
+    private static IReadOnlyList<string> NormalizeTags(IEnumerable<string>? tags)
+    {
+        return (tags ?? [])
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static IReadOnlyList<LabelRecord> NormalizeLabels(IEnumerable<LabelAssignmentDto>? labels)
+    {
+        return (labels ?? [])
+            .Where(label =>
+                !string.IsNullOrWhiteSpace(label.Category) &&
+                !string.IsNullOrWhiteSpace(label.Value))
+            .Select(label => new LabelRecord
+            {
+                Category = label.Category.Trim(),
+                Value = label.Value.Trim()
+            })
+            .GroupBy(label => $"{label.Category}\u001f{label.Value}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .ToList();
     }
 }

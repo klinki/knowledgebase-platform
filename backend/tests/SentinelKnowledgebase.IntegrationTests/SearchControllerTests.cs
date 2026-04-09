@@ -36,6 +36,21 @@ public class SearchControllerTests
     }
 
     [Fact]
+    public async Task Search_ShouldReturn401_WhenAnonymous()
+    {
+        using var client = _fixture.CreateClient();
+
+        var request = new SearchRequestDto
+        {
+            Query = "search"
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task SemanticSearch_ShouldReturnEmptyList_WhenAuthenticated()
     {
         using var client = await _fixture.CreateAuthenticatedClientAsync();
@@ -72,6 +87,23 @@ public class SearchControllerTests
         var content = await response.Content.ReadFromJsonAsync<List<TagSearchResultDto>>();
         content.Should().NotBeNull();
         content.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Search_WithEmptyCriteria_ShouldReturn400_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var request = new SearchRequestDto
+        {
+            Query = "   ",
+            Tags = [],
+            Labels = []
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
     }
     
     [Fact]
@@ -490,6 +522,225 @@ public class SearchControllerTests
         memberResults.Should().NotBeNull();
         memberResults!.Should().ContainSingle(result => result.Id == memberInsightId);
         memberResults.Should().NotContain(result => result.Id == adminInsightId);
+    }
+
+    [Fact]
+    public async Task Search_ShouldCombineSemanticAndTagFilters_ForAuthenticatedUser()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+
+        var matchingInsightId = Guid.NewGuid();
+        var excludedInsightId = Guid.NewGuid();
+        var sharedEmbedding = new Vector(CreateDeterministicEmbedding());
+        var keepTag = $"keep-{Guid.NewGuid():N}";
+        var dropTag = $"drop-{Guid.NewGuid():N}";
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var keep = new Tag
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                Name = keepTag,
+                CreatedAt = DateTime.UtcNow
+            };
+            var drop = new Tag
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                Name = dropTag,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var matchingCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/combined-match/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Combined search matching capture.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow,
+                ProcessedAt = DateTime.UtcNow
+            };
+
+            var excludedCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/combined-drop/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Combined search excluded capture.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow,
+                ProcessedAt = DateTime.UtcNow
+            };
+
+            var matchingInsight = new ProcessedInsight
+            {
+                Id = matchingInsightId,
+                OwnerUserId = adminUserId,
+                RawCaptureId = matchingCapture.Id,
+                Title = "Matching Combined Insight",
+                Summary = "Should remain after filtering",
+                ProcessedAt = DateTime.UtcNow,
+                Tags = [keep]
+            };
+
+            var excludedInsight = new ProcessedInsight
+            {
+                Id = excludedInsightId,
+                OwnerUserId = adminUserId,
+                RawCaptureId = excludedCapture.Id,
+                Title = "Excluded Combined Insight",
+                Summary = "Should be filtered out",
+                ProcessedAt = DateTime.UtcNow,
+                Tags = [drop]
+            };
+
+            dbContext.RawCaptures.AddRange(matchingCapture, excludedCapture);
+            dbContext.ProcessedInsights.AddRange(matchingInsight, excludedInsight);
+            dbContext.EmbeddingVectors.AddRange(
+                new EmbeddingVector
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessedInsightId = matchingInsightId,
+                    Vector = sharedEmbedding
+                },
+                new EmbeddingVector
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessedInsightId = excludedInsightId,
+                    Vector = sharedEmbedding
+                });
+
+            await Task.CompletedTask;
+        });
+
+        var request = new SearchRequestDto
+        {
+            Query = "combined search query",
+            Tags = [keepTag],
+            TagMatchMode = SearchMatchModes.All,
+            Limit = 10,
+            Threshold = 0.5
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<List<SearchResultDto>>();
+        results.Should().NotBeNull();
+        results!.Should().ContainSingle(result => result.Id == matchingInsightId);
+        results.Should().NotContain(result => result.Id == excludedInsightId);
+        results.Single().Similarity.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Search_ShouldReturnLabelOnlyResults_InProcessedAtOrder()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var olderInsightId = Guid.NewGuid();
+        var newerInsightId = Guid.NewGuid();
+        var categoryName = $"Language-{Guid.NewGuid():N}";
+        var labelValue = $"English-{Guid.NewGuid():N}";
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var category = new LabelCategory
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                Name = categoryName
+            };
+            var value = new LabelValue
+            {
+                Id = Guid.NewGuid(),
+                LabelCategoryId = category.Id,
+                LabelCategory = category,
+                Value = labelValue
+            };
+
+            var olderCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/older/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Older label search content.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-2),
+                ProcessedAt = DateTime.UtcNow.AddDays(-2)
+            };
+
+            var newerCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/newer/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Newer label search content.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                ProcessedAt = DateTime.UtcNow.AddDays(-1)
+            };
+
+            var olderInsight = new ProcessedInsight
+            {
+                Id = olderInsightId,
+                OwnerUserId = adminUserId,
+                RawCaptureId = olderCapture.Id,
+                Title = "Older Label Insight",
+                Summary = "Older summary",
+                ProcessedAt = DateTime.UtcNow.AddDays(-2)
+            };
+            olderInsight.LabelAssignments.Add(new ProcessedInsightLabelAssignment
+            {
+                ProcessedInsightId = olderInsightId,
+                LabelCategoryId = category.Id,
+                LabelCategory = category,
+                LabelValueId = value.Id,
+                LabelValue = value
+            });
+
+            var newerInsight = new ProcessedInsight
+            {
+                Id = newerInsightId,
+                OwnerUserId = adminUserId,
+                RawCaptureId = newerCapture.Id,
+                Title = "Newer Label Insight",
+                Summary = "Newer summary",
+                ProcessedAt = DateTime.UtcNow.AddDays(-1)
+            };
+            newerInsight.LabelAssignments.Add(new ProcessedInsightLabelAssignment
+            {
+                ProcessedInsightId = newerInsightId,
+                LabelCategoryId = category.Id,
+                LabelCategory = category,
+                LabelValueId = value.Id,
+                LabelValue = value
+            });
+
+            dbContext.RawCaptures.AddRange(olderCapture, newerCapture);
+            dbContext.ProcessedInsights.AddRange(olderInsight, newerInsight);
+            await Task.CompletedTask;
+        });
+
+        var request = new SearchRequestDto
+        {
+            Labels = [new LabelAssignmentDto { Category = categoryName, Value = labelValue }],
+            LabelMatchMode = SearchMatchModes.All
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<List<SearchResultDto>>();
+        results.Should().NotBeNull();
+        results!.Select(result => result.Id).Should().ContainInOrder(newerInsightId, olderInsightId);
+        results.Should().OnlyContain(result => result.Similarity == null);
     }
 
     private static float[] CreateDeterministicEmbedding()

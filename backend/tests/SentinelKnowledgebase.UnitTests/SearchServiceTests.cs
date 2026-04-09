@@ -11,6 +11,8 @@ namespace SentinelKnowledgebase.UnitTests;
 
 public class SearchServiceTests
 {
+    private const string AnyMatch = SearchMatchModes.Any;
+    private const string AllMatch = SearchMatchModes.All;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly SearchService _service;
@@ -183,5 +185,104 @@ public class SearchServiceTests
 
         result.Should().ContainSingle();
         result.First().Labels.Should().ContainSingle(label => label.Category == "Language" && label.Value == "English");
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldGenerateEmbeddingAndMapCombinedResults_WhenQueryIsPresent()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new SearchRequestDto
+        {
+            Query = "  language search  ",
+            Tags = ["alpha", " alpha "],
+            TagMatchMode = AllMatch,
+            Labels =
+            [
+                new LabelAssignmentDto { Category = "Language", Value = "English" },
+                new LabelAssignmentDto { Category = " language ", Value = " English " }
+            ],
+            LabelMatchMode = AnyMatch,
+            Limit = 15,
+            Threshold = 0.42
+        };
+
+        var queryEmbedding = new[] { 0.1f, 0.2f, 0.3f };
+        _contentProcessor.GenerateEmbeddingAsync("language search").Returns(queryEmbedding);
+
+        _unitOfWork.ProcessedInsights.SearchAsync(
+                ownerUserId,
+                queryEmbedding,
+                request.Threshold,
+                request.Limit,
+                Arg.Is<IReadOnlyCollection<string>>(tags => tags.Count == 1 && tags.Single() == "alpha"),
+                true,
+                Arg.Is<IReadOnlyCollection<LabelRecord>>(labels =>
+                    labels.Count == 1 &&
+                    labels.Single().Category == "Language" &&
+                    labels.Single().Value == "English"),
+                false)
+            .Returns(new List<SearchRecord>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Combined Result",
+                    Summary = "Summary",
+                    SourceUrl = "https://example.com/combined",
+                    ProcessedAt = DateTime.UtcNow,
+                    Similarity = 0.97,
+                    Tags = ["alpha"],
+                    Labels = [new LabelRecord { Category = "Language", Value = "English" }]
+                }
+            });
+
+        var result = await _service.SearchAsync(ownerUserId, request);
+
+        result.Should().ContainSingle();
+        result.First().Similarity.Should().Be(0.97);
+        await _contentProcessor.Received(1).GenerateEmbeddingAsync("language search");
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldSkipEmbedding_WhenOnlyStructuredFiltersArePresent()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new SearchRequestDto
+        {
+            Tags = ["alpha"],
+            TagMatchMode = AnyMatch
+        };
+
+        _unitOfWork.ProcessedInsights.SearchAsync(
+                ownerUserId,
+                null,
+                request.Threshold,
+                request.Limit,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                false,
+                Arg.Any<IReadOnlyCollection<LabelRecord>>(),
+                true)
+            .Returns(Enumerable.Empty<SearchRecord>());
+
+        var result = await _service.SearchAsync(ownerUserId, request);
+
+        result.Should().BeEmpty();
+        await _contentProcessor.DidNotReceive().GenerateEmbeddingAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldThrow_WhenNormalizationLeavesNoUsableCriteria()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new SearchRequestDto
+        {
+            Query = "   ",
+            Tags = ["   "],
+            Labels = [new LabelAssignmentDto { Category = " ", Value = " " }]
+        };
+
+        var act = () => _service.SearchAsync(ownerUserId, request);
+
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 }

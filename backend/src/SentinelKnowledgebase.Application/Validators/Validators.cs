@@ -128,3 +128,57 @@ public class LabelSearchRequestValidator : AbstractValidator<DTOs.Search.LabelSe
             .SetValidator(new LabelAssignmentValidator());
     }
 }
+
+public class SearchRequestValidator : AbstractValidator<DTOs.Search.SearchRequestDto>
+{
+    public SearchRequestValidator()
+    {
+        RuleFor(x => x.Query)
+            .MaximumLength(1000)
+            .When(x => x.Query is not null);
+
+        RuleForEach(x => x.Tags)
+            .NotEmpty()
+            .MaximumLength(100);
+
+        RuleFor(x => x.TagMatchMode)
+            .Must(DTOs.Search.SearchMatchModes.IsValid)
+            .WithMessage("Tag match mode must be any or all.");
+
+        RuleForEach(x => x.Labels)
+            .SetValidator(new LabelAssignmentValidator());
+
+        RuleFor(x => x.LabelMatchMode)
+            .Must(DTOs.Search.SearchMatchModes.IsValid)
+            .WithMessage("Label match mode must be any or all.");
+
+        RuleFor(x => x.Limit)
+            .GreaterThan(0)
+            .LessThanOrEqualTo(100);
+
+        RuleFor(x => x.Threshold)
+            .GreaterThanOrEqualTo(0)
+            .LessThanOrEqualTo(1);
+
+        RuleFor(x => x)
+            .Must(HasAtLeastOneCriterion)
+            .WithMessage("At least one search criterion is required.");
+    }
+
+    private static bool HasAtLeastOneCriterion(DTOs.Search.SearchRequestDto request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.Query))
+        {
+            return true;
+        }
+
+        if (request.Tags.Any(tag => !string.IsNullOrWhiteSpace(tag)))
+        {
+            return true;
+        }
+
+        return request.Labels.Any(label =>
+            !string.IsNullOrWhiteSpace(label.Category) &&
+            !string.IsNullOrWhiteSpace(label.Value));
+    }
+}

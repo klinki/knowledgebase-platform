@@ -91,6 +91,17 @@ export interface SemanticSearchResult {
   labels: LabelAssignment[];
 }
 
+export interface SearchResult {
+  id: string;
+  title: string;
+  summary: string | null;
+  sourceUrl: string;
+  processedAt: string | null;
+  tags: string[];
+  labels: LabelAssignment[];
+  similarity: number | null;
+}
+
 export interface CaptureListItem {
   id: string;
   sourceUrl: string;

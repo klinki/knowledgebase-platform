@@ -14,6 +14,7 @@ public class ValidatorTests
     private readonly SemanticSearchRequestValidator _semanticSearchValidator;
     private readonly TagSearchRequestValidator _tagSearchValidator;
     private readonly LabelSearchRequestValidator _labelSearchValidator;
+    private readonly SearchRequestValidator _searchRequestValidator;
     
     public ValidatorTests()
     {
@@ -22,6 +23,7 @@ public class ValidatorTests
         _semanticSearchValidator = new SemanticSearchRequestValidator();
         _tagSearchValidator = new TagSearchRequestValidator();
         _labelSearchValidator = new LabelSearchRequestValidator();
+        _searchRequestValidator = new SearchRequestValidator();
     }
     
     [Fact]
@@ -289,5 +291,49 @@ public class ValidatorTests
         var result = _labelSearchValidator.Validate(request);
 
         result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SearchRequest_WithQueryOnly_ShouldPassValidation()
+    {
+        var request = new SearchRequestDto
+        {
+            Query = "semantic query"
+        };
+
+        var result = _searchRequestValidator.Validate(request);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SearchRequest_WithEmptyCriteria_ShouldFailValidation()
+    {
+        var request = new SearchRequestDto
+        {
+            Query = "   ",
+            Tags = [],
+            Labels = []
+        };
+
+        var result = _searchRequestValidator.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.ErrorMessage.Contains("At least one search criterion"));
+    }
+
+    [Fact]
+    public void SearchRequest_WithInvalidMatchMode_ShouldFailValidation()
+    {
+        var request = new SearchRequestDto
+        {
+            Tags = ["alpha"],
+            TagMatchMode = "partial"
+        };
+
+        var result = _searchRequestValidator.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName == "TagMatchMode");
     }
 }

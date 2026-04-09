@@ -59,11 +59,32 @@ public interface IProcessedInsightRepository
     Task<ProcessedInsight> AddAsync(ProcessedInsight processedInsight);
     Task<ProcessedInsight?> GetByIdAsync(Guid id);
     Task<IEnumerable<ProcessedInsight>> GetAllAsync();
+    Task<IEnumerable<SearchRecord>> SearchAsync(
+        Guid ownerUserId,
+        float[]? queryEmbedding,
+        double threshold,
+        int limit,
+        IReadOnlyCollection<string> tags,
+        bool matchAllTags,
+        IReadOnlyCollection<LabelRecord> labels,
+        bool matchAllLabels);
     Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold);
     Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(Guid ownerUserId, IReadOnlyCollection<string> tags, bool matchAll);
     Task<IEnumerable<LabelSearchRecord>> SearchByLabelsAsync(Guid ownerUserId, IReadOnlyCollection<LabelRecord> labels, bool matchAll);
     Task UpdateAsync(ProcessedInsight processedInsight);
     Task DeleteAsync(Guid id);
+}
+
+public class SearchRecord
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public DateTime ProcessedAt { get; set; }
+    public double? Similarity { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public List<LabelRecord> Labels { get; set; } = new();
 }
 
 public class SemanticSearchRecord

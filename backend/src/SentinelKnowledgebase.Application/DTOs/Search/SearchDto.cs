@@ -53,3 +53,43 @@ public class LabelSearchResultDto
     public List<LabelAssignmentDto> Labels { get; set; } = new();
     public DateTime ProcessedAt { get; set; }
 }
+
+public static class SearchMatchModes
+{
+    public const string Any = "any";
+    public const string All = "all";
+
+    public static bool IsValid(string? value)
+    {
+        return string.Equals(value, Any, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, All, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsAll(string? value)
+    {
+        return string.Equals(value, All, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class SearchRequestDto
+{
+    public string? Query { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public string TagMatchMode { get; set; } = SearchMatchModes.Any;
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
+    public string LabelMatchMode { get; set; } = SearchMatchModes.All;
+    public int Limit { get; set; } = 20;
+    public double Threshold { get; set; } = 0.3;
+}
+
+public class SearchResultDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public DateTime ProcessedAt { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
+    public double? Similarity { get; set; }
+}

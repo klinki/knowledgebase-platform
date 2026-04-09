@@ -6,10 +6,9 @@ import { DashboardComponent } from './dashboard.component';
 import { AdminProcessingStateService } from '../../core/services/admin-processing-state.service';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
-import { SearchStateService } from '../../core/services/search-state.service';
 
 describe('DashboardComponent', () => {
-  it('renders label chips on recent captures', async () => {
+  it('renders label chips on recent captures and no inline search box', async () => {
     const dashboardStateStub = {
       loading: signal(false),
       error: signal<string | null>(null),
@@ -49,14 +48,6 @@ describe('DashboardComponent', () => {
       resumeProcessing: vi.fn().mockResolvedValue(undefined)
     };
 
-    const searchStateStub = {
-      results: signal([]),
-      loading: signal(false),
-      error: signal<string | null>(null),
-      clear: vi.fn(),
-      search: vi.fn()
-    };
-
     const authServiceStub = {
       currentUser: signal({
         id: 'user-1',
@@ -74,8 +65,7 @@ describe('DashboardComponent', () => {
         provideRouter([]),
         { provide: AuthService, useValue: authServiceStub },
         { provide: AdminProcessingStateService, useValue: adminProcessingStateStub },
-        { provide: DashboardStateService, useValue: dashboardStateStub },
-        { provide: SearchStateService, useValue: searchStateStub }
+        { provide: DashboardStateService, useValue: dashboardStateStub }
       ]
     }).compileComponents();
 
@@ -83,7 +73,10 @@ describe('DashboardComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Language: English');
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Language: English');
+    expect(compiled.textContent).toContain('Open search');
+    expect(compiled.textContent).not.toContain('Search across your knowledge');
   });
 
   it('renders the admin processing panel for admins', async () => {
@@ -121,13 +114,6 @@ describe('DashboardComponent', () => {
       pauseProcessing: vi.fn().mockResolvedValue(undefined),
       resumeProcessing: vi.fn().mockResolvedValue(undefined)
     };
-    const searchStateStub = {
-      results: signal([]),
-      loading: signal(false),
-      error: signal<string | null>(null),
-      clear: vi.fn(),
-      search: vi.fn()
-    };
     const authServiceStub = {
       currentUser: signal({
         id: 'admin-1',
@@ -145,8 +131,7 @@ describe('DashboardComponent', () => {
         provideRouter([]),
         { provide: AuthService, useValue: authServiceStub },
         { provide: AdminProcessingStateService, useValue: adminProcessingStateStub },
-        { provide: DashboardStateService, useValue: dashboardStateStub },
-        { provide: SearchStateService, useValue: searchStateStub }
+        { provide: DashboardStateService, useValue: dashboardStateStub }
       ]
     }).compileComponents();
 
@@ -183,13 +168,6 @@ describe('DashboardComponent', () => {
       pauseProcessing: vi.fn().mockResolvedValue(undefined),
       resumeProcessing: vi.fn().mockResolvedValue(undefined)
     };
-    const searchStateStub = {
-      results: signal([]),
-      loading: signal(false),
-      error: signal<string | null>(null),
-      clear: vi.fn(),
-      search: vi.fn()
-    };
     const authServiceStub = {
       currentUser: signal({
         id: 'admin-1',
@@ -207,8 +185,7 @@ describe('DashboardComponent', () => {
         provideRouter([]),
         { provide: AuthService, useValue: authServiceStub },
         { provide: AdminProcessingStateService, useValue: adminProcessingStateStub },
-        { provide: DashboardStateService, useValue: dashboardStateStub },
-        { provide: SearchStateService, useValue: searchStateStub }
+        { provide: DashboardStateService, useValue: dashboardStateStub }
       ]
     }).compileComponents();
 
