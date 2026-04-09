@@ -19,6 +19,7 @@ public class CaptureServiceTests
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
+    private readonly IUserLanguagePreferencesService _userLanguagePreferencesService;
     private readonly IMonitoringService _monitoringService;
     private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
     private readonly IBackgroundJobClient _backgroundJobClient;
@@ -29,6 +30,7 @@ public class CaptureServiceTests
     {
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _contentProcessor = Substitute.For<IContentProcessor>();
+        _userLanguagePreferencesService = Substitute.For<IUserLanguagePreferencesService>();
         _monitoringService = Substitute.For<IMonitoringService>();
         _captureProcessingAdminService = Substitute.For<ICaptureProcessingAdminService>();
         _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
@@ -36,6 +38,7 @@ public class CaptureServiceTests
         _service = new CaptureService(
             _unitOfWork,
             _contentProcessor,
+            _userLanguagePreferencesService,
             _monitoringService,
             _captureProcessingAdminService,
             _backgroundJobClient,
@@ -51,6 +54,12 @@ public class CaptureServiceTests
             .Returns(1);
         _captureProcessingAdminService.IsPausedAsync()
             .Returns(false);
+        _userLanguagePreferencesService.GetAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(new UserLanguagePreferencesSnapshot
+            {
+                DefaultLanguageCode = "en",
+                PreservedLanguageCodes = []
+            });
         _backgroundJobClient.Create(Arg.Any<Job>(), Arg.Any<IState>())
             .Returns("job-1");
     }
@@ -414,7 +423,7 @@ public class CaptureServiceTests
 
         _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId).Returns(rawCapture);
         _contentProcessor.DenoiseContent(rawCapture.RawContent).Returns(rawCapture.RawContent);
-        _contentProcessor.ExtractInsightsAsync(rawCapture.RawContent, rawCapture.ContentType)
+        _contentProcessor.ExtractInsightsAsync(rawCapture.RawContent, rawCapture.ContentType, Arg.Any<string?>())
             .Returns(new ContentInsights
             {
                 Title = "Processed title",

@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 using SentinelKnowledgebase.Application.DTOs.Auth;
+using SentinelKnowledgebase.Application.Localization;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Api.Extensions;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
@@ -23,18 +25,21 @@ public class AuthController : ControllerBase
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly TokenService _tokenService;
     private readonly AuthOptions _authOptions;
+    private readonly IUserLanguagePreferencesService _userLanguagePreferencesService;
 
     public AuthController(
         ApplicationDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         TokenService tokenService,
+        IUserLanguagePreferencesService userLanguagePreferencesService,
         IOptions<AuthOptions> authOptions)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _signInManager = signInManager;
         _tokenService = tokenService;
+        _userLanguagePreferencesService = userLanguagePreferencesService;
         _authOptions = authOptions.Value;
     }
 
@@ -86,6 +91,49 @@ public class AuthController : ControllerBase
         }
 
         return Ok(await BuildAuthUserAsync(user));
+    }
+
+    [Authorize]
+    [HttpGet("preferences")]
+    [ProducesResponseType(typeof(UserLanguagePreferencesDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserLanguagePreferencesDto>> GetPreferences()
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var preferences = await _userLanguagePreferencesService.GetAsync(user.Id, GetAcceptLanguageHeader());
+        return Ok(BuildPreferencesDto(preferences));
+    }
+
+    [Authorize]
+    [HttpPut("preferences")]
+    [ProducesResponseType(typeof(UserLanguagePreferencesDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserLanguagePreferencesDto>> UpdatePreferences([FromBody] UpdateUserLanguagePreferencesRequestDto request)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var preferences = await _userLanguagePreferencesService.UpdateAsync(
+                user.Id,
+                request.DefaultLanguageCode,
+                request.PreservedLanguageCodes);
+            return Ok(BuildPreferencesDto(preferences));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
     }
 
     [Authorize(Policy = "AdminOnly")]
@@ -437,12 +485,31 @@ public class AuthController : ControllerBase
     private async Task<AuthUserDto> BuildAuthUserAsync(ApplicationUser user)
     {
         var role = await GetPrimaryRoleAsync(user);
+        var preferences = await _userLanguagePreferencesService.GetAsync(user.Id, GetAcceptLanguageHeader());
         return new AuthUserDto
         {
             Id = user.Id,
             Email = user.Email ?? string.Empty,
             DisplayName = user.DisplayName,
-            Role = role
+            Role = role,
+            DefaultLanguageCode = preferences.DefaultLanguageCode,
+            PreservedLanguageCodes = preferences.PreservedLanguageCodes.ToList()
+        };
+    }
+
+    private static UserLanguagePreferencesDto BuildPreferencesDto(UserLanguagePreferencesSnapshot preferences)
+    {
+        return new UserLanguagePreferencesDto
+        {
+            DefaultLanguageCode = preferences.DefaultLanguageCode,
+            PreservedLanguageCodes = preferences.PreservedLanguageCodes.ToList(),
+            SupportedLanguages = LanguageCatalog.SupportedLanguages
+                .Select(language => new SupportedLanguageDto
+                {
+                    Code = language.Code,
+                    DisplayName = language.DisplayName
+                })
+                .ToList()
         };
     }
 
@@ -490,5 +557,10 @@ public class AuthController : ControllerBase
         Span<byte> bytes = stackalloc byte[4];
         RandomNumberGenerator.Fill(bytes);
         return $"{Convert.ToHexString(bytes[..2])}-{Convert.ToHexString(bytes[2..]).ToUpperInvariant()}";
+    }
+
+    private string? GetAcceptLanguageHeader()
+    {
+        return Request.Headers.AcceptLanguage.ToString();
     }
 }

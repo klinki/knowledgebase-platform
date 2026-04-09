@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SentinelKnowledgebase.Application.Localization;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Enums;
 
@@ -42,9 +43,12 @@ public class ContentProcessor : IContentProcessor
         return string.Join("\n", meaningfulLines);
     }
     
-    public async Task<ContentInsights> ExtractInsightsAsync(string content, ContentType contentType)
+    public async Task<ContentInsights> ExtractInsightsAsync(
+        string content,
+        ContentType contentType,
+        string? outputLanguageCode = null)
     {
-        var prompt = GeneratePrompt(content, contentType);
+        var prompt = GeneratePrompt(content, contentType, outputLanguageCode);
         EnsureOpenAiApiKeyConfigured();
         return await CallOpenAIForInsights(prompt);
     }
@@ -105,7 +109,7 @@ public class ContentProcessor : IContentProcessor
         }
     }
     
-    private string GeneratePrompt(string content, ContentType contentType)
+    private string GeneratePrompt(string content, ContentType contentType, string? outputLanguageCode)
     {
         var typeSpecificInstructions = contentType switch
         {
@@ -114,6 +118,10 @@ public class ContentProcessor : IContentProcessor
             ContentType.Code => "Explain what this code does, its purpose, and any important technical details.",
             _ => "Extract the key information and insights from this content."
         };
+
+        var languageInstruction = string.IsNullOrWhiteSpace(outputLanguageCode)
+            ? "Keep the generated title, summary, key insights, and action items in the original language of the content. Do not translate SourceTitle or Author."
+            : $"Write the generated title, summary, key insights, and action items in {LanguageCatalog.GetDisplayName(outputLanguageCode) ?? outputLanguageCode}. Keep SourceTitle and Author in the original language of the content and do not translate them.";
         
         return $@"Analyze the following content and provide a JSON response with:
 1. A concise title (max 100 characters)
@@ -124,6 +132,7 @@ public class ContentProcessor : IContentProcessor
 6. Author name if available
 
 {typeSpecificInstructions}
+{languageInstruction}
 
 Content:
 {content}

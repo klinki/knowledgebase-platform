@@ -11,6 +11,7 @@ describe('app routes', () => {
     expect(shellRoute?.children?.some(route => route.path === 'captures')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === 'captures/:id')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === 'labels')).toBe(true);
+    expect(shellRoute?.children?.some(route => route.path === 'settings')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === 'tags')).toBe(true);
     expect(shellRoute?.children?.some(route => route.path === '**')).toBe(true);
   });

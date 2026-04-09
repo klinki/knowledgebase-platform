@@ -1,11 +1,11 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.Json;
 using Hangfire;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using Microsoft.Extensions.Logging;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Application.Localization;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
@@ -18,6 +18,7 @@ public class CaptureService : ICaptureService
     private const string ProcessingErrorMetadataKey = "lastProcessingError";
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
+    private readonly IUserLanguagePreferencesService _userLanguagePreferencesService;
     private readonly IMonitoringService _monitoringService;
     private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
     private readonly IBackgroundJobClient _backgroundJobClient;
@@ -26,6 +27,7 @@ public class CaptureService : ICaptureService
     public CaptureService(
         IUnitOfWork unitOfWork,
         IContentProcessor contentProcessor,
+        IUserLanguagePreferencesService userLanguagePreferencesService,
         IMonitoringService monitoringService,
         ICaptureProcessingAdminService captureProcessingAdminService,
         IBackgroundJobClient backgroundJobClient,
@@ -33,6 +35,7 @@ public class CaptureService : ICaptureService
     {
         _unitOfWork = unitOfWork;
         _contentProcessor = contentProcessor;
+        _userLanguagePreferencesService = userLanguagePreferencesService;
         _monitoringService = monitoringService;
         _captureProcessingAdminService = captureProcessingAdminService;
         _backgroundJobClient = backgroundJobClient;
@@ -214,7 +217,20 @@ public class CaptureService : ICaptureService
                 rawCapture.RawContent.Length,
                 deNoisedContent.Length);
 
-            var insights = await _contentProcessor.ExtractInsightsAsync(deNoisedContent, rawCapture.ContentType);
+            var languagePreferences = await _userLanguagePreferencesService.GetAsync(rawCapture.OwnerUserId);
+            var sourceLanguageCode = GetSourceLanguageCode(rawCapture.Metadata);
+            var outputLanguageCode = ResolveInsightOutputLanguageCode(sourceLanguageCode, languagePreferences);
+
+            _logger.LogInformation(
+                "Capture {RawCaptureId} will generate insights in {OutputLanguageCode} from source language {SourceLanguageCode}",
+                rawCaptureId,
+                outputLanguageCode ?? "source",
+                sourceLanguageCode ?? "unknown");
+
+            var insights = await _contentProcessor.ExtractInsightsAsync(
+                deNoisedContent,
+                rawCapture.ContentType,
+                outputLanguageCode);
             _logger.LogInformation(
                 "Capture {RawCaptureId} produced insights with title '{Title}'",
                 rawCaptureId,
@@ -558,8 +574,7 @@ public class CaptureService : ICaptureService
 
         if (source == "webpage")
         {
-            var language = GetMetadataString(request.Metadata, "metadata", "language");
-            var normalizedLanguage = NormalizeLanguage(language);
+            var normalizedLanguage = GetSourceLanguageDisplayName(request.Metadata);
             if (!string.IsNullOrWhiteSpace(normalizedLanguage))
             {
                 yield return new LabelAssignmentDto
@@ -571,29 +586,49 @@ public class CaptureService : ICaptureService
         }
     }
 
-    private static string? NormalizeLanguage(string? language)
+    private static string? GetSourceLanguageCode(string? metadata)
     {
-        if (string.IsNullOrWhiteSpace(language))
+        var language = GetMetadataString(metadata, "metadata", "language")
+            ?? GetMetadataString(metadata, "language");
+
+        return LanguageCatalog.NormalizeToBaseLanguageCode(language);
+    }
+
+    private static string? GetSourceLanguageDisplayName(string? metadata)
+    {
+        var sourceLanguageCode = GetSourceLanguageCode(metadata);
+        if (!string.IsNullOrWhiteSpace(sourceLanguageCode))
+        {
+            return LanguageCatalog.GetDisplayName(sourceLanguageCode);
+        }
+
+        var rawLanguage = GetMetadataString(metadata, "metadata", "language")
+            ?? GetMetadataString(metadata, "language");
+        return string.IsNullOrWhiteSpace(rawLanguage)
+            ? null
+            : rawLanguage.Trim();
+    }
+
+    private static string? ResolveInsightOutputLanguageCode(
+        string? sourceLanguageCode,
+        UserLanguagePreferencesSnapshot languagePreferences)
+    {
+        if (string.IsNullOrWhiteSpace(sourceLanguageCode))
         {
             return null;
         }
 
-        var normalized = language.Trim();
-        try
+        if (string.Equals(sourceLanguageCode, languagePreferences.DefaultLanguageCode, StringComparison.OrdinalIgnoreCase))
         {
-            var culture = CultureInfo.GetCultureInfo(normalized.Replace('_', '-'));
-            if (!string.IsNullOrWhiteSpace(culture.Parent?.EnglishName) &&
-                !string.Equals(culture.Parent.Name, string.Empty, StringComparison.Ordinal))
-            {
-                return culture.Parent.EnglishName;
-            }
+            return sourceLanguageCode;
+        }
 
-            return culture.EnglishName;
-        }
-        catch (CultureNotFoundException)
+        if (languagePreferences.PreservedLanguageCodes.Contains(sourceLanguageCode, StringComparer.OrdinalIgnoreCase))
         {
-            return normalized;
+            return sourceLanguageCode;
         }
+
+        return languagePreferences.DefaultLanguageCode;
     }
 
     private static string? GetMetadataString(string? metadata, params string[] path)

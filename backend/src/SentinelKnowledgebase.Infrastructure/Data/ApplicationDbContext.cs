@@ -25,6 +25,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<UserInvitation> UserInvitations { get; set; }
     public DbSet<DeviceAuthorization> DeviceAuthorizations { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<UserPreservedLanguage> UserPreservedLanguages { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -195,6 +196,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(e => e.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.DefaultLanguageCode).HasMaxLength(16);
+            entity.HasMany(e => e.PreservedLanguages)
+                .WithOne(e => e.User)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserPreservedLanguage>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.LanguageCode });
+            entity.Property(e => e.LanguageCode).HasMaxLength(16).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<UserInvitation>(entity =>

@@ -12,6 +12,7 @@ using Pgvector.EntityFrameworkCore;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure.Repositories;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 
 namespace SentinelKnowledgebase.Infrastructure;
 
@@ -120,6 +121,7 @@ public static class DependencyInjection
         services.AddScoped<IEmbeddingVectorRepository, EmbeddingVectorRepository>();
         services.AddScoped<TokenService>();
         services.AddScoped<IdentityBootstrapper>();
+        services.AddScoped<IUserLanguagePreferencesService, UserLanguagePreferencesService>();
         
         return services;
     }

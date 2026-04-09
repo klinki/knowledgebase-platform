@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 using SentinelKnowledgebase.Application.DTOs.Auth;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Infrastructure.Authentication;
@@ -191,25 +192,47 @@ public class IntegrationTestCollection : ICollectionFixture<IntegrationTestFixtu
 
 internal sealed class FakeContentProcessor : IContentProcessor
 {
+    private static readonly ConcurrentQueue<string> EmbeddingInputs = new();
+
+    public static void ResetObservations()
+    {
+        while (EmbeddingInputs.TryDequeue(out _))
+        {
+        }
+    }
+
+    public static IReadOnlyList<string> GetEmbeddingInputs()
+    {
+        return EmbeddingInputs.ToArray();
+    }
+
     public string DenoiseContent(string content)
     {
         return content.Trim();
     }
 
-    public Task<ContentInsights> ExtractInsightsAsync(string content, ContentType contentType)
+    public Task<ContentInsights> ExtractInsightsAsync(
+        string content,
+        ContentType contentType,
+        string? outputLanguageCode = null)
     {
+        var languageMarker = string.IsNullOrWhiteSpace(outputLanguageCode) ? "source" : outputLanguageCode;
         return Task.FromResult(new ContentInsights
         {
-            Title = $"{contentType} insight",
-            Summary = content,
-            KeyInsights = ["Insight"],
-            ActionItems = ["Action"]
+            Title = $"{contentType} insight [{languageMarker}]",
+            Summary = $"[{languageMarker}] {content}",
+            KeyInsights = [$"Insight [{languageMarker}]"],
+            ActionItems = [$"Action [{languageMarker}]"],
+            SourceTitle = $"Original title for {contentType}",
+            Author = "Original author"
         });
     }
 
     public Task<float[]> GenerateEmbeddingAsync(string text)
     {
-        var random = new Random(42);
+        EmbeddingInputs.Enqueue(text);
+
+        var random = new Random(text.GetHashCode(StringComparison.Ordinal));
         var vector = new float[1536];
 
         for (var index = 0; index < vector.Length; index++)

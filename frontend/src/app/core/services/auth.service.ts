@@ -10,6 +10,24 @@ export interface User {
   email: string;
   displayName: string;
   role: string;
+  defaultLanguageCode: string;
+  preservedLanguageCodes: string[];
+}
+
+export interface SupportedLanguage {
+  code: string;
+  displayName: string;
+}
+
+export interface UserLanguagePreferences {
+  defaultLanguageCode: string;
+  preservedLanguageCodes: string[];
+  supportedLanguages: SupportedLanguage[];
+}
+
+export interface UpdateUserLanguagePreferencesRequest {
+  defaultLanguageCode: string;
+  preservedLanguageCodes: string[];
 }
 
 export interface InvitationRequest {
@@ -79,6 +97,29 @@ export class AuthService {
     await firstValueFrom(
       this.http.post(`${this.apiBaseUrl}/device/approve`, { userCode })
     );
+  }
+
+  async getPreferences(): Promise<UserLanguagePreferences> {
+    return await firstValueFrom(
+      this.http.get<UserLanguagePreferences>(`${this.apiBaseUrl}/preferences`)
+    );
+  }
+
+  async updatePreferences(request: UpdateUserLanguagePreferencesRequest): Promise<UserLanguagePreferences> {
+    const preferences = await firstValueFrom(
+      this.http.put<UserLanguagePreferences>(`${this.apiBaseUrl}/preferences`, request)
+    );
+
+    const currentUser = this.userState();
+    if (currentUser) {
+      this.userState.set({
+        ...currentUser,
+        defaultLanguageCode: preferences.defaultLanguageCode,
+        preservedLanguageCodes: [...preferences.preservedLanguageCodes]
+      });
+    }
+
+    return preferences;
   }
 
   async createInvitation(request: InvitationRequest): Promise<InvitationResponse> {

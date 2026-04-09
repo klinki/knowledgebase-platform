@@ -468,6 +468,10 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
+                    b.Property<string>("DefaultLanguageCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -671,6 +675,25 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                         .IsUnique();
 
                     b.ToTable("UserInvitations");
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Infrastructure.Authentication.UserPreservedLanguage", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LanguageCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("UserId", "LanguageCode");
+
+                    b.ToTable("UserPreservedLanguages");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -921,6 +944,17 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("InvitedByUser");
                 });
 
+            modelBuilder.Entity("SentinelKnowledgebase.Infrastructure.Authentication.UserPreservedLanguage", b =>
+                {
+                    b.HasOne("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", "User")
+                        .WithMany("PreservedLanguages")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.LabelCategory", b =>
                 {
                     b.Navigation("Values");
@@ -945,6 +979,11 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                     b.Navigation("LabelAssignments");
 
                     b.Navigation("ProcessedInsight");
+                });
+
+            modelBuilder.Entity("SentinelKnowledgebase.Infrastructure.Authentication.ApplicationUser", b =>
+                {
+                    b.Navigation("PreservedLanguages");
                 });
 #pragma warning restore 612, 618
         }

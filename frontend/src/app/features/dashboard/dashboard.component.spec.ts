@@ -62,7 +62,9 @@ describe('DashboardComponent', () => {
         id: 'user-1',
         email: 'member@example.com',
         displayName: 'Member',
-        role: 'member'
+        role: 'member',
+        defaultLanguageCode: 'en',
+        preservedLanguageCodes: []
       })
     };
 
@@ -131,7 +133,9 @@ describe('DashboardComponent', () => {
         id: 'admin-1',
         email: 'admin@example.com',
         displayName: 'Admin',
-        role: 'admin'
+        role: 'admin',
+        defaultLanguageCode: 'en',
+        preservedLanguageCodes: []
       })
     };
 
@@ -191,7 +195,9 @@ describe('DashboardComponent', () => {
         id: 'admin-1',
         email: 'admin@example.com',
         displayName: 'Admin',
-        role: 'admin'
+        role: 'admin',
+        defaultLanguageCode: 'en',
+        preservedLanguageCodes: []
       })
     };
 

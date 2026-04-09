@@ -3,11 +3,14 @@ using System.Net.Http.Json;
 using System.Net.Http.Headers;
 
 using AwesomeAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 using SentinelKnowledgebase.Application.DTOs.Auth;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Infrastructure.Data;
 
 using Xunit;
 
@@ -39,6 +42,8 @@ public class AuthControllerTests
         user.Should().NotBeNull();
         user!.Email.Should().Be(IntegrationTestFixture.BootstrapAdminEmail);
         user.Role.Should().Be("admin");
+        user.DefaultLanguageCode.Should().Be("en");
+        user.PreservedLanguageCodes.Should().BeEmpty();
     }
 
     [Fact]
@@ -83,6 +88,86 @@ public class AuthControllerTests
         user.Should().NotBeNull();
         user!.Role.Should().Be("member");
         user.Email.Should().Be("member@sentinel.test");
+        user.DefaultLanguageCode.Should().Be("en");
+        user.PreservedLanguageCodes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Login_ShouldSeedDefaultLanguageFromAcceptLanguageHeader()
+    {
+        using var client = _fixture.CreateClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("de-DE,de;q=0.9");
+
+        var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequestDto
+        {
+            Email = IntegrationTestFixture.BootstrapAdminEmail,
+            Password = IntegrationTestFixture.BootstrapAdminPassword
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var user = await response.Content.ReadFromJsonAsync<AuthUserDto>();
+        user.Should().NotBeNull();
+        user!.DefaultLanguageCode.Should().Be("de");
+
+        string? persistedDefaultLanguage = null;
+        using var scope = _fixture.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        persistedDefaultLanguage = await dbContext.Users
+            .Where(item => item.Email == IntegrationTestFixture.BootstrapAdminEmail)
+            .Select(item => item.DefaultLanguageCode)
+            .SingleAsync();
+
+        persistedDefaultLanguage.Should().Be("de");
+    }
+
+    [Fact]
+    public async Task PreferencesEndpoints_ShouldReturnAndPersistNormalizedValues()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+
+        var initialResponse = await client.GetAsync("/api/auth/preferences");
+        initialResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var initialPreferences = await initialResponse.Content.ReadFromJsonAsync<UserLanguagePreferencesDto>();
+        initialPreferences.Should().NotBeNull();
+        initialPreferences!.DefaultLanguageCode.Should().Be("en");
+        initialPreferences.PreservedLanguageCodes.Should().BeEmpty();
+        initialPreferences.SupportedLanguages.Should().Contain(language => language.Code == "de");
+
+        var updateResponse = await client.PutAsJsonAsync("/api/auth/preferences", new UpdateUserLanguagePreferencesRequestDto
+        {
+            DefaultLanguageCode = "de-DE",
+            PreservedLanguageCodes = ["en-US", "fr", "de", "fr"]
+        });
+
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updatedPreferences = await updateResponse.Content.ReadFromJsonAsync<UserLanguagePreferencesDto>();
+        updatedPreferences.Should().NotBeNull();
+        updatedPreferences!.DefaultLanguageCode.Should().Be("de");
+        updatedPreferences.PreservedLanguageCodes.Should().Equal("en", "fr");
+
+        var meResponse = await client.GetAsync("/api/auth/me");
+        meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var currentUser = await meResponse.Content.ReadFromJsonAsync<AuthUserDto>();
+        currentUser.Should().NotBeNull();
+        currentUser!.DefaultLanguageCode.Should().Be("de");
+        currentUser.PreservedLanguageCodes.Should().Equal("en", "fr");
+    }
+
+    [Fact]
+    public async Task UpdatePreferences_ShouldRejectUnsupportedLanguageCode()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+
+        var response = await client.PutAsJsonAsync("/api/auth/preferences", new UpdateUserLanguagePreferencesRequestDto
+        {
+            DefaultLanguageCode = "xx",
+            PreservedLanguageCodes = ["en"]
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]

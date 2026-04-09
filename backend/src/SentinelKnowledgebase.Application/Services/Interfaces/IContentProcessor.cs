@@ -13,6 +13,9 @@ public class ContentInsights
 public interface IContentProcessor
 {
     string DenoiseContent(string content);
-    Task<ContentInsights> ExtractInsightsAsync(string content, Domain.Enums.ContentType contentType);
+    Task<ContentInsights> ExtractInsightsAsync(
+        string content,
+        Domain.Enums.ContentType contentType,
+        string? outputLanguageCode = null);
     Task<float[]> GenerateEmbeddingAsync(string text);
 }

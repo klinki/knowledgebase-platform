@@ -12,6 +12,8 @@ public sealed class AuthUserDto
     public string Email { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+    public string DefaultLanguageCode { get; set; } = string.Empty;
+    public List<string> PreservedLanguageCodes { get; set; } = new();
 }
 
 public sealed class InvitationRequestDto
@@ -91,4 +93,23 @@ public sealed class TokenResponseDto
     public string RefreshToken { get; set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; set; }
     public AuthUserDto User { get; set; } = new();
+}
+
+public sealed class SupportedLanguageDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+}
+
+public sealed class UserLanguagePreferencesDto
+{
+    public string DefaultLanguageCode { get; set; } = string.Empty;
+    public List<string> PreservedLanguageCodes { get; set; } = new();
+    public List<SupportedLanguageDto> SupportedLanguages { get; set; } = new();
+}
+
+public sealed class UpdateUserLanguagePreferencesRequestDto
+{
+    public string DefaultLanguageCode { get; set; } = string.Empty;
+    public List<string> PreservedLanguageCodes { get; set; } = new();
 }
