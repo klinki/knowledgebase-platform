@@ -25,6 +25,7 @@ describe('DashboardComponent', () => {
           labels: [{ category: 'Language', value: 'English' }]
         }
       ]),
+      topicClusters: signal([]),
       topTags: signal([]),
       stats: signal({
         totalCaptures: 1,
@@ -84,6 +85,7 @@ describe('DashboardComponent', () => {
       loading: signal(false),
       error: signal<string | null>(null),
       recentCaptures: signal([]),
+      topicClusters: signal([]),
       topTags: signal([]),
       stats: signal({ totalCaptures: 0, activeTags: 0 }),
       loadOverview: vi.fn().mockResolvedValue(undefined)
@@ -150,6 +152,7 @@ describe('DashboardComponent', () => {
       loading: signal(false),
       error: signal<string | null>(null),
       recentCaptures: signal([]),
+      topicClusters: signal([]),
       topTags: signal([]),
       stats: signal({ totalCaptures: 0, activeTags: 0 }),
       loadOverview: vi.fn().mockResolvedValue(undefined)
@@ -196,5 +199,89 @@ describe('DashboardComponent', () => {
     const button = (fixture.nativeElement as HTMLElement).querySelector('.ops-actions button') as HTMLButtonElement | null;
     expect(button).not.toBeNull();
     expect(button?.disabled).toBe(true);
+  });
+
+  it('renders topic cards with topic and capture links', async () => {
+    const dashboardStateStub = {
+      loading: signal(false),
+      error: signal<string | null>(null),
+      recentCaptures: signal([]),
+      topicClusters: signal([
+        {
+          id: 'topic-1',
+          title: 'AI Infrastructure',
+          description: 'Cluster about serving and deployment.',
+          keywords: ['ai', 'infra', 'serving'],
+          memberCount: 3,
+          updatedAt: '2026-03-16T10:00:00Z',
+          representativeInsights: [
+            {
+              captureId: 'capture-1',
+              processedInsightId: 'insight-1',
+              title: 'GPU scheduling note',
+              summary: 'Summary',
+              sourceUrl: 'https://example.com/gpu'
+            }
+          ],
+          suggestedLabel: { category: 'Topic', value: 'AI Infrastructure' }
+        }
+      ]),
+      topTags: signal([]),
+      stats: signal({ totalCaptures: 0, activeTags: 0 }),
+      loadOverview: vi.fn().mockResolvedValue(undefined)
+    };
+    const adminProcessingStateStub = {
+      loading: signal(false),
+      submitting: signal(false),
+      error: signal<string | null>(null),
+      isPaused: signal(false),
+      changedAt: signal<string | null>(null),
+      changedByDisplayName: signal<string | null>(null),
+      captureCounts: signal({ pending: 0, processing: 0, completed: 0, failed: 0 }),
+      jobCounts: signal({ enqueued: 0, scheduled: 0, processing: 0, failed: 0 }),
+      recentCaptures: signal([]),
+      loadOverview: vi.fn().mockResolvedValue(undefined),
+      pauseProcessing: vi.fn().mockResolvedValue(undefined),
+      resumeProcessing: vi.fn().mockResolvedValue(undefined)
+    };
+    const searchStateStub = {
+      results: signal([]),
+      loading: signal(false),
+      error: signal<string | null>(null),
+      clear: vi.fn(),
+      search: vi.fn()
+    };
+    const authServiceStub = {
+      currentUser: signal({
+        id: 'user-1',
+        email: 'member@example.com',
+        displayName: 'Member',
+        role: 'member'
+      })
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [DashboardComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: authServiceStub },
+        { provide: AdminProcessingStateService, useValue: adminProcessingStateStub },
+        { provide: DashboardStateService, useValue: dashboardStateStub },
+        { provide: SearchStateService, useValue: searchStateStub }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(DashboardComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('AI Infrastructure');
+    expect(compiled.textContent).toContain('GPU scheduling note');
+
+    const topicLink = compiled.querySelector('.topic-title-link') as HTMLAnchorElement | null;
+    const captureLink = compiled.querySelector('.topic-linkish') as HTMLAnchorElement | null;
+    expect(topicLink?.getAttribute('href')).toContain('/topics/topic-1');
+    expect(captureLink?.getAttribute('href')).toContain('/captures/capture-1');
   });
 });

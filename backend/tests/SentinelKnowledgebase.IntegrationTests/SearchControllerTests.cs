@@ -185,7 +185,8 @@ public class SearchControllerTests
 
         var adminInsightId = Guid.NewGuid();
         var memberInsightId = Guid.NewGuid();
-        var embedding = new Vector(CreateDeterministicEmbedding());
+        const string query = "owned search query";
+        var embedding = new Vector(CreateDeterministicEmbedding(query));
 
         await _fixture.ExecuteDbContextAsync(async dbContext =>
         {
@@ -254,7 +255,7 @@ public class SearchControllerTests
 
         var request = new SemanticSearchRequestDto
         {
-            Query = "owned search query",
+            Query = query,
             TopK = 10,
             Threshold = 0.5
         };
@@ -532,7 +533,8 @@ public class SearchControllerTests
 
         var matchingInsightId = Guid.NewGuid();
         var excludedInsightId = Guid.NewGuid();
-        var sharedEmbedding = new Vector(CreateDeterministicEmbedding());
+        const string query = "combined search query";
+        var sharedEmbedding = new Vector(CreateDeterministicEmbedding(query));
         var keepTag = $"keep-{Guid.NewGuid():N}";
         var dropTag = $"drop-{Guid.NewGuid():N}";
 
@@ -620,7 +622,7 @@ public class SearchControllerTests
 
         var request = new SearchRequestDto
         {
-            Query = "combined search query",
+            Query = query,
             Tags = [keepTag],
             TagMatchMode = SearchMatchModes.All,
             Limit = 10,
@@ -743,9 +745,10 @@ public class SearchControllerTests
         results.Should().OnlyContain(result => result.Similarity == null);
     }
 
-    private static float[] CreateDeterministicEmbedding()
+    private static float[] CreateDeterministicEmbedding(string text)
     {
-        var random = new Random(42);
+        var seed = text.Aggregate(17, (current, character) => unchecked(current * 31 + character));
+        var random = new Random(seed);
         var vector = new float[1536];
         for (var index = 0; index < vector.Length; index++)
         {

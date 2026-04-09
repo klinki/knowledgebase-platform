@@ -231,8 +231,9 @@ internal sealed class FakeContentProcessor : IContentProcessor
     public Task<float[]> GenerateEmbeddingAsync(string text)
     {
         EmbeddingInputs.Enqueue(text);
-
-        var random = new Random(text.GetHashCode(StringComparison.Ordinal));
+        var seed = text
+            .Aggregate(17, (current, character) => unchecked(current * 31 + character));
+        var random = new Random(seed);
         var vector = new float[1536];
 
         for (var index = 0; index < vector.Length; index++)
@@ -250,5 +251,22 @@ internal sealed class FakeContentProcessor : IContentProcessor
         }
 
         return Task.FromResult(vector);
+    }
+
+    public Task<ClusterMetadata> GenerateClusterMetadataAsync(IReadOnlyCollection<string> summaries)
+    {
+        var firstSummary = summaries.FirstOrDefault()?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Topic";
+        return Task.FromResult(new ClusterMetadata
+        {
+            Title = $"{firstSummary} Topic",
+            Description = $"Cluster generated for {summaries.Count} related summaries.",
+            Keywords = summaries
+                .SelectMany(summary => summary.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                .Select(word => word.Trim().Trim(',', '.', ';', ':').ToLowerInvariant())
+                .Where(word => word.Length >= 4)
+                .Distinct()
+                .Take(3)
+                .ToList()
+        });
     }
 }

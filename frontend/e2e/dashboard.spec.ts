@@ -58,6 +58,26 @@ async function mockAuthenticatedSession(page: import('@playwright/test').Page) {
             similarity: null
           }
         ],
+        topicClusters: [
+          {
+            id: 'topic-1',
+            title: 'AI Infrastructure',
+            description: 'Serving and deployment notes.',
+            keywords: ['ai', 'infra', 'ops'],
+            memberCount: 3,
+            updatedAt: '2026-03-01T12:00:00Z',
+            representativeInsights: [
+              {
+                captureId: '1',
+                processedInsightId: 'insight-1',
+                title: 'DeepSeek-V3 Technical Report',
+                summary: 'A focused summary of the DeepSeek technical report.',
+                sourceUrl: 'https://example.com/deepseek'
+              }
+            ],
+            suggestedLabel: { category: 'Topic', value: 'AI Infrastructure' }
+          }
+        ],
         topTags: [
           { id: 'tag-1', name: 'ai', count: 3, lastUsedAt: '2026-03-01T12:00:00Z' },
           { id: 'tag-2', name: 'angular', count: 2, lastUsedAt: '2026-02-28T12:00:00Z' }
@@ -76,6 +96,33 @@ async function mockAuthenticatedSession(page: import('@playwright/test').Page) {
         { id: 'tag-1', name: 'ai', count: 3, lastUsedAt: '2026-03-01T12:00:00Z' },
         { id: 'tag-2', name: 'angular', count: 2, lastUsedAt: '2026-02-28T12:00:00Z' }
       ]
+    });
+  });
+
+  await page.route('**/api/v1/clusters/topic-1', async route => {
+    await route.fulfill({
+      json: {
+        id: 'topic-1',
+        title: 'AI Infrastructure',
+        description: 'Serving and deployment notes.',
+        keywords: ['ai', 'infra', 'ops'],
+        memberCount: 3,
+        updatedAt: '2026-03-01T12:00:00Z',
+        suggestedLabel: { category: 'Topic', value: 'AI Infrastructure' },
+        members: [
+          {
+            captureId: '1',
+            processedInsightId: 'insight-1',
+            title: 'DeepSeek-V3 Technical Report',
+            summary: 'A focused summary of the DeepSeek technical report.',
+            sourceUrl: 'https://example.com/deepseek',
+            rank: 1,
+            similarityToCentroid: 0.98,
+            tags: ['ai', 'research'],
+            labels: []
+          }
+        ]
+      }
     });
   });
 }
@@ -184,6 +231,35 @@ test.describe('Dashboard and Search', () => {
     await expect(page.locator('.list-section .empty-state')).toContainText('No captures have been saved yet.');
   });
 
+  test('should navigate from the dashboard topics section to a topic detail page', async ({ page }) => {
+    await expect(page.locator('.topics-section')).toContainText('AI Infrastructure');
+    await page.click('.topic-title-link');
+
+    await expect(page).toHaveURL(/.*topics\/topic-1/);
+    await expect(page.locator('h1')).toContainText('Topic');
+    await expect(page.locator('.member-card')).toContainText('DeepSeek-V3 Technical Report');
+  });
+
+  test('should show an empty topics state when no clusters are available', async ({ page }) => {
+    await page.route('**/api/v1/dashboard/overview', async route => {
+      await route.fulfill({
+        json: {
+          recentCaptures: [],
+          topicClusters: [],
+          topTags: [],
+          stats: {
+            totalCaptures: 0,
+            activeTags: 0
+          }
+        }
+      });
+    });
+
+    await page.reload();
+
+    await expect(page.locator('.topics-section .empty-state')).toContainText('No topic groups available yet.');
+  });
+
   test('should navigate to tags page via sidebar', async ({ page }) => {
     await page.click('a[routerLink="/tags"]');
     await expect(page).toHaveURL(/.*tags/);
@@ -196,7 +272,7 @@ test.describe('Dashboard and Search', () => {
     });
 
     await page.click('a[routerLink="/tags"]');
-    await expect(page.locator('.empty-state')).toContainText('No tags have been created yet.');
+    await expect(page.locator('.empty-state')).toContainText('No tags yet.');
 
     await page.route('**/api/v1/tags', async route => {
       await route.fulfill({ status: 500, body: '' });

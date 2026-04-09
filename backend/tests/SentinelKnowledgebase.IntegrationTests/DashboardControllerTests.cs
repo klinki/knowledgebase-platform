@@ -6,6 +6,7 @@ using AwesomeAssertions;
 
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.DTOs.Dashboard;
+using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
 
 using Xunit;
@@ -116,5 +117,91 @@ public class DashboardControllerTests
         memberOverview.RecentCaptures.Should().NotContain(capture => capture.SourceUrl == adminUrl);
         memberOverview.TopTags.Should().Contain(tag => tag.Name == memberTag);
         memberOverview.TopTags.Should().NotContain(tag => tag.Name == adminTag);
+    }
+
+    [Fact]
+    public async Task GetOverview_ShouldIncludeTopicClusters_WhenAvailable()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var clusterId = await SeedClusterAsync(ownerUserId, "AI Infrastructure", "Cluster for infrastructure notes.");
+
+        var overviewResponse = await client.GetAsync("/api/v1/dashboard/overview");
+
+        overviewResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var overview = await overviewResponse.Content.ReadFromJsonAsync<DashboardOverviewDto>(ResponseJsonOptions);
+        overview.Should().NotBeNull();
+        overview!.TopicClusters.Should().ContainSingle(cluster => cluster.Id == clusterId);
+        overview.TopicClusters[0].SuggestedLabel.Category.Should().Be("Topic");
+        overview.TopicClusters[0].RepresentativeInsights.Should().NotBeEmpty();
+    }
+
+    private async Task<Guid> SeedClusterAsync(Guid ownerUserId, string title, string description)
+    {
+        var clusterId = Guid.NewGuid();
+        var insightIds = new List<Guid>();
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var now = DateTime.UtcNow;
+
+            for (var index = 0; index < 3; index++)
+            {
+                var captureId = Guid.NewGuid();
+                var insightId = Guid.NewGuid();
+                insightIds.Add(insightId);
+
+                dbContext.RawCaptures.Add(new RawCapture
+                {
+                    Id = captureId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = $"https://example.com/topic/{index}",
+                    ContentType = ContentType.Article,
+                    RawContent = $"Topic capture {index}",
+                    Status = CaptureStatus.Completed,
+                    CreatedAt = now.AddMinutes(index),
+                    ProcessedAt = now.AddMinutes(index + 1)
+                });
+
+                dbContext.ProcessedInsights.Add(new ProcessedInsight
+                {
+                    Id = insightId,
+                    OwnerUserId = ownerUserId,
+                    RawCaptureId = captureId,
+                    Title = $"Topic insight {index}",
+                    Summary = $"Topic summary {index}",
+                    KeyInsights = JsonSerializer.Serialize(new[] { $"Insight {index}" }),
+                    ActionItems = JsonSerializer.Serialize(new[] { $"Action {index}" }),
+                    ProcessedAt = now.AddMinutes(index + 1)
+                });
+            }
+
+            dbContext.InsightClusters.Add(new InsightCluster
+            {
+                Id = clusterId,
+                OwnerUserId = ownerUserId,
+                Title = title,
+                Description = description,
+                KeywordsJson = JsonSerializer.Serialize(new[] { "ai", "infra", "ops" }),
+                MemberCount = insightIds.Count,
+                RepresentativeProcessedInsightId = insightIds[0],
+                LastComputedAt = now,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+
+            dbContext.InsightClusterMemberships.AddRange(insightIds.Select((insightId, index) => new InsightClusterMembership
+            {
+                InsightClusterId = clusterId,
+                ProcessedInsightId = insightId,
+                Rank = index + 1,
+                SimilarityToCentroid = 0.99 - (index * 0.01),
+                CreatedAt = now
+            }));
+
+            await Task.CompletedTask;
+        });
+
+        return clusterId;
     }
 }

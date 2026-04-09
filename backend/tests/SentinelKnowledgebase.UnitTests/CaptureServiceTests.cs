@@ -21,6 +21,7 @@ public class CaptureServiceTests
     private readonly IContentProcessor _contentProcessor;
     private readonly IUserLanguagePreferencesService _userLanguagePreferencesService;
     private readonly IMonitoringService _monitoringService;
+    private readonly IInsightClusteringService _insightClusteringService;
     private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
     private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<CaptureService> _logger;
@@ -32,6 +33,7 @@ public class CaptureServiceTests
         _contentProcessor = Substitute.For<IContentProcessor>();
         _userLanguagePreferencesService = Substitute.For<IUserLanguagePreferencesService>();
         _monitoringService = Substitute.For<IMonitoringService>();
+        _insightClusteringService = Substitute.For<IInsightClusteringService>();
         _captureProcessingAdminService = Substitute.For<ICaptureProcessingAdminService>();
         _backgroundJobClient = Substitute.For<IBackgroundJobClient>();
         _logger = Substitute.For<ILogger<CaptureService>>();
@@ -40,6 +42,7 @@ public class CaptureServiceTests
             _contentProcessor,
             _userLanguagePreferencesService,
             _monitoringService,
+            _insightClusteringService,
             _captureProcessingAdminService,
             _backgroundJobClient,
             _logger);
@@ -442,6 +445,11 @@ public class CaptureServiceTests
                 insight.LabelAssignments.Count == 1 &&
                 insight.LabelAssignments[0].LabelCategoryId == category.Id &&
                 insight.LabelAssignments[0].LabelValueId == value.Id));
+        _backgroundJobClient.Received(1).Create(
+            Arg.Is<Job>(job =>
+                job.Type == typeof(IInsightClusteringService) &&
+                job.Method.Name == nameof(IInsightClusteringService.RebuildOwnerClustersAsync)),
+            Arg.Any<IState>());
     }
 
     [Fact]

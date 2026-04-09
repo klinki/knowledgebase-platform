@@ -33,7 +33,8 @@ describe('CaptureDetailComponent', () => {
           author: 'Author',
           processedAt: '2026-03-16T10:10:00Z',
           labels: [{ category: 'Source', value: 'Web' }],
-          tags: ['alpha']
+          tags: ['alpha'],
+          cluster: null
         }
       }),
       loadCaptureDetail: vi.fn().mockResolvedValue(undefined),
@@ -106,5 +107,72 @@ describe('CaptureDetailComponent', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Capture not found');
+  });
+
+  it('renders a topic link when the processed insight belongs to a cluster', async () => {
+    const captureStateStub = {
+      loadingDetail: signal(false),
+      detailError: signal<string | null>(null),
+      detailNotFound: signal(false),
+      captureDetail: signal({
+        id: 'capture-1',
+        sourceUrl: 'https://example.com/item',
+        contentType: 'Article',
+        status: 'Completed',
+        createdAt: '2026-03-16T10:00:00Z',
+        processedAt: '2026-03-16T10:10:00Z',
+        rawContent: 'Raw payload',
+        metadata: null,
+        labels: [],
+        tags: [],
+        processedInsight: {
+          id: 'insight-1',
+          title: 'Insight title',
+          summary: 'Insight summary',
+          keyInsights: JSON.stringify(['First']),
+          actionItems: JSON.stringify(['Act']),
+          sourceTitle: 'Source title',
+          author: 'Author',
+          processedAt: '2026-03-16T10:10:00Z',
+          labels: [],
+          tags: [],
+          cluster: {
+            id: 'topic-1',
+            title: 'AI Infrastructure',
+            description: 'Serving and deployment notes.',
+            suggestedLabel: { category: 'Topic', value: 'AI Infrastructure' }
+          }
+        }
+      }),
+      loadCaptureDetail: vi.fn().mockResolvedValue(undefined),
+      clearDetail: vi.fn()
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [CaptureDetailComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: convertToParamMap({ id: 'capture-1' })
+            }
+          }
+        },
+        {
+          provide: CaptureStateService,
+          useValue: captureStateStub
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(CaptureDetailComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const topicLink = (fixture.nativeElement as HTMLElement).querySelector('.topic-link') as HTMLAnchorElement | null;
+    expect(topicLink?.textContent).toContain('AI Infrastructure');
+    expect(topicLink?.getAttribute('href')).toContain('/topics/topic-1');
   });
 });

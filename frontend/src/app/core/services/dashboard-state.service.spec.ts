@@ -44,6 +44,26 @@ describe('DashboardStateService', () => {
           labels: [{ category: 'Language', value: ' English ' }]
         }
       ],
+      topicClusters: [
+        {
+          id: 'topic-1',
+          title: ' Topic Alpha ',
+          description: ' Cluster description ',
+          keywords: [' alpha ', ' beta '],
+          memberCount: 3,
+          updatedAt: '2026-03-16T10:00:00Z',
+          representativeInsights: [
+            {
+              captureId: 'capture-1',
+              processedInsightId: 'insight-1',
+              title: ' Representative insight ',
+              summary: ' Summary ',
+              sourceUrl: ' https://example.com/topic '
+            }
+          ],
+          suggestedLabel: { category: ' Topic ', value: ' Topic Alpha ' }
+        }
+      ],
       topTags: [],
       stats: {
         totalCaptures: 1,
@@ -64,6 +84,27 @@ describe('DashboardStateService', () => {
         summary: 'Summary',
         similarity: null,
         labels: [{ category: 'Language', value: 'English' }]
+      }
+    ]);
+
+    expect(service.topicClusters()).toEqual([
+      {
+        id: 'topic-1',
+        title: ' Topic Alpha ',
+        description: 'Cluster description',
+        keywords: ['alpha', 'beta'],
+        memberCount: 3,
+        updatedAt: '2026-03-16T10:00:00Z',
+        representativeInsights: [
+          {
+            captureId: 'capture-1',
+            processedInsightId: 'insight-1',
+            title: 'Representative insight',
+            summary: 'Summary',
+            sourceUrl: 'https://example.com/topic'
+          }
+        ],
+        suggestedLabel: { category: 'Topic', value: 'Topic Alpha' }
       }
     ]);
   });

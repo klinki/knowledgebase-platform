@@ -219,12 +219,13 @@ public class CaptureControllerTests
     [Fact]
     public async Task GetCaptureList_ShouldApplyFilteringSortingPaginationAndOwnerScope()
     {
-        using var ownerClient = await _fixture.CreateAuthenticatedClientAsync();
-        var member = await _fixture.CreateMemberClientAsync();
-        using var foreignClient = member.Client;
+        var owner = await _fixture.CreateMemberClientAsync();
+        using var ownerClient = owner.Client;
+        var foreign = await _fixture.CreateMemberClientAsync();
+        using var foreignClient = foreign.Client;
 
-        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
-        var foreignUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(owner.Email);
+        var foreignUserId = await _fixture.GetUserIdByEmailAsync(foreign.Email);
         var baseTime = new DateTime(2026, 3, 31, 8, 0, 0, DateTimeKind.Utc);
 
         await _fixture.ExecuteDbContextAsync(async dbContext =>
@@ -382,5 +383,78 @@ public class CaptureControllerTests
         detail.Should().NotBeNull();
         detail!.SourceUrl.Should().BeEmpty();
         detail.RawContent.Should().Be(request.RawContent);
+    }
+
+    [Fact]
+    public async Task GetCapture_ShouldIncludeTopicLink_WhenProcessedInsightIsClustered()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var captureId = Guid.NewGuid();
+        var insightId = Guid.NewGuid();
+        var clusterId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.RawCaptures.Add(new RawCapture
+            {
+                Id = captureId,
+                OwnerUserId = ownerUserId,
+                SourceUrl = "https://example.com/topic-capture",
+                ContentType = ContentType.Article,
+                RawContent = "Topic capture detail",
+                Status = CaptureStatus.Completed,
+                CreatedAt = now,
+                ProcessedAt = now.AddMinutes(1)
+            });
+
+            dbContext.ProcessedInsights.Add(new ProcessedInsight
+            {
+                Id = insightId,
+                OwnerUserId = ownerUserId,
+                RawCaptureId = captureId,
+                Title = "Clustered insight",
+                Summary = "Clustered summary",
+                KeyInsights = JsonSerializer.Serialize(new[] { "Insight" }),
+                ActionItems = JsonSerializer.Serialize(new[] { "Action" }),
+                ProcessedAt = now.AddMinutes(1)
+            });
+
+            dbContext.InsightClusters.Add(new InsightCluster
+            {
+                Id = clusterId,
+                OwnerUserId = ownerUserId,
+                Title = "AI Infrastructure",
+                Description = "Cluster description",
+                KeywordsJson = JsonSerializer.Serialize(new[] { "ai", "infra", "ops" }),
+                MemberCount = 1,
+                RepresentativeProcessedInsightId = insightId,
+                LastComputedAt = now,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+
+            dbContext.InsightClusterMemberships.Add(new InsightClusterMembership
+            {
+                InsightClusterId = clusterId,
+                ProcessedInsightId = insightId,
+                Rank = 1,
+                SimilarityToCentroid = 0.99,
+                CreatedAt = now
+            });
+
+            await Task.CompletedTask;
+        });
+
+        var response = await client.GetAsync($"/api/v1/capture/{captureId}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var capture = await response.Content.ReadFromJsonAsync<CaptureResponseDto>(ResponseJsonOptions);
+        capture.Should().NotBeNull();
+        capture!.ProcessedInsight.Should().NotBeNull();
+        capture.ProcessedInsight!.Cluster.Should().NotBeNull();
+        capture.ProcessedInsight.Cluster!.Id.Should().Be(clusterId);
+        capture.ProcessedInsight.Cluster.SuggestedLabel.Category.Should().Be("Topic");
     }
 }
