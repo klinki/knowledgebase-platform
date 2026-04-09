@@ -15,6 +15,55 @@ export interface LabelAssignment {
   value: string;
 }
 
+export interface TopicClusterLink {
+  id: string;
+  title: string;
+  description: string | null;
+  suggestedLabel: LabelAssignment;
+}
+
+export interface TopicClusterRepresentativeInsight {
+  captureId: string;
+  processedInsightId: string;
+  title: string;
+  summary: string;
+  sourceUrl: string;
+}
+
+export interface TopicClusterSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  keywords: string[];
+  memberCount: number;
+  updatedAt: string;
+  representativeInsights: TopicClusterRepresentativeInsight[];
+  suggestedLabel: LabelAssignment;
+}
+
+export interface TopicClusterMember {
+  captureId: string;
+  processedInsightId: string;
+  title: string;
+  summary: string;
+  sourceUrl: string;
+  rank: number;
+  similarityToCentroid: number;
+  tags: string[];
+  labels: LabelAssignment[];
+}
+
+export interface TopicClusterDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  keywords: string[];
+  memberCount: number;
+  updatedAt: string;
+  suggestedLabel: LabelAssignment;
+  members: TopicClusterMember[];
+}
+
 export interface TagSummary {
   id: string;
   name: string;
@@ -55,6 +104,7 @@ export interface DashboardStats {
 export interface DashboardOverview {
   recentCaptures: DashboardItem[];
   topTags: TagSummary[];
+  topicClusters: TopicClusterSummary[];
   stats: DashboardStats;
 }
 
@@ -130,6 +180,7 @@ export interface CaptureProcessedInsight {
   processedAt: string;
   tags: string[];
   labels: LabelAssignment[];
+  cluster: TopicClusterLink | null;
 }
 
 export interface CaptureDetail {

@@ -9,7 +9,8 @@ import {
   CaptureDetail,
   CaptureListItem,
   CaptureListPage,
-  CaptureProcessedInsight
+  CaptureProcessedInsight,
+  TopicClusterLink
 } from '../../shared/models/knowledge.model';
 
 interface CaptureLabelDto {
@@ -303,7 +304,8 @@ export class CaptureStateService {
       processedInsight: capture.processedInsight
         ? {
             ...capture.processedInsight,
-            labels: this.normalizeLabels(capture.processedInsight.labels)
+            labels: this.normalizeLabels(capture.processedInsight.labels),
+            cluster: this.normalizeCluster(capture.processedInsight.cluster)
           }
         : null
     };
@@ -316,5 +318,21 @@ export class CaptureStateService {
         value: label.value.trim()
       }))
       .filter(label => label.category.length > 0 && label.value.length > 0);
+  }
+
+  private normalizeCluster(cluster: TopicClusterLink | null | undefined): TopicClusterLink | null {
+    if (!cluster) {
+      return null;
+    }
+
+    return {
+      ...cluster,
+      title: cluster.title.trim(),
+      description: cluster.description?.trim() ?? null,
+      suggestedLabel: {
+        category: cluster.suggestedLabel.category.trim(),
+        value: cluster.suggestedLabel.value.trim()
+      }
+    };
   }
 }

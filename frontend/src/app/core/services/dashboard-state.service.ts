@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { DashboardItem, DashboardOverview } from '../../shared/models/knowledge.model';
+import { DashboardItem, DashboardOverview, TopicClusterSummary } from '../../shared/models/knowledge.model';
 
 interface LabelDto {
   category: string;
@@ -32,6 +32,7 @@ export class DashboardStateService {
   overview = computed(() => this.overviewState());
   recentCaptures = computed(() => this.overviewState()?.recentCaptures ?? []);
   topTags = computed(() => this.overviewState()?.topTags ?? []);
+  topicClusters = computed(() => this.overviewState()?.topicClusters ?? []);
   stats = computed(() => this.overviewState()?.stats ?? {
     totalCaptures: 0,
     activeTags: 0
@@ -57,12 +58,13 @@ export class DashboardStateService {
       this.overviewState.set(this.normalizeOverview(overview));
     } catch {
       this.error.set('Dashboard data could not be loaded.');
-      this.overviewState.set({
-        recentCaptures: [],
-        topTags: [],
-        stats: {
-          totalCaptures: 0,
-          activeTags: 0
+        this.overviewState.set({
+          recentCaptures: [],
+          topTags: [],
+          topicClusters: [],
+          stats: {
+            totalCaptures: 0,
+            activeTags: 0
         }
       });
     } finally {
@@ -73,7 +75,8 @@ export class DashboardStateService {
   private normalizeOverview(overview: DashboardOverviewWithLabels): DashboardOverviewWithLabels {
     return {
       ...overview,
-      recentCaptures: overview.recentCaptures.map(capture => this.normalizeDashboardItem(capture))
+      recentCaptures: overview.recentCaptures.map(capture => this.normalizeDashboardItem(capture)),
+      topicClusters: overview.topicClusters.map(cluster => this.normalizeTopicCluster(cluster))
     };
   }
 
@@ -81,6 +84,24 @@ export class DashboardStateService {
     return {
       ...item,
       labels: this.normalizeLabels(item.labels)
+    };
+  }
+
+  private normalizeTopicCluster(cluster: TopicClusterSummary): TopicClusterSummary {
+    return {
+      ...cluster,
+      description: cluster.description?.trim() ?? null,
+      keywords: (cluster.keywords ?? []).map(keyword => keyword.trim()).filter(keyword => keyword.length > 0),
+      representativeInsights: (cluster.representativeInsights ?? []).map(item => ({
+        ...item,
+        title: item.title.trim(),
+        summary: item.summary.trim(),
+        sourceUrl: item.sourceUrl.trim()
+      })),
+      suggestedLabel: {
+        category: cluster.suggestedLabel.category.trim(),
+        value: cluster.suggestedLabel.value.trim()
+      }
     };
   }
 

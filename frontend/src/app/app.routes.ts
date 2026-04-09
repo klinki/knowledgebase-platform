@@ -17,6 +17,7 @@ export const routes: Routes = [
       { path: 'captures/new', loadComponent: () => import('./features/captures/create-capture.component').then(m => m.CreateCaptureComponent) },
       { path: 'captures', loadComponent: () => import('./features/captures/captures.component').then(m => m.CapturesComponent) },
       { path: 'captures/:id', loadComponent: () => import('./features/captures/capture-detail.component').then(m => m.CaptureDetailComponent) },
+      { path: 'topics/:id', loadComponent: () => import('./features/topics/topic-detail.component').then(m => m.TopicDetailComponent) },
       { path: 'labels', loadComponent: () => import('./features/labels/labels.component').then(m => m.LabelsComponent) },
       { path: 'settings', loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) },
       { path: 'tags', loadComponent: () => import('./features/tags/tags.component').then(m => m.TagsComponent) },

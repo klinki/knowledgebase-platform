@@ -180,14 +180,27 @@ interface RenderNode {
               </div>
             }
 
-            @if (insight.labels.length > 0) {
-              <div class="label-list">
-                @for (label of insight.labels; track label.category + ':' + label.value) {
-                  <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
-                }
-              </div>
-            }
-          </section>
+             @if (insight.labels.length > 0) {
+               <div class="label-list">
+                 @for (label of insight.labels; track label.category + ':' + label.value) {
+                   <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+                 }
+               </div>
+             }
+
+             @if (insight.cluster) {
+               <div class="topic-panel">
+                 <h3>Topic</h3>
+                 <a class="topic-link" [routerLink]="['/topics', insight.cluster.id]">
+                   {{ insight.cluster.title }}
+                 </a>
+                 @if (insight.cluster.description) {
+                   <p>{{ insight.cluster.description }}</p>
+                 }
+                 <span class="label-chip">{{ insight.cluster.suggestedLabel.category }}: {{ insight.cluster.suggestedLabel.value }}</span>
+               </div>
+             }
+           </section>
 
           <ng-template #noInsight>
             <section class="glass-card empty-state">
@@ -336,6 +349,23 @@ interface RenderNode {
 
     .insight-block + .insight-block {
       margin-top: 1.5rem;
+    }
+
+    .topic-panel {
+      margin-top: 1.5rem;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .topic-link {
+      color: #7dd3fc;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .topic-panel p {
+      margin: 0;
+      color: #cbd5e1;
     }
 
     .empty-state {

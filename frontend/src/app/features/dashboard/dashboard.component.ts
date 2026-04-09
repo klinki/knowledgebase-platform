@@ -175,6 +175,38 @@ import { AuthService } from '../../core/services/auth.service';
         </section>
 
         <section class="secondary-column">
+          <div class="glass-card topics-section">
+            <h2>Topics</h2>
+            @if (dashboardState.topicClusters().length > 0) {
+              <div class="topics-list">
+                @for (cluster of dashboardState.topicClusters(); track cluster.id) {
+                  <article class="topic-card">
+                    <div class="topic-head">
+                      <a class="topic-title-link" [routerLink]="['/topics', cluster.id]">{{ cluster.title }}</a>
+                      <span class="topic-count">{{ cluster.memberCount }}</span>
+                    </div>
+                    @if (cluster.description) {
+                      <span class="topic-description">{{ cluster.description }}</span>
+                    }
+                    @if (cluster.representativeInsights.length > 0) {
+                      <div class="topic-links">
+                        @for (insight of cluster.representativeInsights; track insight.processedInsightId) {
+                          <a class="topic-linkish" [routerLink]="['/captures', insight.captureId]">{{ insight.title }}</a>
+                        }
+                      </div>
+                    }
+                    <div class="topic-label">{{ cluster.suggestedLabel.category }}: {{ cluster.suggestedLabel.value }}</div>
+                    <a class="topic-link" [routerLink]="['/topics', cluster.id]">View topic</a>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="empty-state compact">
+                <p>No topic groups available yet.</p>
+              </div>
+            }
+          </div>
+
           <div class="glass-card tags-section">
             <h2>Trending Tags</h2>
             @if (dashboardState.topTags().length > 0) {
@@ -439,6 +471,60 @@ import { AuthService } from '../../core/services/auth.service';
     }
 
     .secondary-column { display: flex; flex-direction: column; gap: 2rem; }
+    .topics-list { display: grid; gap: 0.9rem; }
+    .topic-card {
+      display: grid;
+      gap: 0.55rem;
+      padding: 1rem;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .topic-card:hover { background: rgba(255, 255, 255, 0.05); }
+    .topic-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .topic-title-link {
+      color: #f8fafc;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .topic-count {
+      color: #7dd3fc;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.18);
+    }
+    .topic-description { color: #cbd5e1; font-size: 0.9rem; }
+    .topic-links { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .topic-linkish {
+      color: #c7d2fe;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, 0.1);
+      text-decoration: none;
+    }
+    .topic-label {
+      color: #fde68a;
+      font-size: 0.78rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.18);
+      width: fit-content;
+    }
+    .topic-link {
+      color: #7dd3fc;
+      font-size: 0.85rem;
+      text-decoration: none;
+      width: fit-content;
+    }
     .tags-cloud { display: flex; flex-wrap: wrap; gap: 10px; }
     .tag-badge {
       background: rgba(99, 102, 241, 0.1);
