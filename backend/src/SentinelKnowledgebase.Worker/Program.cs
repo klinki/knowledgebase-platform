@@ -40,7 +40,9 @@ builder.Services.AddHangfireServer();
 
 var host = builder.Build();
 GlobalJobFilters.Filters.Add(host.Services.GetRequiredService<CaptureProcessingStateFilter>());
-RecurringJob.AddOrUpdate<IInsightClusteringService>(
+
+var recurringJobManager = host.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<IInsightClusteringService>(
     "refresh-stale-insight-clusters",
     service => service.RebuildStaleOwnerClustersAsync(),
     Cron.Daily);
