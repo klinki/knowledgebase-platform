@@ -1066,6 +1066,7 @@ namespace SentinelKnowledgebase.Migrations.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
 
             modelBuilder.Entity("SentinelKnowledgebase.Domain.Entities.InsightCluster", b =>
                 {
