@@ -56,9 +56,8 @@ services:
       - proxy
     restart: unless-stopped
 
-  worker:
+  worker-ingest:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-worker:${IMAGE_TAG:-latest}
-    container_name: sentinel-worker
     environment:
       DOTNET_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
@@ -69,6 +68,31 @@ services:
       OpenAI__EmbeddingDimensions: ${OPENAI_EMBEDDING_DIMENSIONS:-}
       OpenAI__EmbeddingsUrl: ${OPENAI_EMBEDDINGS_URL:-https://api.openai.com/v1/embeddings}
       OpenAI__ChatCompletionsUrl: ${OPENAI_CHAT_COMPLETIONS_URL:-https://api.openai.com/v1/chat/completions}
+      Hangfire__Queues__0: default
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - default
+      - ai
+    restart: unless-stopped
+
+  worker-clustering:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE}/sentinel-worker:${IMAGE_TAG:-latest}
+    container_name: sentinel-worker-clustering
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sentinel_knowledgebase};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      Serilog__WriteTo__1__Args__serverUrl: http://seq
+      OpenAI__ApiKey: ${OPENAI_API_KEY}
+      OpenAI__Model: ${OPENAI_MODEL:-gpt-4}
+      OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OpenAI__EmbeddingDimensions: ${OPENAI_EMBEDDING_DIMENSIONS:-}
+      OpenAI__EmbeddingsUrl: ${OPENAI_EMBEDDINGS_URL:-https://api.openai.com/v1/embeddings}
+      OpenAI__ChatCompletionsUrl: ${OPENAI_CHAT_COMPLETIONS_URL:-https://api.openai.com/v1/chat/completions}
+      Hangfire__Queues__0: clustering
     depends_on:
       postgres:
         condition: service_healthy
