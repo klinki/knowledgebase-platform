@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { buildInfo } from './shared/build-info';
+import { buildInfo } from './shared/generated/build-info';
 
 @Component({
   selector: 'app-root',

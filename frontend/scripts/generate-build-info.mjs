@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(scriptDir, '..');
-const outputPath = resolve(frontendRoot, 'src', 'app', 'shared', 'build-info.ts');
+const outputPath = resolve(frontendRoot, 'src', 'app', 'shared', 'generated', 'build-info.ts');
 const packageJsonPath = resolve(frontendRoot, 'package.json');
 const releaseManifestPath = resolve(frontendRoot, '..', 'release-please-manifest.json');
 
