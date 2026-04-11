@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.2.0](https://github.com/klinki/knowledgebase-platform/compare/v0.1.0...v0.2.0) (2026-04-11)
+
+
+### Features
+
+* Add admin processing controls ([1fb76dc](https://github.com/klinki/knowledgebase-platform/commit/1fb76dc5d07ea7996acf14770e7d58ab2ec46bf8))
+* Add Adminer and Seq to production ([7f1a9f9](https://github.com/klinki/knowledgebase-platform/commit/7f1a9f99743b542a680da2e05fa0fac62c5f74fc))
+* Add capture browsing flow ([ab9bf5e](https://github.com/klinki/knowledgebase-platform/commit/ab9bf5ea12a3ce1e55fe67f4ac8a40b04964f6ce))
+* Add dedicated search page ([be5fd1b](https://github.com/klinki/knowledgebase-platform/commit/be5fd1b7321dbe199dd48149216b9cc6de20812a))
+* Add direct capture creation ([fd8f0d5](https://github.com/klinki/knowledgebase-platform/commit/fd8f0d5cd21173cd8fd6f1be538c8fa41d97c9ba))
+* Add invitation-based user onboarding ([78c58fa](https://github.com/klinki/knowledgebase-platform/commit/78c58fa29001fb93611a741e6dd93637416877d8))
+* Add preserved language preferences ([6adccb8](https://github.com/klinki/knowledgebase-platform/commit/6adccb8761c6fa7eed25fa4fc601a5e9679f4e39))
+* Add server admin CLI ([356335c](https://github.com/klinki/knowledgebase-platform/commit/356335c4ecc04a97b35ac123661a6ebb08d4617e))
+* Add Topics page with paginated cluster list ([765f6fe](https://github.com/klinki/knowledgebase-platform/commit/765f6fe5b62ebb6dd8706b3e428de6c31e03d2b8))
+* Add two-dimensional labels ([47b89cd](https://github.com/klinki/knowledgebase-platform/commit/47b89cd640057e5c3e08e641283ecf2503260aa9))
+* **ai:** add LiteLLM vertex proxy support ([3a14fe3](https://github.com/klinki/knowledgebase-platform/commit/3a14fe32a4bf6602e14303e7a5fb241fc26eec58))
+* **backend:** add bulk capture import ([42177f6](https://github.com/klinki/knowledgebase-platform/commit/42177f69fc36dc5678cdcfd3c64b8b07a084af92))
+* **backend:** Add persisted topic clustering ([55221f2](https://github.com/klinki/knowledgebase-platform/commit/55221f29aa0f70e827477d1066092dfff2385812))
+* **backend:** add twitter archive import cli ([5cc6d36](https://github.com/klinki/knowledgebase-platform/commit/5cc6d36b2abf067e54c8df83db7cb063177465e2))
+* **backend:** Add user-scoped knowledge ownership ([f25e24d](https://github.com/klinki/knowledgebase-platform/commit/f25e24d46078e66065152da06da2732d043dd3e8))
+* **backend:** Separate clustering queue and defer import rebuild ([9a4a7de](https://github.com/klinki/knowledgebase-platform/commit/9a4a7deb391726c0d7858da9c56efa00f942b800))
+* **captures:** Add bulk retry actions ([5be826e](https://github.com/klinki/knowledgebase-platform/commit/5be826e0569c52835e1423f41115cb6547b4a02b))
+* **deploy:** Add Vertex AI proxy support ([3f6e36a](https://github.com/klinki/knowledgebase-platform/commit/3f6e36acf25a0f2d03751dfad8c428b317ea9c0f))
+* **frontend:** Add build version footer ([7a47999](https://github.com/klinki/knowledgebase-platform/commit/7a4799943c6ab83c608103a8b38d19cfa3aa527f))
+* **frontend:** Add filtering, sorting, and pagination to captures page ([b7b26e1](https://github.com/klinki/knowledgebase-platform/commit/b7b26e111ba737b6663164ab12c791e8e141e2ad))
+* **frontend:** Add topic discovery views ([186d700](https://github.com/klinki/knowledgebase-platform/commit/186d700337018f002fefa8f268254deaa4096414))
+* **tags:** add tag management page with create, rename, and delete ([73b6873](https://github.com/klinki/knowledgebase-platform/commit/73b6873c79a53c86045b8fb410b0cb49b7d53a68))
+
+
+### Bug Fixes
+
+* Add capture processing diagnostics ([86b29cb](https://github.com/klinki/knowledgebase-platform/commit/86b29cb109181634262f2ab55b0ae705912f7d6a))
+* Address PR review feedback ([af67ad8](https://github.com/klinki/knowledgebase-platform/commit/af67ad8382bb16048fdd039a1129f64586fd848d))
+* **ai:** parse fenced json responses ([af97c4d](https://github.com/klinki/knowledgebase-platform/commit/af97c4da62272a172f770ead2ec3830bdda43c73))
+* **backend:** Restore preserved languages migration ([050152a](https://github.com/klinki/knowledgebase-platform/commit/050152a4267071f52cfe0a40db70aba6a932d9c2))
+* **backend:** Use DI Hangfire recurring jobs ([5daacd8](https://github.com/klinki/knowledgebase-platform/commit/5daacd8e22ac7ba6835692673ab84daacf666392))
+* **deploy:** Preserve auxiliary compose services ([413d4f2](https://github.com/klinki/knowledgebase-platform/commit/413d4f2fdce728824d29cc3c82488c4ae2931705))
+* **deploy:** Use separate litellm env file ([b90a3aa](https://github.com/klinki/knowledgebase-platform/commit/b90a3aacd348a6fe498162ffbdde313ad6f76b7b))
+* Fix UX review issues across extension and frontend ([8fd99de](https://github.com/klinki/knowledgebase-platform/commit/8fd99dee6389cf0f4ab0391a8b6b0bcf0d739be6))
+* **migrations:** Repair snapshot syntax ([e0a371b](https://github.com/klinki/knowledgebase-platform/commit/e0a371b9a7bf15fe00e6557029b688eb5af8eab8))
+* Move capture list queries to backend ([50f8f18](https://github.com/klinki/knowledgebase-platform/commit/50f8f18609b5e7c01ce250a7d4bcaf662c7959fc))
+* Remove AI fallback processing ([09561f7](https://github.com/klinki/knowledgebase-platform/commit/09561f776bb8ebcca6c212e4b63670dc24fced70))
+* Repair container runtimes ([ab84fd4](https://github.com/klinki/knowledgebase-platform/commit/ab84fd43f9dc76fe421a90151897b9290bea7208))
+* Repair migrator bundle build ([825b0f3](https://github.com/klinki/knowledgebase-platform/commit/825b0f317faf1fe453650c381728da5627563537))
+* Restore topic clustering build after rebase ([e470176](https://github.com/klinki/knowledgebase-platform/commit/e47017637c6ca622919eb3a5593d2918fe16096b))
+* Retry failed capture processing ([54075e7](https://github.com/klinki/knowledgebase-platform/commit/54075e7cd540a6df25ff7649ea27766aae149794))
+* Show persisted tags on refresh ([5ee2110](https://github.com/klinki/knowledgebase-platform/commit/5ee21106beff378dc35afedc6e3118595b45f8c8))
+* Use ASP.NET runtime for migrator ([f86a2ef](https://github.com/klinki/knowledgebase-platform/commit/f86a2ef81a054a893508630e0f7410f0d49ec054))
+
 ## [0.1.0](https://github.com/klinki/knowledgebase-platform/compare/v0.0.1...v0.1.0) (2026-03-08)
 
 
