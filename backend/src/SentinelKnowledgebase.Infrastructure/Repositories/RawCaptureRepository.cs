@@ -64,6 +64,31 @@ public class RawCaptureRepository : IRawCaptureRepository
             .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
     }
 
+    public async Task<IReadOnlyList<RawCapture>> GetByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _context.RawCaptures
+            .Where(capture => capture.OwnerUserId == ownerUserId && ids.Contains(capture.Id))
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<RawCapture>> GetFailedAsync(Guid ownerUserId, ContentType? contentType = null)
+    {
+        IQueryable<RawCapture> query = _context.RawCaptures
+            .Where(capture => capture.OwnerUserId == ownerUserId && capture.Status == CaptureStatus.Failed);
+
+        if (contentType.HasValue)
+        {
+            query = query.Where(capture => capture.ContentType == contentType.Value);
+        }
+
+        return await query.ToListAsync();
+    }
+
     public async Task<CaptureListQueryResult> GetPagedListAsync(Guid ownerUserId, CaptureListQueryOptions options)
     {
         IQueryable<RawCapture> query = _context.RawCaptures

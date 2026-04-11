@@ -344,6 +344,64 @@ public class CaptureServiceTests
     }
 
     [Fact]
+    public async Task RetryFailedCapturesAsync_ShouldResetOnlyFailedCaptures_FromSelection()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var failedCaptureId = Guid.NewGuid();
+        var pendingCaptureId = Guid.NewGuid();
+        var failedCapture = new RawCapture
+        {
+            Id = failedCaptureId,
+            OwnerUserId = ownerUserId,
+            SourceUrl = "https://example.com/failed",
+            ContentType = ContentType.Article,
+            RawContent = "Failed content",
+            Status = CaptureStatus.Failed,
+            ProcessedAt = DateTime.UtcNow,
+            Metadata = """{"lastProcessingError":"boom"}"""
+        };
+        var pendingCapture = new RawCapture
+        {
+            Id = pendingCaptureId,
+            OwnerUserId = ownerUserId,
+            SourceUrl = "https://example.com/pending",
+            ContentType = ContentType.Article,
+            RawContent = "Pending content",
+            Status = CaptureStatus.Pending
+        };
+
+        _unitOfWork.RawCaptures.GetByIdsAsync(ownerUserId, Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns([failedCapture, pendingCapture]);
+
+        var retriedIds = await _service.RetryFailedCapturesAsync(ownerUserId, [failedCaptureId, pendingCaptureId]);
+
+        retriedIds.Should().Equal([failedCaptureId]);
+        failedCapture.Status.Should().Be(CaptureStatus.Pending);
+        failedCapture.ProcessedAt.Should().BeNull();
+        failedCapture.Metadata.Should().BeNull();
+        pendingCapture.Status.Should().Be(CaptureStatus.Pending);
+        await _unitOfWork.RawCaptures.Received(1).UpdateAsync(failedCapture);
+        await _unitOfWork.RawCaptures.DidNotReceive().UpdateAsync(pendingCapture);
+        await _unitOfWork.Received(1).SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task RetryAllFailedCapturesAsync_ShouldRespectRetryScopeStatusFilter()
+    {
+        var ownerUserId = Guid.NewGuid();
+
+        var retriedIds = await _service.RetryAllFailedCapturesAsync(ownerUserId, new CaptureBulkRetryRequestDto
+        {
+            RetryAllMatching = true,
+            Status = "Completed"
+        });
+
+        retriedIds.Should().BeEmpty();
+        await _unitOfWork.RawCaptures.DidNotReceive().GetFailedAsync(Arg.Any<Guid>(), Arg.Any<ContentType?>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync();
+    }
+
+    [Fact]
     public async Task DeleteCaptureAsync_ShouldCallDelete()
     {
         var ownerUserId = Guid.NewGuid();

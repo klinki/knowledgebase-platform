@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CaptureSortField, CaptureStateService, PAGE_SIZE_OPTIONS } from '../../core/services/capture-state.service';
@@ -92,9 +92,76 @@ import { CaptureSortField, CaptureStateService, PAGE_SIZE_OPTIONS } from '../../
             }
           </div>
         } @else {
+          <div class="table-actions">
+            <div class="selection-group">
+              <span class="selection-summary">
+                {{ selectedCount() }} selected
+                @if (selectedFailedCount() > 0) {
+                  <span> • {{ selectedFailedCount() }} failed</span>
+                }
+              </span>
+              <button type="button" class="secondary-action-btn" (click)="toggleSelectPage(!allPageSelected())">
+                {{ allPageSelected() ? 'Clear page' : 'Select page' }}
+              </button>
+              <button
+                type="button"
+                class="secondary-action-btn"
+                (click)="selectFailedOnPage()"
+                [disabled]="failedCountOnPage() === 0"
+              >
+                Select failed
+              </button>
+              <button
+                type="button"
+                class="secondary-action-btn"
+                (click)="clearSelection()"
+                [disabled]="selectedCount() === 0"
+              >
+                Clear selection
+              </button>
+            </div>
+
+            <div class="retry-group">
+              <button
+                type="button"
+                class="secondary-action-btn retry-btn"
+                (click)="retrySelectedFailed()"
+                [disabled]="selectedFailedCount() === 0 || bulkActionPending()"
+              >
+                {{ bulkActionPending() ? 'Retrying...' : 'Retry selected failed' }}
+              </button>
+              <button
+                type="button"
+                class="premium-btn retry-btn"
+                (click)="retryAllFailed()"
+                [disabled]="!canRetryAllFailed() || bulkActionPending()"
+              >
+                {{ bulkActionPending() ? 'Retrying...' : 'Retry all failed' }}
+              </button>
+            </div>
+          </div>
+
+          @if (bulkActionMessage()) {
+            <div class="bulk-banner success">{{ bulkActionMessage() }}</div>
+          }
+
+          @if (bulkActionError()) {
+            <div class="bulk-banner error">{{ bulkActionError() }}</div>
+          }
+
           <table class="captures-table">
             <thead>
               <tr>
+                <th class="checkbox-column">
+                  <input
+                    type="checkbox"
+                    [checked]="allPageSelected()"
+                    [disabled]="captureState.captures().length === 0"
+                    aria-label="Select all captures on this page"
+                    (click)="onCheckboxClick($event)"
+                    (change)="toggleSelectPage(($any($event.target)).checked)"
+                  />
+                </th>
                 <th>
                   <button type="button" (click)="sortBy('contentType')">
                     Type {{ sortIndicator('contentType') }}
@@ -120,6 +187,15 @@ import { CaptureSortField, CaptureStateService, PAGE_SIZE_OPTIONS } from '../../
             <tbody>
               @for (capture of captureState.captures(); track capture.id) {
                 <tr (click)="openCapture(capture.id)" tabindex="0" (keyup.enter)="openCapture(capture.id)">
+                  <td class="checkbox-column">
+                    <input
+                      type="checkbox"
+                      [checked]="isSelected(capture.id)"
+                      [attr.aria-label]="'Select capture ' + capture.id"
+                      (click)="onCheckboxClick($event)"
+                      (change)="toggleSelection(capture.id, ($any($event.target)).checked)"
+                    />
+                  </td>
                   <td><span class="type-pill">{{ capture.contentType }}</span></td>
                   <td>{{ capture.createdAt | date:'medium' }}</td>
                   <td>
@@ -285,6 +361,75 @@ import { CaptureSortField, CaptureStateService, PAGE_SIZE_OPTIONS } from '../../
       overflow: hidden;
     }
 
+    .table-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      flex-wrap: wrap;
+    }
+
+    .selection-group,
+    .retry-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .selection-summary {
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    .secondary-action-btn {
+      appearance: none;
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.84rem;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .secondary-action-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(129, 140, 248, 0.24);
+    }
+
+    .secondary-action-btn:disabled,
+    .retry-btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .retry-btn {
+      white-space: nowrap;
+    }
+
+    .bulk-banner {
+      margin: 0 1.2rem 1rem;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .bulk-banner.success {
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.18);
+      color: #bbf7d0;
+    }
+
+    .bulk-banner.error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.18);
+      color: #fecaca;
+    }
+
     .captures-table {
       width: 100%;
       border-collapse: collapse;
@@ -325,6 +470,18 @@ import { CaptureSortField, CaptureStateService, PAGE_SIZE_OPTIONS } from '../../
     tbody tr:focus-visible {
       background: rgba(255, 255, 255, 0.04);
       outline: none;
+    }
+
+    .checkbox-column {
+      width: 3rem;
+      padding-right: 0.2rem;
+    }
+
+    .checkbox-column input {
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+      accent-color: #6366f1;
     }
 
     td {
@@ -452,6 +609,16 @@ import { CaptureSortField, CaptureStateService, PAGE_SIZE_OPTIONS } from '../../
       font-size: 0.82rem;
       white-space: nowrap;
     }
+
+    @media (max-width: 900px) {
+      .table-actions {
+        align-items: flex-start;
+      }
+
+      .retry-group {
+        width: 100%;
+      }
+    }
   `]
 })
 export class CapturesComponent implements OnInit {
@@ -459,9 +626,41 @@ export class CapturesComponent implements OnInit {
   private router = inject(Router);
 
   readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
+  selectedCaptureIds = signal<string[]>([]);
+  bulkActionPending = signal(false);
+  bulkActionMessage = signal<string | null>(null);
+  bulkActionError = signal<string | null>(null);
   currentSort = computed(() => this.captureState.currentSort());
   currentFilter = computed(() => this.captureState.currentFilter());
   currentPagination = computed(() => this.captureState.currentPagination());
+  selectedCount = computed(() => this.selectedCaptureIds().length);
+  selectedFailedIds = computed(() => {
+    const selected = new Set(this.selectedCaptureIds());
+    return this.captureState.captures()
+      .filter(capture => selected.has(capture.id) && capture.status.toLowerCase() === 'failed')
+      .map(capture => capture.id);
+  });
+  selectedFailedCount = computed(() => this.selectedFailedIds().length);
+  failedCountOnPage = computed(() =>
+    this.captureState.captures().filter(capture => capture.status.toLowerCase() === 'failed').length
+  );
+  allPageSelected = computed(() => {
+    const captures = this.captureState.captures();
+    if (captures.length === 0) {
+      return false;
+    }
+
+    const selected = new Set(this.selectedCaptureIds());
+    return captures.every(capture => selected.has(capture.id));
+  });
+  canRetryAllFailed = computed(() => {
+    if (this.captureState.totalFilteredCount() === 0) {
+      return false;
+    }
+
+    const statusFilter = this.currentFilter().status;
+    return statusFilter === null || statusFilter === 'Failed';
+  });
   hasActiveFilters = computed(() => {
     const f = this.currentFilter();
     return f.contentType !== null || f.status !== null;
@@ -496,6 +695,13 @@ export class CapturesComponent implements OnInit {
     return pages;
   });
 
+  constructor() {
+    effect(() => {
+      const captureIds = new Set(this.captureState.captures().map(capture => capture.id));
+      this.selectedCaptureIds.update(selectedIds => selectedIds.filter(id => captureIds.has(id)));
+    });
+  }
+
   async ngOnInit(): Promise<void> {
     await this.captureState.loadCaptures();
   }
@@ -527,6 +733,103 @@ export class CapturesComponent implements OnInit {
 
   onPageSizeChange(size: number): void {
     this.captureState.setPageSize(size);
+  }
+
+  isSelected(id: string): boolean {
+    return this.selectedCaptureIds().includes(id);
+  }
+
+  toggleSelection(id: string, checked: boolean): void {
+    this.bulkActionMessage.set(null);
+    this.bulkActionError.set(null);
+    this.selectedCaptureIds.update(selectedIds => {
+      const next = new Set(selectedIds);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+
+      return [...next];
+    });
+  }
+
+  toggleSelectPage(checked: boolean): void {
+    this.bulkActionMessage.set(null);
+    this.bulkActionError.set(null);
+    if (!checked) {
+      this.clearSelection();
+      return;
+    }
+
+    this.selectedCaptureIds.set(this.captureState.captures().map(capture => capture.id));
+  }
+
+  selectFailedOnPage(): void {
+    this.bulkActionMessage.set(null);
+    this.bulkActionError.set(null);
+    this.selectedCaptureIds.set(
+      this.captureState.captures()
+        .filter(capture => capture.status.toLowerCase() === 'failed')
+        .map(capture => capture.id)
+    );
+  }
+
+  clearSelection(): void {
+    this.selectedCaptureIds.set([]);
+  }
+
+  onCheckboxClick(event: Event): void {
+    event.stopPropagation();
+  }
+
+  async retrySelectedFailed(): Promise<void> {
+    const ids = this.selectedFailedIds();
+    if (ids.length === 0 || this.bulkActionPending()) {
+      return;
+    }
+
+    this.bulkActionPending.set(true);
+    this.bulkActionMessage.set(null);
+    this.bulkActionError.set(null);
+
+    try {
+      const response = await this.captureState.retryFailedCaptures(ids);
+      this.selectedCaptureIds.set([]);
+      this.bulkActionMessage.set(
+        response.retriedCount === 0
+          ? 'No failed captures were eligible for retry.'
+          : `Retried ${response.retriedCount} failed capture${response.retriedCount === 1 ? '' : 's'}.`
+      );
+    } catch {
+      this.bulkActionError.set('Failed captures could not be retried.');
+    } finally {
+      this.bulkActionPending.set(false);
+    }
+  }
+
+  async retryAllFailed(): Promise<void> {
+    if (!this.canRetryAllFailed() || this.bulkActionPending()) {
+      return;
+    }
+
+    this.bulkActionPending.set(true);
+    this.bulkActionMessage.set(null);
+    this.bulkActionError.set(null);
+
+    try {
+      const response = await this.captureState.retryAllFailedCaptures(this.currentFilter());
+      this.selectedCaptureIds.set([]);
+      this.bulkActionMessage.set(
+        response.retriedCount === 0
+          ? 'No failed captures matched the current retry scope.'
+          : `Retried ${response.retriedCount} failed capture${response.retriedCount === 1 ? '' : 's'} across the current scope.`
+      );
+    } catch {
+      this.bulkActionError.set('Failed captures could not be retried.');
+    } finally {
+      this.bulkActionPending.set(false);
+    }
   }
 
   async openCapture(id: string): Promise<void> {

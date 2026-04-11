@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   CaptureAccepted,
+  CaptureBulkRetryAccepted,
   CaptureCreateRequest,
   CaptureDetail,
   CaptureListItem,
@@ -206,6 +207,35 @@ export class CaptureStateService {
 
     this.captureDetailState.set(null);
     await this.loadCaptures(true);
+  }
+
+  async retryFailedCaptures(ids: string[]): Promise<CaptureBulkRetryAccepted> {
+    const normalizedIds = ids
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
+
+    const response = await firstValueFrom(
+      this.http.post<CaptureBulkRetryAccepted>(`${this.apiUrl}/retry-failed`, {
+        captureIds: normalizedIds,
+        retryAllMatching: false
+      })
+    );
+
+    await this.loadCaptures(true);
+    return response;
+  }
+
+  async retryAllFailedCaptures(filter: CaptureFilterState): Promise<CaptureBulkRetryAccepted> {
+    const response = await firstValueFrom(
+      this.http.post<CaptureBulkRetryAccepted>(`${this.apiUrl}/retry-failed`, {
+        retryAllMatching: true,
+        contentType: filter.contentType,
+        status: filter.status
+      })
+    );
+
+    await this.loadCaptures(true);
+    return response;
   }
 
   setSort(field: CaptureSortField): void {

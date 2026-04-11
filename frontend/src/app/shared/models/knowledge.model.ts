@@ -210,3 +210,9 @@ export interface CaptureAccepted {
   id: string;
   message: string;
 }
+
+export interface CaptureBulkRetryAccepted {
+  retriedCount: number;
+  enqueuedCount: number;
+  message: string;
+}

@@ -311,6 +311,91 @@ public class CaptureControllerTests
 
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task RetryFailedCaptures_ShouldRetrySelectedAndAllMatchingFailedCaptures()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var selectedFailedId = Guid.NewGuid();
+        var allMatchingFailedId = Guid.NewGuid();
+        var completedId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.RawCaptures.AddRange(
+                new RawCapture
+                {
+                    Id = selectedFailedId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/selected-failed",
+                    ContentType = ContentType.Article,
+                    RawContent = "Selected failed",
+                    Status = CaptureStatus.Failed,
+                    CreatedAt = now,
+                    ProcessedAt = now,
+                    Metadata = """{"lastProcessingError":"failed once"}"""
+                },
+                new RawCapture
+                {
+                    Id = allMatchingFailedId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/all-failed",
+                    ContentType = ContentType.Article,
+                    RawContent = "All matching failed",
+                    Status = CaptureStatus.Failed,
+                    CreatedAt = now
+                },
+                new RawCapture
+                {
+                    Id = completedId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/completed",
+                    ContentType = ContentType.Article,
+                    RawContent = "Completed capture",
+                    Status = CaptureStatus.Completed,
+                    CreatedAt = now
+                });
+
+            await Task.CompletedTask;
+        });
+
+        var selectedResponse = await client.PostAsJsonAsync("/api/v1/capture/retry-failed", new CaptureBulkRetryRequestDto
+        {
+            CaptureIds = [selectedFailedId, completedId]
+        });
+
+        selectedResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+        var selectedResult = await selectedResponse.Content.ReadFromJsonAsync<CaptureBulkRetryAcceptedDto>();
+        selectedResult.Should().NotBeNull();
+        selectedResult!.RetriedCount.Should().Be(1);
+
+        var selectedCapture = await client.GetFromJsonAsync<CaptureResponseDto>(
+            $"/api/v1/capture/{selectedFailedId}",
+            ResponseJsonOptions);
+        selectedCapture.Should().NotBeNull();
+        selectedCapture!.Status.Should().Be(CaptureStatus.Pending);
+        selectedCapture.FailureReason.Should().BeNull();
+
+        var allResponse = await client.PostAsJsonAsync("/api/v1/capture/retry-failed", new CaptureBulkRetryRequestDto
+        {
+            RetryAllMatching = true,
+            ContentType = "Article",
+            Status = "Failed"
+        });
+
+        allResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.Accepted);
+        var allResult = await allResponse.Content.ReadFromJsonAsync<CaptureBulkRetryAcceptedDto>();
+        allResult.Should().NotBeNull();
+        allResult!.RetriedCount.Should().Be(1);
+
+        var allCapture = await client.GetFromJsonAsync<CaptureResponseDto>(
+            $"/api/v1/capture/{allMatchingFailedId}",
+            ResponseJsonOptions);
+        allCapture.Should().NotBeNull();
+        allCapture!.Status.Should().Be(CaptureStatus.Pending);
+    }
     
     [Fact]
     public async Task CreateCapture_WithInvalidUrl_ShouldReturn400_WhenAuthenticated()

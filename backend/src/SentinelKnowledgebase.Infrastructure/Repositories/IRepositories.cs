@@ -8,6 +8,8 @@ public interface IRawCaptureRepository
     Task<RawCapture> AddAsync(RawCapture rawCapture);
     Task<RawCapture?> GetByIdAsync(Guid id);
     Task<RawCapture?> GetByIdAsync(Guid id, Guid ownerUserId);
+    Task<IReadOnlyList<RawCapture>> GetByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
+    Task<IReadOnlyList<RawCapture>> GetFailedAsync(Guid ownerUserId, ContentType? contentType = null);
     Task<CaptureListQueryResult> GetPagedListAsync(Guid ownerUserId, CaptureListQueryOptions options);
     Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId);
     Task<IEnumerable<RawCapture>> GetRecentAsync(Guid ownerUserId, int take);

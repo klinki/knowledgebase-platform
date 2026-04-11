@@ -65,6 +65,21 @@ public class CaptureAcceptedDto
     public string Message { get; set; } = string.Empty;
 }
 
+public class CaptureBulkRetryRequestDto
+{
+    public List<Guid> CaptureIds { get; set; } = new();
+    public bool RetryAllMatching { get; set; }
+    public string? ContentType { get; set; }
+    public string? Status { get; set; }
+}
+
+public class CaptureBulkRetryAcceptedDto
+{
+    public int RetriedCount { get; set; }
+    public int EnqueuedCount { get; set; }
+    public string Message { get; set; } = string.Empty;
+}
+
 public class ProcessedInsightDto
 {
     public Guid Id { get; set; }

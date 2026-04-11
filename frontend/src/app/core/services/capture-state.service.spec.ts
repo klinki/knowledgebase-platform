@@ -184,4 +184,93 @@ describe('CaptureStateService', () => {
 
     await expect(createPromise).resolves.toEqual({ id: 'capture-2', message: 'accepted' });
   });
+
+  it('posts selected failed capture ids to the bulk retry endpoint and reloads the list', async () => {
+    const retryPromise = service.retryFailedCaptures(['capture-1', 'capture-2']);
+
+    const retryRequest = http.expectOne('http://localhost:5000/api/v1/capture/retry-failed');
+    expect(retryRequest.request.method).toBe('POST');
+    expect(retryRequest.request.body).toEqual({
+      captureIds: ['capture-1', 'capture-2'],
+      retryAllMatching: false
+    });
+    retryRequest.flush({
+      retriedCount: 2,
+      enqueuedCount: 2,
+      message: 'accepted'
+    });
+    await Promise.resolve();
+
+    const reloadRequest = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('page') === '1' &&
+      req.params.get('pageSize') === '10'
+    );
+    reloadRequest.flush({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10
+    });
+
+    await expect(retryPromise).resolves.toEqual({
+      retriedCount: 2,
+      enqueuedCount: 2,
+      message: 'accepted'
+    });
+  });
+
+  it('posts retry-all scope to the bulk retry endpoint and reloads the list', async () => {
+    service.setFilter({ contentType: 'Article', status: 'Failed' });
+
+    const filterRequest = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('contentType') === 'Article' &&
+      req.params.get('status') === 'Failed'
+    );
+    filterRequest.flush({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10
+    });
+    await Promise.resolve();
+
+    const retryPromise = service.retryAllFailedCaptures({
+      contentType: 'Article',
+      status: 'Failed'
+    });
+
+    const retryRequest = http.expectOne('http://localhost:5000/api/v1/capture/retry-failed');
+    expect(retryRequest.request.method).toBe('POST');
+    expect(retryRequest.request.body).toEqual({
+      retryAllMatching: true,
+      contentType: 'Article',
+      status: 'Failed'
+    });
+    retryRequest.flush({
+      retriedCount: 4,
+      enqueuedCount: 4,
+      message: 'accepted'
+    });
+    await Promise.resolve();
+
+    const reloadRequest = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/capture/list' &&
+      req.params.get('contentType') === 'Article' &&
+      req.params.get('status') === 'Failed'
+    );
+    reloadRequest.flush({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 10
+    });
+
+    await expect(retryPromise).resolves.toEqual({
+      retriedCount: 4,
+      enqueuedCount: 4,
+      message: 'accepted'
+    });
+  });
 });

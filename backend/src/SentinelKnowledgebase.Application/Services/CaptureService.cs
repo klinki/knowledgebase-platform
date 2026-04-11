@@ -157,14 +157,62 @@ public class CaptureService : ICaptureService
             return false;
         }
 
-        capture.Status = CaptureStatus.Pending;
-        capture.ProcessedAt = null;
-        capture.Metadata = ClearProcessingError(capture.Metadata);
-
+        ResetCaptureForRetry(capture);
         await _unitOfWork.RawCaptures.UpdateAsync(capture);
         await _unitOfWork.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<IReadOnlyList<Guid>> RetryFailedCapturesAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var captures = await _unitOfWork.RawCaptures.GetByIdsAsync(ownerUserId, ids);
+        var retryableCaptures = captures
+            .Where(capture => capture.Status == CaptureStatus.Failed)
+            .ToList();
+
+        if (retryableCaptures.Count == 0)
+        {
+            return [];
+        }
+
+        foreach (var capture in retryableCaptures)
+        {
+            ResetCaptureForRetry(capture);
+            await _unitOfWork.RawCaptures.UpdateAsync(capture);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return retryableCaptures.Select(capture => capture.Id).ToList();
+    }
+
+    public async Task<IReadOnlyList<Guid>> RetryAllFailedCapturesAsync(Guid ownerUserId, CaptureBulkRetryRequestDto request)
+    {
+        var options = NormalizeRetryQuery(request);
+        if (options.Status.HasValue && options.Status.Value != CaptureStatus.Failed)
+        {
+            return [];
+        }
+
+        var captures = await _unitOfWork.RawCaptures.GetFailedAsync(ownerUserId, options.ContentType);
+        if (captures.Count == 0)
+        {
+            return [];
+        }
+
+        foreach (var capture in captures)
+        {
+            ResetCaptureForRetry(capture);
+            await _unitOfWork.RawCaptures.UpdateAsync(capture);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return captures.Select(capture => capture.Id).ToList();
     }
 
     public async Task ProcessCaptureAsync(Guid rawCaptureId)
@@ -403,6 +451,23 @@ public class CaptureService : ICaptureService
             SortField = NormalizeSortField(query.SortField),
             SortDirection = NormalizeSortDirection(query.SortDirection)
         };
+
+        if (!string.IsNullOrWhiteSpace(query.ContentType))
+        {
+            options.ContentType = ParseEnumFilter<ContentType>(query.ContentType, "contentType");
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            options.Status = ParseEnumFilter<CaptureStatus>(query.Status, "status");
+        }
+
+        return options;
+    }
+
+    private static CaptureListQueryOptions NormalizeRetryQuery(CaptureBulkRetryRequestDto query)
+    {
+        var options = new CaptureListQueryOptions();
 
         if (!string.IsNullOrWhiteSpace(query.ContentType))
         {
@@ -753,6 +818,13 @@ public class CaptureService : ICaptureService
         }
 
         return payload.Count == 0 ? null : JsonSerializer.Serialize(payload);
+    }
+
+    private static void ResetCaptureForRetry(RawCapture capture)
+    {
+        capture.Status = CaptureStatus.Pending;
+        capture.ProcessedAt = null;
+        capture.Metadata = ClearProcessingError(capture.Metadata);
     }
 
     private static Dictionary<string, object?> ParseMetadata(string? metadata)

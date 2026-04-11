@@ -12,4 +12,6 @@ public interface ICaptureService
     Task<IEnumerable<CaptureResponseDto>> GetAllCapturesAsync(Guid ownerUserId);
     Task<bool> DeleteCaptureAsync(Guid ownerUserId, Guid id);
     Task<bool> RetryCaptureAsync(Guid ownerUserId, Guid id);
+    Task<IReadOnlyList<Guid>> RetryFailedCapturesAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
+    Task<IReadOnlyList<Guid>> RetryAllFailedCapturesAsync(Guid ownerUserId, CaptureBulkRetryRequestDto request);
 }

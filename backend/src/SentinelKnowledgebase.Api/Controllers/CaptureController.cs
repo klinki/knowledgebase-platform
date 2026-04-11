@@ -16,6 +16,8 @@ public class CaptureController : ControllerBase
     private const string AcceptedWhilePausedMessage = "Capture accepted; processing is currently paused";
     private const string RetryAcceptedAndEnqueuedMessage = "Capture retry accepted and processing enqueued";
     private const string RetryAcceptedWhilePausedMessage = "Capture retry accepted; processing is currently paused";
+    private const string BulkRetryAcceptedAndEnqueuedMessage = "Failed capture retries accepted and processing enqueued";
+    private const string BulkRetryAcceptedWhilePausedMessage = "Failed capture retries accepted; processing is currently paused";
 
     private readonly ICaptureService _captureService;
     private readonly ICaptureProcessingAdminService _captureProcessingAdminService;
@@ -229,6 +231,59 @@ public class CaptureController : ControllerBase
         }
 
         return Accepted(new { message = isPaused ? RetryAcceptedWhilePausedMessage : RetryAcceptedAndEnqueuedMessage });
+    }
+
+    [HttpPost("retry-failed")]
+    [ProducesResponseType(typeof(CaptureBulkRetryAcceptedDto), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RetryFailedCaptures([FromBody] CaptureBulkRetryRequestDto? request)
+    {
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        request ??= new CaptureBulkRetryRequestDto();
+
+        try
+        {
+            IReadOnlyList<Guid> retriedIds = request.RetryAllMatching
+                ? await _captureService.RetryAllFailedCapturesAsync(userId, request)
+                : await _captureService.RetryFailedCapturesAsync(userId, request.CaptureIds);
+
+            var isPaused = await _captureProcessingAdminService.IsPausedAsync();
+            var enqueuedCount = 0;
+
+            if (!isPaused)
+            {
+                foreach (var retriedId in retriedIds)
+                {
+                    var jobId = _backgroundJobClient.Enqueue<ICaptureService>(service => service.ProcessCaptureAsync(retriedId));
+                    enqueuedCount++;
+                    _logger.LogInformation(
+                        "Capture {CaptureId} bulk retry requested; Hangfire job {JobId} enqueued",
+                        retriedId,
+                        jobId);
+                }
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Accepted {RetryCount} failed capture retries while processing is paused",
+                    retriedIds.Count);
+            }
+
+            return Accepted(new CaptureBulkRetryAcceptedDto
+            {
+                RetriedCount = retriedIds.Count,
+                EnqueuedCount = enqueuedCount,
+                Message = isPaused ? BulkRetryAcceptedWhilePausedMessage : BulkRetryAcceptedAndEnqueuedMessage
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpDelete("{id:guid}")]
