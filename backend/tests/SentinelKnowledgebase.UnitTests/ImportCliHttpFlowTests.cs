@@ -145,7 +145,8 @@ public class ImportCliHttpFlowTests
                         Metadata = """{"source":"twitter","tweetId":"1"}""",
                         RawContent = "One",
                         SourceUrl = "https://twitter.com/i/web/status/1",
-                        Status = CaptureStatus.Pending
+                        Status = CaptureStatus.Pending,
+                        SkipReason = null
                     },
                     new()
                     {
@@ -155,7 +156,8 @@ public class ImportCliHttpFlowTests
                         Metadata = """{"source":"webpage","tweetId":"2"}""",
                         RawContent = "Two",
                         SourceUrl = "https://example.com",
-                        Status = CaptureStatus.Pending
+                        Status = CaptureStatus.Pending,
+                        SkipReason = null
                     },
                     new()
                     {
@@ -165,7 +167,8 @@ public class ImportCliHttpFlowTests
                         Metadata = """{"source":"twitter","tweet_id":"3"}""",
                         RawContent = "Three",
                         SourceUrl = "https://twitter.com/i/web/status/3",
-                        Status = CaptureStatus.Pending
+                        Status = CaptureStatus.Pending,
+                        SkipReason = null
                     }
                 }),
                 _ => throw new InvalidOperationException($"Unexpected request {log.Path}")
@@ -307,6 +310,7 @@ public class ImportCliHttpFlowTests
         exitCode.Should().Be(0);
         handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/capture/bulk");
         handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/clusters/rebuild");
+        output.ToString().Should().Contain("Filtered placeholders skipped: 0");
         output.ToString().Should().Contain("Successfully submitted captures: 1");
         error.ToString().Should().BeEmpty();
     }
@@ -340,7 +344,8 @@ public class ImportCliHttpFlowTests
                         Metadata = """{"source":"twitter","tweetId":"2018256260119101805"}""",
                         RawContent = "Existing capture",
                         SourceUrl = "https://twitter.com/i/web/status/2018256260119101805",
-                        Status = CaptureStatus.Pending
+                        Status = CaptureStatus.Pending,
+                        SkipReason = null
                     }
                 }),
                 _ => throw new InvalidOperationException($"Unexpected request {log.Method} {log.Path}")
@@ -369,6 +374,7 @@ public class ImportCliHttpFlowTests
         handler.Logs.Should().ContainSingle(log => log.Method == "GET" && log.Path == "/api/v1/capture");
         handler.Logs.Should().NotContain(log => log.Method == "POST" && log.Path == "/api/v1/capture/bulk");
         output.ToString().Should().Contain("Duplicates skipped: 1");
+        output.ToString().Should().Contain("Filtered placeholders skipped: 0");
         error.ToString().Should().BeEmpty();
     }
 }

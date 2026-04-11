@@ -215,6 +215,7 @@ public class CaptureServiceTests
             RawContent = "Test",
             Status = CaptureStatus.Completed,
             CreatedAt = DateTime.UtcNow,
+            Metadata = """{"processingSkipReason":"Twitter post is unavailable."}""",
             Tags = new List<Tag>()
         };
         
@@ -226,6 +227,7 @@ public class CaptureServiceTests
         result.Should().NotBeNull();
         result!.Id.Should().Be(captureId);
         result.SourceUrl.Should().Be("https://example.com");
+        result.SkipReason.Should().Be("Twitter post is unavailable.");
     }
     
     [Fact]
@@ -300,6 +302,37 @@ public class CaptureServiceTests
         result.Items.Should().ContainSingle();
         result.Items[0].SourceUrl.Should().Be("https://example.com/article");
         result.Items[0].FailureReason.Should().Be("processor exploded");
+    }
+
+    [Fact]
+    public async Task GetCaptureListPageAsync_ShouldMapSkipReasonWithoutFailureReason()
+    {
+        var ownerUserId = Guid.NewGuid();
+
+        _unitOfWork.RawCaptures.GetPagedListAsync(ownerUserId, Arg.Any<CaptureListQueryOptions>())
+            .Returns(Task.FromResult(new CaptureListQueryResult
+            {
+                TotalCount = 1,
+                Items =
+                [
+                    new CaptureListRecord
+                    {
+                        Id = Guid.NewGuid(),
+                        SourceUrl = "https://twitter.com/i/web/status/1",
+                        ContentType = ContentType.Tweet,
+                        Status = CaptureStatus.Completed,
+                        CreatedAt = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc),
+                        ProcessedAt = new DateTime(2026, 4, 1, 10, 1, 0, DateTimeKind.Utc),
+                        Metadata = """{"processingSkipCode":"twitter_post_unavailable","processingSkipReason":"Twitter post is unavailable."}"""
+                    }
+                ]
+            }));
+
+        var result = await _service.GetCaptureListPageAsync(ownerUserId, new CaptureListQueryDto());
+
+        result.Items.Should().ContainSingle();
+        result.Items[0].FailureReason.Should().BeNull();
+        result.Items[0].SkipReason.Should().Be("Twitter post is unavailable.");
     }
 
     [Fact]
@@ -553,6 +586,43 @@ public class CaptureServiceTests
                 job.Type == typeof(IInsightClusteringService) &&
                 job.Method.Name == nameof(IInsightClusteringService.RebuildOwnerClustersAsync)),
             Arg.Any<IState>());
+    }
+
+    [Fact]
+    public async Task ProcessCaptureAsync_ShouldMarkPlaceholderTweetsAsSkippedWithoutGeneratingInsights()
+    {
+        var rawCaptureId = Guid.NewGuid();
+        var rawCapture = new RawCapture
+        {
+            Id = rawCaptureId,
+            OwnerUserId = Guid.NewGuid(),
+            SourceUrl = "https://twitter.com/i/web/status/123",
+            ContentType = ContentType.Tweet,
+            RawContent = "This Post is unavailable. {learnmore}",
+            Status = CaptureStatus.Pending
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId).Returns(rawCapture);
+
+        await _service.ProcessCaptureAsync(rawCaptureId);
+
+        rawCapture.Status.Should().Be(CaptureStatus.Completed);
+        rawCapture.ProcessedAt.Should().NotBeNull();
+        rawCapture.Metadata.Should().NotBeNull();
+
+        using var metadataDocument = JsonDocument.Parse(rawCapture.Metadata!);
+        metadataDocument.RootElement.GetProperty("processingSkipCode").GetString().Should().Be("twitter_post_unavailable");
+        metadataDocument.RootElement.GetProperty("processingSkipReason").GetString().Should().Be("Twitter post is unavailable.");
+        metadataDocument.RootElement.TryGetProperty("lastProcessingError", out _).Should().BeFalse();
+
+        await _unitOfWork.RawCaptures.Received(1).UpdateAsync(rawCapture);
+        await _unitOfWork.ProcessedInsights.DidNotReceive().AddAsync(Arg.Any<ProcessedInsight>());
+        await _contentProcessor.DidNotReceive().ExtractInsightsAsync(Arg.Any<string>(), Arg.Any<ContentType>(), Arg.Any<string?>());
+        await _contentProcessor.DidNotReceive().GenerateEmbeddingAsync(Arg.Any<string>());
+        _backgroundJobClient.DidNotReceive().Create(
+            Arg.Is<Job>(job => job.Type == typeof(IInsightClusteringService)),
+            Arg.Any<IState>());
+        _monitoringService.Received(1).RecordCaptureProcessingDuration(Arg.Any<double>(), "filtered");
     }
 
     private static bool IsClusteringQueueState(IState state)

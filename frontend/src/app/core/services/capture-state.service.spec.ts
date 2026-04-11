@@ -45,7 +45,8 @@ describe('CaptureStateService', () => {
           status: 'Completed',
           createdAt: '2026-03-15T10:00:00Z',
           processedAt: null,
-          failureReason: null
+          failureReason: null,
+          skipReason: null
         }
       ],
       totalCount: 23,

@@ -99,6 +99,32 @@ describe('CapturesComponent', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('2 selected');
   });
+
+  it('renders skip reason text for completed skipped captures', async () => {
+    const captureStateStub = createCaptureStateStub({
+      captures: [
+        {
+          ...createCaptureListItem('capture-1', 'Completed'),
+          skipReason: 'Twitter post is unavailable.'
+        }
+      ],
+      totalFilteredCount: 1
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [CapturesComponent],
+      providers: [
+        provideRouter([]),
+        { provide: CaptureStateService, useValue: captureStateStub }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(CapturesComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Twitter post is unavailable.');
+  });
 });
 
 function createCaptureStateStub(options: {
@@ -110,6 +136,7 @@ function createCaptureStateStub(options: {
     createdAt: string;
     processedAt: string | null;
     failureReason: string | null;
+    skipReason: string | null;
   }>;
   totalFilteredCount: number;
   filter?: { contentType: string | null; status: string | null };
@@ -152,7 +179,8 @@ function createCaptureListItem(id: string, status: string) {
     status,
     createdAt: '2026-04-11T10:00:00Z',
     processedAt: null,
-    failureReason: status === 'Failed' ? 'Processing failed.' : null
+    failureReason: status === 'Failed' ? 'Processing failed.' : null,
+    skipReason: null
   };
 }
 

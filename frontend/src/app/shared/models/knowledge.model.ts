@@ -167,6 +167,7 @@ export interface CaptureListItem {
   createdAt: string;
   processedAt: string | null;
   failureReason: string | null;
+  skipReason: string | null;
 }
 
 export interface CaptureListPage {
@@ -198,6 +199,7 @@ export interface CaptureDetail {
   createdAt: string;
   processedAt: string | null;
   failureReason: string | null;
+  skipReason: string | null;
   rawContent: string;
   metadata: string | null;
   tags: string[];

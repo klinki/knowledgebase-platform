@@ -8,6 +8,7 @@ public sealed record TwitterLikesImportOptions(string InputPath, string ApiUrl);
 public sealed record TwitterLikesImportSummary(
     int TotalLikesRead,
     int DuplicatesSkipped,
+    int FilteredPlaceholders,
     int SuccessfulImports,
     int FailedSubmissions,
     int MalformedRecords);

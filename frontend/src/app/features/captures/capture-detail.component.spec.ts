@@ -19,6 +19,8 @@ describe('CaptureDetailComponent', () => {
         status: 'Completed',
         createdAt: '2026-03-16T10:00:00Z',
         processedAt: '2026-03-16T10:10:00Z',
+        failureReason: null,
+        skipReason: null,
         rawContent: 'Raw payload',
         metadata: JSON.stringify({ author: 'A. Writer' }),
         labels: [{ category: 'Language', value: 'English' }],
@@ -121,6 +123,8 @@ describe('CaptureDetailComponent', () => {
         status: 'Completed',
         createdAt: '2026-03-16T10:00:00Z',
         processedAt: '2026-03-16T10:10:00Z',
+        failureReason: null,
+        skipReason: null,
         rawContent: 'Raw payload',
         metadata: null,
         labels: [],
@@ -174,5 +178,56 @@ describe('CaptureDetailComponent', () => {
     const topicLink = (fixture.nativeElement as HTMLElement).querySelector('.topic-link') as HTMLAnchorElement | null;
     expect(topicLink?.textContent).toContain('AI Infrastructure');
     expect(topicLink?.getAttribute('href')).toContain('/topics/topic-1');
+  });
+
+  it('renders skip reason for completed skipped captures', async () => {
+    const captureStateStub = {
+      loadingDetail: signal(false),
+      detailError: signal<string | null>(null),
+      detailNotFound: signal(false),
+      captureDetail: signal({
+        id: 'capture-1',
+        sourceUrl: 'https://twitter.com/i/web/status/1',
+        contentType: 'Tweet',
+        status: 'Completed',
+        createdAt: '2026-03-16T10:00:00Z',
+        processedAt: '2026-03-16T10:10:00Z',
+        failureReason: null,
+        skipReason: 'Twitter post is unavailable.',
+        rawContent: 'This Post is unavailable. {learnmore}',
+        metadata: null,
+        labels: [],
+        tags: [],
+        processedInsight: null
+      }),
+      loadCaptureDetail: vi.fn().mockResolvedValue(undefined),
+      clearDetail: vi.fn()
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [CaptureDetailComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: convertToParamMap({ id: 'capture-1' })
+            }
+          }
+        },
+        {
+          provide: CaptureStateService,
+          useValue: captureStateStub
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(CaptureDetailComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Skip reason');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Twitter post is unavailable.');
   });
 });

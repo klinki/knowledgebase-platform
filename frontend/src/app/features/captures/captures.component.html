@@ -191,6 +191,8 @@
                 <span class="status-pill" [class]="statusClass(capture.status)">{{ capture.status }}</span>
                 @if (capture.status.toLowerCase() === 'failed') {
                   <div class="failure-reason">{{ capture.failureReason || 'Processing failed. Open detail to retry.' }}</div>
+                } @else if (capture.skipReason) {
+                  <div class="skip-reason">{{ capture.skipReason }}</div>
                 }
               </td>
               <td class="source-cell">{{ capture.sourceUrl }}</td>

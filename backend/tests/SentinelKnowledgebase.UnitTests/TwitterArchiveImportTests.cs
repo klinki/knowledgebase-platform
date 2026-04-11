@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Domain.Services;
 using SentinelKnowledgebase.ImportCLI;
 using System.IO.Compression;
 using System.Text.Json;
@@ -11,6 +12,27 @@ namespace SentinelKnowledgebase.UnitTests;
 
 public class TwitterArchiveImportTests
 {
+    [Theory]
+    [InlineData("This Post is from a suspended account. {learnmore}", "twitter_suspended_account")]
+    [InlineData("You’re unable to view this Post because this account owner limits who can view their Posts. {learnmore}", "twitter_account_limited")]
+    [InlineData("This Post is unavailable. {learnmore}", "twitter_post_unavailable")]
+    public void TwitterPlaceholderContentFilter_TryMatch_ShouldRecognizeKnownPlaceholderText(string content, string expectedCode)
+    {
+        var matched = TwitterPlaceholderContentFilter.TryMatch($"  {content}  ", out var match);
+
+        matched.Should().BeTrue();
+        match.Code.Should().Be(expectedCode);
+        match.Reason.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void TwitterPlaceholderContentFilter_TryMatch_ShouldIgnoreNormalTweetText()
+    {
+        var matched = TwitterPlaceholderContentFilter.TryMatch("Ship the feature and write the migration notes.", out _);
+
+        matched.Should().BeFalse();
+    }
+
     [Fact]
     public async Task TwitterLikesImportSource_ReadAsync_FromDirectory_ShouldParseLikes()
     {
@@ -201,6 +223,7 @@ public class TwitterArchiveImportTests
 
         result.TotalLikesRead.Should().Be(3);
         result.DuplicatesSkipped.Should().Be(1);
+        result.FilteredPlaceholders.Should().Be(0);
         result.SuccessfulImports.Should().Be(1);
         result.FailedSubmissions.Should().Be(1);
         result.MalformedRecords.Should().Be(1);
@@ -209,6 +232,79 @@ public class TwitterArchiveImportTests
             "https://sentinel.example",
             Arg.Any<IReadOnlyList<CaptureRequestDto>>(),
             Arg.Any<CancellationToken>());
+        await captureClient.Received(1).TriggerClusterRebuildAsync("https://sentinel.example", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TwitterLikesImportService_ImportAsync_ShouldFilterPlaceholderTweetsBeforeSubmission()
+    {
+        var archive = Substitute.For<IArchiveDataSource>();
+        archive.DisplayName.Returns("test-archive");
+
+        var resolver = Substitute.For<IArchiveInputResolver>();
+        resolver.ResolveAsync("archive", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(archive));
+
+        var source = Substitute.For<ITwitterArchiveImportSource>();
+        source.ReadAsync(archive, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new TwitterArchiveLikeBatch(
+                new TwitterArchiveMetadata(null, null, null, null, null),
+                [
+                    new TwitterLikeRecord("1", "This Post is unavailable. {learnmore}", "https://twitter.com/i/web/status/1"),
+                    new TwitterLikeRecord("2", "Normal archive tweet", "https://twitter.com/i/web/status/2")
+                ],
+                TotalRecords: 2,
+                MalformedRecords: 0)));
+
+        var mapper = Substitute.For<ITwitterLikeCaptureMapper>();
+        mapper.Map(Arg.Any<TwitterLikeRecord>(), Arg.Any<TwitterArchiveMetadata>(), Arg.Any<DateTimeOffset>())
+            .Returns(call => new CaptureRequestDto
+            {
+                SourceUrl = $"https://twitter.com/i/web/status/{call.Arg<TwitterLikeRecord>().TweetId}",
+                ContentType = ContentType.Tweet,
+                RawContent = call.Arg<TwitterLikeRecord>().FullText ?? string.Empty
+            });
+
+        var captureClient = Substitute.For<ISentinelCaptureClient>();
+        IReadOnlyList<CaptureRequestDto>? submittedRequests = null;
+        captureClient.GetExistingTweetIdsAsync("https://sentinel.example", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new HashSet<string>(StringComparer.Ordinal)));
+        captureClient.CreateCapturesAsync("https://sentinel.example", Arg.Any<IReadOnlyList<CaptureRequestDto>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                submittedRequests = call.Arg<IReadOnlyList<CaptureRequestDto>>().ToList();
+                return Task.FromResult(new SubmitBulkCapturesResult(1, []));
+            });
+        captureClient.TriggerClusterRebuildAsync("https://sentinel.example", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new TriggerClusterRebuildResult(true)));
+
+        var reporter = new TestImportReporter();
+        var service = new TwitterLikesImportService(
+            resolver,
+            source,
+            mapper,
+            captureClient,
+            reporter,
+            new StubTimeProvider(DateTimeOffset.Parse("2026-03-27T10:00:00Z")),
+            submissionBatchSize: 10);
+
+        var result = await service.ImportAsync(
+            new TwitterLikesImportOptions("archive", "https://sentinel.example"),
+            CancellationToken.None);
+
+        result.TotalLikesRead.Should().Be(2);
+        result.DuplicatesSkipped.Should().Be(0);
+        result.FilteredPlaceholders.Should().Be(1);
+        result.SuccessfulImports.Should().Be(1);
+        result.FailedSubmissions.Should().Be(0);
+        await captureClient.Received(1).CreateCapturesAsync(
+            "https://sentinel.example",
+            Arg.Any<IReadOnlyList<CaptureRequestDto>>(),
+            Arg.Any<CancellationToken>());
+        submittedRequests.Should().NotBeNull();
+        submittedRequests.Should().ContainSingle();
+        submittedRequests![0].SourceUrl.Should().Be("https://twitter.com/i/web/status/2");
+        submittedRequests[0].RawContent.Should().Be("Normal archive tweet");
         await captureClient.Received(1).TriggerClusterRebuildAsync("https://sentinel.example", Arg.Any<CancellationToken>());
     }
 

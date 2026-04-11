@@ -22,6 +22,8 @@ public class CaptureService : ICaptureService
 {
     private const string DeferClusteringMetadataKey = "deferClustering";
     private const string ProcessingErrorMetadataKey = "lastProcessingError";
+    private const string ProcessingSkipCodeMetadataKey = "processingSkipCode";
+    private const string ProcessingSkipReasonMetadataKey = "processingSkipReason";
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     private readonly IUserLanguagePreferencesService _userLanguagePreferencesService;
@@ -258,6 +260,23 @@ public class CaptureService : ICaptureService
                     jobId);
                 return;
             }
+
+            if (rawCapture.ContentType == ContentType.Tweet
+                && TwitterPlaceholderContentFilter.TryMatch(rawCapture.RawContent, out var placeholderMatch))
+            {
+                rawCapture.Status = CaptureStatus.Completed;
+                rawCapture.ProcessedAt = DateTime.UtcNow;
+                rawCapture.Metadata = SetProcessingSkip(rawCapture.Metadata, placeholderMatch);
+                await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
+                await _unitOfWork.SaveChangesAsync();
+
+                processingStatus = "filtered";
+                _logger.LogInformation(
+                    "Capture {RawCaptureId} skipped before processing because it matched placeholder code {SkipCode}",
+                    rawCaptureId,
+                    placeholderMatch.Code);
+                return;
+            }
             
             rawCapture.Status = CaptureStatus.Processing;
             await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
@@ -418,6 +437,7 @@ public class CaptureService : ICaptureService
             RawContent = rawCapture.RawContent,
             Metadata = rawCapture.Metadata,
             FailureReason = GetProcessingError(rawCapture.Metadata),
+            SkipReason = GetProcessingSkipReason(rawCapture.Metadata),
             Tags = rawCapture.Tags.Select(t => t.Name).ToList(),
             Labels = MapLabels(rawCapture.LabelAssignments),
             ProcessedInsight = rawCapture.ProcessedInsight != null ? new ProcessedInsightDto
@@ -460,7 +480,8 @@ public class CaptureService : ICaptureService
             Status = capture.Status,
             CreatedAt = capture.CreatedAt,
             ProcessedAt = capture.ProcessedAt,
-            FailureReason = GetProcessingError(capture.Metadata)
+            FailureReason = GetProcessingError(capture.Metadata),
+            SkipReason = GetProcessingSkipReason(capture.Metadata)
         };
     }
 
@@ -854,6 +875,40 @@ public class CaptureService : ICaptureService
     private static string? ClearProcessingError(string? metadata)
     {
         return RemoveMetadataFlag(metadata, ProcessingErrorMetadataKey);
+    }
+
+    private static string? GetProcessingSkipReason(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            var values = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(metadata);
+            if (values != null
+                && values.TryGetValue(ProcessingSkipReasonMetadataKey, out var skipReasonValue)
+                && skipReasonValue.ValueKind == JsonValueKind.String)
+            {
+                return skipReasonValue.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static string SetProcessingSkip(string? metadata, TwitterPlaceholderMatch match)
+    {
+        var payload = ParseMetadata(metadata);
+        payload[ProcessingSkipCodeMetadataKey] = match.Code;
+        payload[ProcessingSkipReasonMetadataKey] = match.Reason;
+        payload.Remove(ProcessingErrorMetadataKey);
+        return JsonSerializer.Serialize(payload);
     }
 
     private static void ResetCaptureForRetry(RawCapture capture)

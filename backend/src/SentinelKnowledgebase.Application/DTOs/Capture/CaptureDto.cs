@@ -25,6 +25,7 @@ public class CaptureResponseDto
     public string RawContent { get; set; } = string.Empty;
     public string? Metadata { get; set; }
     public string? FailureReason { get; set; }
+    public string? SkipReason { get; set; }
     public List<string> Tags { get; set; } = new();
     public List<LabelAssignmentDto> Labels { get; set; } = new();
     public ProcessedInsightDto? ProcessedInsight { get; set; }
@@ -57,6 +58,7 @@ public class CaptureListItemDto
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
     public string? FailureReason { get; set; }
+    public string? SkipReason { get; set; }
 }
 
 public class CaptureAcceptedDto

@@ -1,4 +1,5 @@
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Domain.Services;
 
 namespace SentinelKnowledgebase.ImportCLI;
 
@@ -49,6 +50,7 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
         _reporter.WriteInfo($"Starting import of {batch.Likes.Count} liked tweets...");
 
         var duplicateCount = 0;
+        var filteredPlaceholderCount = 0;
         var successCount = 0;
         var failureCount = 0;
         var importedAt = _timeProvider.GetUtcNow();
@@ -96,6 +98,7 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
                 batch.Likes.Count,
                 successCount,
                 duplicateCount,
+                filteredPlaceholderCount,
                 failureCount,
                 batch.MalformedRecords,
                 startedAt);
@@ -109,7 +112,14 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
             if (existingTweetIds.Contains(like.TweetId) || !stagedTweetIds.Add(like.TweetId))
             {
                 duplicateCount++;
-                ReportProgressIfNeeded(processedCount, batch.Likes.Count, successCount, duplicateCount, failureCount, batch.MalformedRecords, startedAt);
+                ReportProgressIfNeeded(processedCount, batch.Likes.Count, successCount, duplicateCount, filteredPlaceholderCount, failureCount, batch.MalformedRecords, startedAt);
+                continue;
+            }
+
+            if (TwitterPlaceholderContentFilter.TryMatch(like.FullText, out _))
+            {
+                filteredPlaceholderCount++;
+                ReportProgressIfNeeded(processedCount, batch.Likes.Count, successCount, duplicateCount, filteredPlaceholderCount, failureCount, batch.MalformedRecords, startedAt);
                 continue;
             }
 
@@ -140,6 +150,7 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
         return new TwitterLikesImportSummary(
             TotalLikesRead: batch.TotalRecords,
             DuplicatesSkipped: duplicateCount,
+            FilteredPlaceholders: filteredPlaceholderCount,
             SuccessfulImports: successCount,
             FailedSubmissions: failureCount,
             MalformedRecords: batch.MalformedRecords);
@@ -150,6 +161,7 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
         int totalCount,
         int successCount,
         int duplicateCount,
+        int filteredPlaceholderCount,
         int failureCount,
         int malformedCount,
         DateTimeOffset startedAt)
@@ -165,7 +177,7 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
         var etaText = FormatEta(processedCount, totalCount, elapsed);
 
         _reporter.WriteInfo(
-            $"Progress: {processedCount}/{totalCount} ({progressPercent:0.0}%) | imported {successCount} | duplicates {duplicateCount} | failed {failureCount} | malformed {malformedCount} | elapsed {elapsedText} | eta {etaText}");
+            $"Progress: {processedCount}/{totalCount} ({progressPercent:0.0}%) | imported {successCount} | duplicates {duplicateCount} | filtered {filteredPlaceholderCount} | failed {failureCount} | malformed {malformedCount} | elapsed {elapsedText} | eta {etaText}");
     }
 
     private static string FormatEta(int processedCount, int totalCount, TimeSpan elapsed)

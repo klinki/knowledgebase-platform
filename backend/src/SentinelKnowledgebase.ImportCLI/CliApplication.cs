@@ -107,6 +107,7 @@ internal sealed class CliApplication
         _output.WriteLine("Import complete.");
         _output.WriteLine($"Total likes read: {summary.TotalLikesRead}");
         _output.WriteLine($"Duplicates skipped: {summary.DuplicatesSkipped}");
+        _output.WriteLine($"Filtered placeholders skipped: {summary.FilteredPlaceholders}");
         _output.WriteLine($"Successfully submitted captures: {summary.SuccessfulImports}");
         _output.WriteLine($"Failed submissions: {summary.FailedSubmissions}");
         _output.WriteLine($"Malformed/skipped records: {summary.MalformedRecords}");

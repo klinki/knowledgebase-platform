@@ -61,6 +61,12 @@
               <dd>{{ capture()!.failureReason || 'Capture processing failed. Retry from this page.' }}</dd>
             </div>
           }
+          @if (capture()!.skipReason) {
+            <div>
+              <dt>Skip reason</dt>
+              <dd>{{ capture()!.skipReason }}</dd>
+            </div>
+          }
         </dl>
         @if (capture()!.status.toLowerCase() === 'failed') {
           <div class="retry-row">
