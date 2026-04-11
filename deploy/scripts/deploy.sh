@@ -58,6 +58,8 @@ echo "Running database migrations..."
 IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up --no-deps migrator
 
 echo "Starting updated stack..."
-IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --remove-orphans api worker web
+# Do not use --remove-orphans here: auxiliary compose stacks such as LiteLLM
+# may share the host and must not be deleted during a Sentinel application rollout.
+IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d api worker web
 
 echo "Deployment finished for tag ${IMAGE_TAG}."

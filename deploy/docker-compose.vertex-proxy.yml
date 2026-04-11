@@ -1,3 +1,5 @@
+name: sentinel-vertex-proxy
+
 services:
   vertex-proxy:
     image: ${VERTEX_PROXY_IMAGE:-ghcr.io/prantlf/ovai:latest}

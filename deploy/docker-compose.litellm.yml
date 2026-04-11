@@ -1,3 +1,5 @@
+name: sentinel-litellm
+
 services:
   litellm:
     image: ${LITELLM_IMAGE:-docker.litellm.ai/berriai/litellm:main-latest}
