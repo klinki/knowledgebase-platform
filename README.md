@@ -219,7 +219,6 @@ This repository now includes production deployment assets for CI/CD and multi-ap
 
 - `deploy/docker-compose.prod.yml` (Postgres + API + Worker + Web app only)
 - `deploy/docker-compose.proxy.yml` (shared autodiscovery Caddy edge, run once per host)
-- `deploy/docker-compose.vertex-proxy.yml` (optional `ovai` Vertex AI OpenAI-compatible proxy)
 - `deploy/docker-compose.litellm.yml` (optional LiteLLM Vertex AI OpenAI-compatible proxy)
 - `deploy/scripts/deploy.sh` (server-side rollout script)
 - `backend/Dockerfile.migrator` (builds an EF Core migration bundle image from the existing migrations project)
@@ -240,19 +239,7 @@ cp deploy/.env.proxy.example deploy/.env.proxy
 docker compose -f deploy/docker-compose.proxy.yml --env-file deploy/.env.proxy up -d
 ```
 
-Optional: bootstrap the Vertex AI proxy:
-
-```bash
-cd <repo>
-docker network create sentinel-ai || true
-cp deploy/.env.vertex-proxy.example deploy/.env.vertex-proxy
-docker compose -f deploy/docker-compose.vertex-proxy.yml --env-file deploy/.env.vertex-proxy up -d
-```
-
-This starts `ghcr.io/prantlf/ovai` as a local OpenAI-compatible proxy backed by
-Vertex AI. By default it only binds to `127.0.0.1:22434`.
-
-Optional: bootstrap LiteLLM instead of `ovai`:
+Optional: bootstrap LiteLLM:
 
 ```bash
 cd <repo>
