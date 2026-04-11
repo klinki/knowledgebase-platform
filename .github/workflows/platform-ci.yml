@@ -1,0 +1,249 @@
+name: Platform CI
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - ".github/workflows/**"
+      - "bitbucket-pipelines.yml"
+      - "build.ps1"
+      - "README.md"
+  pull_request:
+    branches: [master, main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - ".github/workflows/**"
+      - "bitbucket-pipelines.yml"
+      - "build.ps1"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-validation:
+    name: Backend Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      - name: Run backend tests
+        run: dotnet test backend/SentinelKnowledgebase.slnx
+
+      - name: Build migrations project
+        run: dotnet build backend/src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj -c Release --nologo
+
+      - name: Build worker project
+        run: dotnet build backend/src/SentinelKnowledgebase.Worker/SentinelKnowledgebase.Worker.csproj -c Release --nologo
+
+      - name: Validate production compose
+        run: docker compose -f deploy/docker-compose.prod.yml config >/dev/null
+
+  frontend-validation:
+    name: Frontend Validation
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test -- --watch=false
+
+      - name: Build frontend
+        run: npm run build
+
+  deployment-smoke:
+    name: Deployment Smoke Tests
+    runs-on: ubuntu-latest
+    needs:
+      - backend-validation
+      - frontend-validation
+
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sentinel_knowledgebase
+      CONNECTION_STRING: Host=postgres;Port=5432;Database=sentinel_knowledgebase;Username=postgres;Password=postgres
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create smoke-test network
+        run: docker network create sentinel-ci
+
+      - name: Start PostgreSQL
+        run: |
+          docker run -d \
+            --rm \
+            --name sentinel-ci-postgres \
+            --network sentinel-ci \
+            --network-alias postgres \
+            -e POSTGRES_USER="${POSTGRES_USER}" \
+            -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+            -e POSTGRES_DB="${POSTGRES_DB}" \
+            --health-cmd="pg_isready -U ${POSTGRES_USER}" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=20 \
+            pgvector/pgvector:pg18
+
+      - name: Wait for PostgreSQL health
+        run: |
+          for attempt in {1..30}; do
+            status="$(docker inspect --format '{{.State.Health.Status}}' sentinel-ci-postgres)"
+            if [[ "${status}" == "healthy" ]]; then
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          docker logs sentinel-ci-postgres
+          echo "PostgreSQL did not become healthy in time."
+          exit 1
+
+      - name: Build migrator image
+        run: docker build -f backend/Dockerfile.migrator -t sentinel-migrator-ci backend
+
+      - name: Run migration bundle
+        run: |
+          docker run --rm \
+            --network sentinel-ci \
+            sentinel-migrator-ci \
+            --connection "${CONNECTION_STRING}"
+
+      - name: Verify latest migration was applied
+        run: |
+          latest_migration="$(
+            find backend/src/SentinelKnowledgebase.Migrations/Migrations \
+              -maxdepth 1 \
+              -type f \
+              -name '*.cs' \
+              ! -name '*.Designer.cs' \
+              ! -name 'ApplicationDbContextModelSnapshot.cs' \
+              -printf '%f\n' |
+            sed 's/\.cs$//' |
+            sort |
+            tail -n1
+          )"
+
+          applied_migrations="$(
+            docker exec sentinel-ci-postgres \
+              psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc \
+              'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";'
+          )"
+
+          echo "Latest source migration: ${latest_migration}"
+          echo "Applied migrations:"
+          echo "${applied_migrations}"
+
+          echo "${applied_migrations}" | grep -Fqx "${latest_migration}"
+
+      - name: Build worker image
+        run: docker build -f backend/Dockerfile.worker -t sentinel-worker-ci backend
+
+      - name: Start worker container
+        run: |
+          docker run -d \
+            --rm \
+            --name sentinel-ci-worker \
+            --network sentinel-ci \
+            -e DOTNET_ENVIRONMENT=Production \
+            -e ConnectionStrings__DefaultConnection="${CONNECTION_STRING}" \
+            -e OpenAI__ApiKey=test-api-key \
+            sentinel-worker-ci
+
+      - name: Verify worker stays healthy
+        run: |
+          sleep 20
+          status="$(docker inspect --format '{{.State.Status}}' sentinel-ci-worker)"
+          echo "Worker status: ${status}"
+          docker logs sentinel-ci-worker
+
+          if [[ "${status}" != "running" ]]; then
+            echo "Worker exited during startup."
+            exit 1
+          fi
+
+          if docker logs sentinel-ci-worker 2>&1 | grep -q "Unhandled exception"; then
+            echo "Worker logs contain an unhandled exception."
+            exit 1
+          fi
+
+      - name: Build API image
+        run: docker build -f backend/Dockerfile -t sentinel-api-ci backend
+
+      - name: Start API container
+        run: |
+          docker run -d \
+            --rm \
+            --name sentinel-ci-api \
+            --network sentinel-ci \
+            -p 5080:5000 \
+            -e ASPNETCORE_ENVIRONMENT=Production \
+            -e ASPNETCORE_URLS=http://+:5000 \
+            -e ConnectionStrings__DefaultConnection="${CONNECTION_STRING}" \
+            -e Authentication__JwtSigningKey=test-signing-key-test-signing-key \
+            -e Authentication__FrontendUrl=http://localhost:4200 \
+            -e OpenAI__ApiKey=test-api-key \
+            sentinel-api-ci
+
+      - name: Verify API startup
+        run: |
+          sleep 20
+          status="$(docker inspect --format '{{.State.Status}}' sentinel-ci-api)"
+          echo "API status: ${status}"
+          docker logs sentinel-ci-api
+
+          if [[ "${status}" != "running" ]]; then
+            echo "API exited during startup."
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            --retry 10 \
+            --retry-delay 2 \
+            --retry-connrefused \
+            http://127.0.0.1:5080/health
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker logs sentinel-ci-postgres || true
+          docker logs sentinel-ci-worker || true
+          docker logs sentinel-ci-api || true
+
+      - name: Cleanup smoke-test containers
+        if: always()
+        run: |
+          docker rm -f sentinel-ci-api sentinel-ci-worker sentinel-ci-postgres >/dev/null 2>&1 || true
+          docker network rm sentinel-ci >/dev/null 2>&1 || true
