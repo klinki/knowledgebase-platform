@@ -1,0 +1,51 @@
+<div class="premium-layout">
+  <aside class="sidebar glass">
+    <div class="brand">
+      <span class="logo">S</span>
+      <span class="name">Sentinel</span>
+    </div>
+
+    <nav>
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
+        <span class="icon">📊</span> Dashboard
+      </a>
+      <a routerLink="/search" routerLinkActive="active" class="nav-item">
+        <span class="icon">🔎</span> Search
+      </a>
+      <a routerLink="/captures/new" routerLinkActive="active" class="nav-item">
+        <span class="icon">✍️</span> Create Capture
+      </a>
+      <a routerLink="/captures" routerLinkActive="active" class="nav-item">
+        <span class="icon">🗂️</span> Captures
+      </a>
+      <a routerLink="/topics" routerLinkActive="active" class="nav-item">
+        <span class="icon">🧠</span> Topics
+      </a>
+      <a routerLink="/labels" routerLinkActive="active" class="nav-item">
+        <span class="icon">🏷️</span> Labels
+      </a>
+      <a routerLink="/settings" routerLinkActive="active" class="nav-item">
+        <span class="icon">🌐</span> Settings
+      </a>
+      <a routerLink="/tags" routerLinkActive="active" class="nav-item">
+        <span class="icon">🏷️</span> Tags
+      </a>
+      @if (isAdmin()) {
+        <a routerLink="/admin/invitations" routerLinkActive="active" class="nav-item">
+          <span class="icon">✉️</span> Invitations
+        </a>
+      }
+    </nav>
+
+    <div class="user-footer">
+      <div class="user-info">
+        <span class="user-name">{{ authService.currentUser()?.displayName }}</span>
+      </div>
+      <button (click)="logout()" class="logout-btn">Log out</button>
+    </div>
+  </aside>
+
+  <main class="content" [@fadeAnimation]="o.isActivated ? o.activatedRoute : ''">
+    <router-outlet #o="outlet"></router-outlet>
+  </main>
+</div>

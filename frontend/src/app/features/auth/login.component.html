@@ -1,0 +1,39 @@
+<div class="login-page">
+  <div class="glass-card login-card">
+    <h1>Sentinel</h1>
+    <p class="subtitle">Secure Knowledge Curation</p>
+    <p class="subtitle" *ngIf="userCode">Approve this sign-in to connect your browser extension.</p>
+    <p class="status success" *ngIf="approvalComplete()">{{ approvalMessage() }}</p>
+    <p class="status error" *ngIf="error()">{{ error() }}</p>
+
+    <form (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          [(ngModel)]="email" 
+          name="email" 
+          required 
+          placeholder="you@example.com"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          [(ngModel)]="password" 
+          name="password" 
+          required 
+          placeholder="••••••••"
+        >
+      </div>
+
+      <button type="submit" class="premium-btn" [disabled]="loading()">
+        {{ loading() ? 'Authenticating...' : 'Sign In' }}
+      </button>
+    </form>
+  </div>
+</div>

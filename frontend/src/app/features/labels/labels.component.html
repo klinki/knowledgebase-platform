@@ -1,0 +1,328 @@
+<div class="labels-page">
+  <header class="page-header">
+    <div class="hero-copy">
+      <p class="eyebrow">Labels</p>
+      <h1>Category-value labels</h1>
+      <p class="hero-text">
+        Organize captures with exact pairs such as <strong>Language: English</strong> or
+        <strong>Source: Twitter</strong>.
+      </p>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="stat-value">{{ totalCategories() }}</span>
+        <span class="stat-label">Categories</span>
+      </div>
+      <div class="hero-stat">
+        <span class="stat-value">{{ totalValues() }}</span>
+        <span class="stat-label">Values</span>
+      </div>
+      <div class="hero-stat">
+        <span class="stat-value">{{ totalUses() }}</span>
+        <span class="stat-label">Uses</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="top-grid">
+    <section class="glass-card search-card">
+      <div class="section-header">
+        <div>
+          <h2>Exact-pair search</h2>
+          <p>Match processed insights by one or more category/value pairs.</p>
+        </div>
+      </div>
+
+      <form class="search-form" (ngSubmit)="submitSearch()">
+        <div class="search-rows">
+          @for (row of searchRows; track row.id) {
+            <div class="search-row">
+              <input
+                type="text"
+                [name]="'search-category-' + row.id"
+                [ngModel]="row.category"
+                (ngModelChange)="updateSearchRow(row.id, 'category', $event)"
+                list="label-category-suggestions"
+                placeholder="Category"
+                autocomplete="off"
+              >
+
+              <input
+                type="text"
+                [name]="'search-value-' + row.id"
+                [ngModel]="row.value"
+                (ngModelChange)="updateSearchRow(row.id, 'value', $event)"
+                list="label-value-suggestions"
+                placeholder="Value"
+                autocomplete="off"
+              >
+
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="removeSearchRow(row.id)"
+                [disabled]="searchRows.length === 1"
+              >
+                ✕
+              </button>
+            </div>
+          }
+        </div>
+
+        <div class="search-actions">
+          <button type="button" class="secondary-btn" (click)="addSearchRow()">Add pair</button>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              name="matchAll"
+              [(ngModel)]="searchMatchAll"
+            >
+            Match all pairs
+          </label>
+          <button type="submit" class="premium-btn" [disabled]="labelsState.searchLoading()">
+            @if (labelsState.searchLoading()) {
+              Searching...
+            } @else {
+              Search labels
+            }
+          </button>
+        </div>
+      </form>
+
+      @if (labelsState.searchError()) {
+        <div class="message error">{{ labelsState.searchError() }}</div>
+      }
+
+      @if (labelsState.searchLoading()) {
+        <div class="empty-state compact">
+          <p>Searching processed insights...</p>
+        </div>
+      } @else if (searchSubmitted && searchResults().length === 0 && !labelsState.searchError()) {
+        <div class="empty-state compact">
+          <p>No processed insights matched the selected label pairs.</p>
+        </div>
+      } @else if (searchResults().length > 0) {
+        <div class="search-results">
+          @for (result of searchResults(); track result.id) {
+            <article class="result-card">
+              <div class="result-header">
+                <div>
+                  <h3>{{ result.title }}</h3>
+                  <p>
+                    @if (result.processedAt) {
+                      {{ result.processedAt | date:'mediumDate' }} •
+                    }
+                    {{ result.sourceUrl }}
+                  </p>
+                </div>
+              </div>
+
+              @if (result.summary) {
+                <p class="result-summary">{{ result.summary }}</p>
+              }
+
+              @if (result.labels.length > 0) {
+                <div class="chip-group">
+                  @for (label of result.labels; track label.category + ':' + label.value) {
+                    <span class="chip accent">{{ label.category }}: {{ label.value }}</span>
+                  }
+                </div>
+              }
+
+              @if (result.tags.length > 0) {
+                <div class="chip-group subtle">
+                  @for (tag of result.tags; track tag) {
+                    <span class="chip">{{ tag }}</span>
+                  }
+                </div>
+              }
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="empty-state compact">
+          <p>Add a label pair and run a search to filter processed insights.</p>
+        </div>
+      }
+    </section>
+
+    <section class="glass-card create-card">
+      <div class="section-header">
+        <div>
+          <h2>Create category</h2>
+          <p>Categories stay separate from tags and can hold many values.</p>
+        </div>
+      </div>
+
+      <form class="create-form" (ngSubmit)="submitCategory()">
+        <input
+          type="text"
+          name="newCategoryName"
+          [(ngModel)]="newCategoryName"
+          placeholder="Language, Source, Topic..."
+          autocomplete="off"
+          maxlength="100"
+        >
+        <button type="submit" class="premium-btn" [disabled]="labelsState.mutating() || !newCategoryName.trim()">
+          @if (labelsState.mutating()) {
+            Saving...
+          } @else {
+            Create category
+          }
+        </button>
+      </form>
+
+      @if (labelsState.mutationError()) {
+        <div class="message error">{{ labelsState.mutationError() }}</div>
+      }
+    </section>
+  </div>
+
+  <section class="glass-card catalog-card">
+    <div class="section-header">
+      <div>
+        <h2>Catalog</h2>
+        <p>Group values under categories to keep meaning and source distinct.</p>
+      </div>
+    </div>
+
+    @if (labelsState.loading()) {
+      <div class="empty-state">
+        <p>Loading labels...</p>
+      </div>
+    } @else if (labelsState.error()) {
+      <div class="empty-state error">
+        <p>{{ labelsState.error() }}</p>
+      </div>
+    } @else if (categories().length === 0) {
+      <div class="empty-state">
+        <p>No label categories yet. Create the first one above.</p>
+      </div>
+    } @else {
+      <div class="category-list">
+        @for (category of categories(); track category.id) {
+          <article class="category-card">
+            <div class="category-header">
+              <div class="category-title">
+                @if (editingCategoryId === category.id) {
+                  <input
+                    type="text"
+                    [name]="'category-edit-' + category.id"
+                    [(ngModel)]="editingCategoryName"
+                    maxlength="100"
+                    autocomplete="off"
+                  >
+                } @else {
+                  <h3>{{ category.name }}</h3>
+                }
+
+                <p>
+                  {{ category.count }} uses • {{ category.values.length }} values
+                  @if (category.lastUsedAt) {
+                    • Last used {{ category.lastUsedAt | date:'mediumDate' }}
+                  }
+                </p>
+              </div>
+
+              <div class="category-actions">
+                @if (editingCategoryId === category.id) {
+                  <button type="button" class="secondary-btn small" (click)="saveCategory(category.id)">
+                    Save
+                  </button>
+                  <button type="button" class="ghost-btn small" (click)="cancelCategoryEdit()">Cancel</button>
+                } @else if (pendingDeleteCategoryId === category.id) {
+                  <span class="confirm-label">Delete?</span>
+                  <button type="button" class="danger-btn small" (click)="confirmCategoryDelete(category.id)">
+                    Yes
+                  </button>
+                  <button type="button" class="ghost-btn small" (click)="cancelCategoryDelete()">No</button>
+                } @else {
+                  <button type="button" class="icon-btn" (click)="startCategoryEdit(category)">✏️</button>
+                  <button type="button" class="icon-btn danger" (click)="pendingDeleteCategoryId = category.id">🗑️</button>
+                }
+              </div>
+            </div>
+
+            <div class="value-list">
+              @for (value of category.values; track value.id) {
+                <div class="value-row">
+                  <div class="value-main">
+                    @if (editingValueId === value.id) {
+                      <input
+                        type="text"
+                        [name]="'value-edit-' + value.id"
+                        [(ngModel)]="editingValueName"
+                        maxlength="100"
+                        autocomplete="off"
+                      >
+                    } @else {
+                      <span class="chip">{{ value.value }}</span>
+                    }
+
+                    <span class="value-meta">
+                      {{ value.count }} uses
+                      @if (value.lastUsedAt) {
+                        • {{ value.lastUsedAt | date:'mediumDate' }}
+                      }
+                    </span>
+                  </div>
+
+                  <div class="value-actions">
+                    @if (editingValueId === value.id) {
+                      <button type="button" class="secondary-btn small" (click)="saveValue(value.id)">Save</button>
+                      <button type="button" class="ghost-btn small" (click)="cancelValueEdit()">Cancel</button>
+                    } @else if (pendingDeleteValueId === value.id) {
+                      <span class="confirm-label">Delete?</span>
+                      <button type="button" class="danger-btn small" (click)="confirmValueDelete(value.id)">
+                        Yes
+                      </button>
+                      <button type="button" class="ghost-btn small" (click)="cancelValueDelete()">No</button>
+                    } @else {
+                      <button type="button" class="icon-btn" (click)="startValueEdit(value)">✏️</button>
+                      <button type="button" class="icon-btn danger" (click)="pendingDeleteValueId = value.id">🗑️</button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <form class="value-form" (ngSubmit)="submitValue(category.id)">
+              <input
+                type="text"
+                [name]="'new-value-' + category.id"
+                [ngModel]="valueDraft(category.id)"
+                (ngModelChange)="setValueDraft(category.id, $event)"
+                [attr.list]="'label-values-' + category.id"
+                placeholder="Add a value to this category"
+                autocomplete="off"
+                maxlength="100"
+              >
+              <button type="submit" class="secondary-btn" [disabled]="labelsState.mutating() || !valueDraft(category.id).trim()">
+                Add value
+              </button>
+            </form>
+
+            <datalist [id]="'label-values-' + category.id">
+              @for (suggestion of category.values; track suggestion.id) {
+                <option [value]="suggestion.value"></option>
+              }
+            </datalist>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <datalist id="label-category-suggestions">
+    @for (category of categories(); track category.id) {
+      <option [value]="category.name"></option>
+    }
+  </datalist>
+
+  <datalist id="label-value-suggestions">
+    @for (value of valueSuggestions(); track value) {
+      <option [value]="value"></option>
+    }
+  </datalist>
+</div>

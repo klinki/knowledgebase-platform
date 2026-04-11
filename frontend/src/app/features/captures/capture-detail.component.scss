@@ -1,0 +1,185 @@
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+h1 {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -1px;
+}
+
+.page-header p {
+  color: #94a3b8;
+  margin: 0;
+}
+
+.back-link {
+  color: #c7d2fe;
+  text-decoration: none;
+  padding-top: 0.8rem;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.summary-card {
+  border: 1px solid rgba(99, 102, 241, 0.14);
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 1.2rem;
+  color: #f8fafc;
+}
+
+h3 {
+  color: #e2e8f0;
+  margin-bottom: 0.8rem;
+}
+
+.overview-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: 0;
+}
+
+dt {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+dd {
+  margin: 0;
+  color: #e2e8f0;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+dd a {
+  color: #c7d2fe;
+}
+
+.content-block {
+  margin: 0;
+  padding: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #dbeafe;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.92rem;
+}
+
+.retry-row {
+  margin-top: 1rem;
+}
+
+.retry-row button {
+  border: none;
+  cursor: pointer;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+}
+
+.label-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.14);
+  color: #c7d2fe;
+  border: 1px solid rgba(129, 140, 248, 0.16);
+}
+
+.label-chip {
+  display: inline-flex;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.18);
+}
+
+.value-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #e2e8f0;
+}
+
+.value-list li + li {
+  margin-top: 0.4rem;
+}
+
+.insight-block + .insight-block {
+  margin-top: 1.5rem;
+}
+
+.topic-panel {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.topic-link {
+  color: #7dd3fc;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.topic-panel p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-state.error {
+  color: #fecaca;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+a.premium-btn,
+.secondary-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.secondary-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  color: #cbd5e1;
+}

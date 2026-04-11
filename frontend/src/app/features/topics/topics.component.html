@@ -1,0 +1,86 @@
+<div class="topics-page">
+  <header class="page-header">
+    <div>
+      <h1>Topics</h1>
+      <p>Browse the discovered semantic clusters across your processed captures.</p>
+    </div>
+    <a routerLink="/dashboard" class="secondary-link">Back to dashboard</a>
+  </header>
+
+  @if (topicsState.error()) {
+    <section class="glass-card empty-state error">
+      <p>{{ topicsState.error() }}</p>
+    </section>
+  } @else if (topicsState.loading() && topics().length === 0) {
+    <section class="glass-card empty-state">
+      <p>Loading topics...</p>
+    </section>
+  } @else if (topics().length === 0) {
+    <section class="glass-card empty-state">
+      <h2>No topics yet</h2>
+      <p>Topics will appear here once clustering has produced results.</p>
+    </section>
+  } @else {
+    <section class="glass-card overview-card">
+      <div class="overview-copy">
+        <span class="eyebrow">Cluster Explorer</span>
+        <h2>{{ totalCount() }} Topics</h2>
+        <p>Sorted by cluster size so the densest themes surface first.</p>
+      </div>
+      <div class="overview-metrics">
+        <span class="metric-chip">Page {{ page() }} of {{ totalPages() }}</span>
+        <span class="metric-chip alt">{{ pageSize() }} per page</span>
+      </div>
+    </section>
+
+    <section class="topics-grid">
+      @for (topic of topics(); track topic.id) {
+        <article class="glass-card topic-card">
+          <div class="topic-head">
+            <div>
+              <a class="topic-title-link" [routerLink]="['/topics', topic.id]">{{ topic.title }}</a>
+              @if (topic.description) {
+                <p class="topic-description">{{ topic.description }}</p>
+              }
+            </div>
+            <span class="topic-count">{{ topic.memberCount }} insights</span>
+          </div>
+
+          @if (topic.keywords.length > 0) {
+            <div class="keyword-row">
+              @for (keyword of topic.keywords; track keyword) {
+                <span class="keyword-chip">{{ keyword }}</span>
+              }
+            </div>
+          }
+
+          @if (topic.representativeInsights.length > 0) {
+            <div class="insight-preview-list">
+              @for (insight of topic.representativeInsights; track insight.processedInsightId) {
+                <a class="insight-preview" [routerLink]="['/captures', insight.captureId]">
+                  <span class="insight-title">{{ insight.title }}</span>
+                  <span class="insight-url">{{ insight.sourceUrl }}</span>
+                </a>
+              }
+            </div>
+          }
+
+          <div class="topic-footer">
+            <span class="label-chip">{{ topic.suggestedLabel.category }}: {{ topic.suggestedLabel.value }}</span>
+            <a class="topic-link" [routerLink]="['/topics', topic.id]">Open topic</a>
+          </div>
+        </article>
+      }
+    </section>
+
+    <nav class="pagination-bar" aria-label="Topics pagination">
+      <button type="button" class="pagination-btn" (click)="goToPage(page() - 1)" [disabled]="page() <= 1 || topicsState.loading()">
+        Previous
+      </button>
+      <span class="pagination-status">Page {{ page() }} of {{ totalPages() }}</span>
+      <button type="button" class="pagination-btn" (click)="goToPage(page() + 1)" [disabled]="page() >= totalPages() || topicsState.loading()">
+        Next
+      </button>
+    </nav>
+  }
+</div>

@@ -1,0 +1,58 @@
+<section class="settings-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Language Preferences</p>
+      <h1>Preserved languages</h1>
+      <p class="subtitle">
+        Choose your default language for generated insights and mark languages that should stay in their original form.
+      </p>
+    </div>
+  </header>
+
+  <div class="settings-card" *ngIf="!loading(); else loadingState">
+    <p class="status success" *ngIf="successMessage()">{{ successMessage() }}</p>
+    <p class="status error" *ngIf="errorMessage()">{{ errorMessage() }}</p>
+
+    <div class="field">
+      <label for="default-language">Default language</label>
+      <select
+        id="default-language"
+        [ngModel]="defaultLanguageCode()"
+        (ngModelChange)="setDefaultLanguage($event)">
+        <option *ngFor="let language of supportedLanguages()" [ngValue]="language.code">
+          {{ language.displayName }} ({{ language.code }})
+        </option>
+      </select>
+      <p class="hint">
+        Generated titles, summaries, insights, and action items are translated to this language unless the source language is preserved.
+      </p>
+    </div>
+
+    <div class="field">
+      <label>Preserved languages</label>
+      <p class="hint">These languages remain in their original form during capture processing.</p>
+
+      <div class="language-grid">
+        <label class="language-option" *ngFor="let language of supportedLanguages()">
+          <input
+            type="checkbox"
+            [checked]="isPreserved(language.code)"
+            [disabled]="language.code === defaultLanguageCode()"
+            (change)="togglePreserved(language.code, $any($event.target).checked)">
+          <span>{{ language.displayName }}</span>
+          <small>{{ language.code }}</small>
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="primary-btn" (click)="save()" [disabled]="saving()">
+        {{ saving() ? 'Saving...' : 'Save preferences' }}
+      </button>
+    </div>
+  </div>
+
+  <ng-template #loadingState>
+    <div class="settings-card loading-state">Loading language preferences...</div>
+  </ng-template>
+</section>

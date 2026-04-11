@@ -1,0 +1,230 @@
+<div class="dashboard">
+  <header class="dashboard-header">
+    <div class="header-content">
+      <h1>Sentinel Vault</h1>
+      <p>Browse recent captures, monitor activity, and jump into deeper search from the dedicated search page.</p>
+    </div>
+  </header>
+
+  @if (isAdmin()) {
+    <section class="glass-card ops-panel">
+      <div class="ops-header">
+        <div>
+          <h2>Processing Control</h2>
+          <p>Global capture processing state across all users and queued jobs.</p>
+        </div>
+
+        <div class="ops-actions">
+          <span class="ops-state" [class.paused]="adminProcessingState.isPaused()">
+            {{ adminProcessingState.isPaused() ? 'Paused' : 'Running' }}
+          </span>
+          <button
+            type="button"
+            class="premium-btn"
+            (click)="toggleProcessing()"
+            [disabled]="adminProcessingState.submitting() || adminProcessingState.loading()"
+          >
+            {{ adminProcessingState.submitting()
+              ? (adminProcessingState.isPaused() ? 'Resuming...' : 'Pausing...')
+              : (adminProcessingState.isPaused() ? 'Resume Processing' : 'Pause Processing') }}
+          </button>
+        </div>
+      </div>
+
+      @if (adminProcessingState.error()) {
+        <div class="banner-error">{{ adminProcessingState.error() }}</div>
+      }
+
+      <div class="ops-meta">
+        @if (adminProcessingState.changedAt()) {
+          Last changed
+          @if (adminProcessingState.changedByDisplayName()) {
+            by {{ adminProcessingState.changedByDisplayName() }}
+          }
+          on {{ adminProcessingState.changedAt() | date:'medium' }}
+        } @else {
+          Processing has not been manually changed yet.
+        }
+      </div>
+
+      <div class="ops-grid">
+        <div class="ops-card">
+          <h3>Capture Status</h3>
+          <div class="ops-stats">
+            <div class="ops-stat"><span>Pending</span><strong>{{ adminProcessingState.captureCounts().pending }}</strong></div>
+            <div class="ops-stat"><span>Processing</span><strong>{{ adminProcessingState.captureCounts().processing }}</strong></div>
+            <div class="ops-stat"><span>Completed</span><strong>{{ adminProcessingState.captureCounts().completed }}</strong></div>
+            <div class="ops-stat"><span>Failed</span><strong>{{ adminProcessingState.captureCounts().failed }}</strong></div>
+          </div>
+        </div>
+
+        <div class="ops-card">
+          <h3>Hangfire Jobs</h3>
+          <div class="ops-stats">
+            <div class="ops-stat"><span>Enqueued</span><strong>{{ adminProcessingState.jobCounts().enqueued }}</strong></div>
+            <div class="ops-stat"><span>Scheduled</span><strong>{{ adminProcessingState.jobCounts().scheduled }}</strong></div>
+            <div class="ops-stat"><span>Processing</span><strong>{{ adminProcessingState.jobCounts().processing }}</strong></div>
+            <div class="ops-stat"><span>Failed</span><strong>{{ adminProcessingState.jobCounts().failed }}</strong></div>
+          </div>
+        </div>
+
+        <div class="ops-card recent-system-captures">
+          <h3>Recent System Captures</h3>
+          @if (adminProcessingState.loading() && adminProcessingState.recentCaptures().length === 0) {
+            <div class="empty-state compact">
+              <p>Loading processing controls...</p>
+            </div>
+          } @else if (adminProcessingState.recentCaptures().length === 0) {
+            <div class="empty-state compact">
+              <p>No captures available yet.</p>
+            </div>
+          } @else {
+            <div class="ops-capture-list">
+              @for (capture of adminProcessingState.recentCaptures(); track capture.id) {
+                <div class="ops-capture-item">
+                  <div class="ops-capture-head">
+                    <span class="ops-capture-title">{{ capture.title || capture.sourceUrl || 'Untitled capture' }}</span>
+                    <span class="status-chip" [class.paused]="capture.status === 'Pending'">{{ capture.status }}</span>
+                  </div>
+                  <div class="ops-capture-meta">
+                    {{ capture.capturedAt | date:'medium' }} • {{ capture.sourceUrl || 'No source URL' }}
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <div class="main-grid">
+    <section class="glass-card list-section">
+      <div class="section-head">
+        <h2>Recent Captures</h2>
+        <a routerLink="/search" class="secondary-link">Open search</a>
+      </div>
+
+      <div class="items-list">
+        @if (error()) {
+          <div class="empty-state">
+            <p>{{ error() }}</p>
+          </div>
+        } @else if (loading() && items().length === 0) {
+          <div class="empty-state">
+            <p>Loading dashboard data...</p>
+          </div>
+        } @else {
+          @for (item of items(); track item.id) {
+            <a class="knowledge-item" [routerLink]="['/captures', item.id]">
+              <span class="status-dot"></span>
+              <div class="item-info">
+                <span class="title">{{ item.title }}</span>
+                <span class="meta">
+                  @if (item.capturedAt) {
+                    {{ item.capturedAt | date:'mediumDate' }} •
+                  }
+                  {{ item.sourceUrl }}
+                </span>
+                @if (item.summary) {
+                  <span class="summary">{{ item.summary }}</span>
+                }
+                @if (item.tags.length > 0) {
+                  <div class="item-tags">
+                    @for (tag of item.tags; track tag) {
+                      <span class="tag-chip">{{ tag }}</span>
+                    }
+                  </div>
+                }
+                @if (item.labels.length > 0) {
+                  <div class="item-labels">
+                    @for (label of item.labels; track label.category + ':' + label.value) {
+                      <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            </a>
+          } @empty {
+            @if (!loading()) {
+              <div class="empty-state">
+                <p>No captures have been saved yet.</p>
+                <div class="empty-actions">
+                  <a routerLink="/captures/new" class="premium-btn">Create Capture</a>
+                  <a routerLink="/captures" class="secondary-link">Connect browser extension</a>
+                  <a routerLink="/admin/invitations" class="secondary-link">Invite teammates</a>
+                </div>
+              </div>
+            }
+          }
+        }
+      </div>
+    </section>
+
+    <section class="secondary-column">
+      <div class="glass-card topics-section">
+        <div class="section-head">
+          <h2>Topics</h2>
+          <a routerLink="/topics" class="secondary-link">View all</a>
+        </div>
+        @if (dashboardState.topicClusters().length > 0) {
+          <div class="topics-list">
+            @for (cluster of dashboardState.topicClusters(); track cluster.id) {
+              <article class="topic-card">
+                <div class="topic-head">
+                  <a class="topic-title-link" [routerLink]="['/topics', cluster.id]">{{ cluster.title }}</a>
+                  <span class="topic-count">{{ cluster.memberCount }}</span>
+                </div>
+                @if (cluster.description) {
+                  <span class="topic-description">{{ cluster.description }}</span>
+                }
+                @if (cluster.representativeInsights.length > 0) {
+                  <div class="topic-links">
+                    @for (insight of cluster.representativeInsights; track insight.processedInsightId) {
+                      <a class="topic-linkish" [routerLink]="['/captures', insight.captureId]">{{ insight.title }}</a>
+                    }
+                  </div>
+                }
+                <div class="topic-label">{{ cluster.suggestedLabel.category }}: {{ cluster.suggestedLabel.value }}</div>
+                <a class="topic-link" [routerLink]="['/topics', cluster.id]">View topic</a>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="empty-state compact">
+            <p>No topic groups available yet.</p>
+          </div>
+        }
+      </div>
+
+      <div class="glass-card tags-section">
+        <h2>Trending Tags</h2>
+        @if (dashboardState.topTags().length > 0) {
+          <div class="tags-cloud">
+          @for (tag of dashboardState.topTags(); track tag.id) {
+            <span class="tag-badge">
+              {{ tag.name }} <span class="count">{{ tag.count }}</span>
+            </span>
+          }
+          </div>
+        } @else {
+          <div class="empty-state compact">
+            <p>No tag data available yet.</p>
+          </div>
+        }
+      </div>
+
+      <div class="glass-card stats-card">
+        <h2>Quick Stats</h2>
+        <div class="stat">
+          <span class="stat-label">Total Captures</span>
+          <span class="stat-value">{{ dashboardState.stats().totalCaptures }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Active Tags</span>
+          <span class="stat-value">{{ dashboardState.stats().activeTags }}</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

@@ -1,0 +1,39 @@
+<div class="invite-page">
+  <div class="glass-card invite-card">
+    <h1>Join Sentinel</h1>
+    <p class="subtitle">Complete your account registration from the invitation link.</p>
+
+    @if (loading()) {
+      <p class="status">Loading invitation...</p>
+    } @else if (error()) {
+      <p class="status error">{{ error() }}</p>
+    } @else if (invitation()) {
+      <div class="invite-summary">
+        <p><strong>Email:</strong> {{ invitation()!.email }}</p>
+        <p><strong>Role:</strong> {{ invitation()!.role }}</p>
+        <p><strong>Expires:</strong> {{ invitation()!.expiresAt | date:'medium' }}</p>
+      </div>
+
+      <form (ngSubmit)="onSubmit()">
+        <div class="form-group">
+          <label for="displayName">Display Name</label>
+          <input id="displayName" name="displayName" [(ngModel)]="displayName" required />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" [(ngModel)]="password" required />
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input id="confirmPassword" name="confirmPassword" type="password" [(ngModel)]="confirmPassword" required />
+        </div>
+
+        <button type="submit" class="premium-btn" [disabled]="submitting()">
+          {{ submitting() ? 'Creating account...' : 'Create Account' }}
+        </button>
+      </form>
+    }
+  </div>
+</div>

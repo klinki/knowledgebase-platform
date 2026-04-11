@@ -1,0 +1,197 @@
+<div class="capture-detail-page">
+  <header class="page-header">
+    <div>
+      <h1>Capture Detail</h1>
+      <p>Inspect the stored payload and processed insight for a single capture.</p>
+    </div>
+    <a routerLink="/captures" class="back-link">Back to captures</a>
+  </header>
+
+  @if (captureState.loadingDetail()) {
+    <div class="glass-card empty-state">
+      <p>Loading capture detail...</p>
+    </div>
+  } @else if (captureState.detailError()) {
+    <div class="glass-card empty-state error">
+      <p>{{ captureState.detailError() }}</p>
+    </div>
+  } @else if (captureState.detailNotFound()) {
+    <div class="glass-card empty-state">
+      <h2>Capture not found</h2>
+      <p>The requested capture does not exist or is not visible to your account.</p>
+      <div class="actions">
+        <a routerLink="/dashboard" class="premium-btn">Go to dashboard</a>
+        <a routerLink="/captures" class="secondary-btn">Browse captures</a>
+      </div>
+    </div>
+  } @else if (capture()) {
+    <div class="detail-grid">
+      <section class="glass-card summary-card">
+        <h2>Overview</h2>
+        <dl class="overview-grid">
+          <div>
+            <dt>Source</dt>
+            <dd>
+              @if (capture()!.sourceUrl) {
+                <a [href]="capture()!.sourceUrl" target="_blank" rel="noreferrer">{{ capture()!.sourceUrl }}</a>
+              } @else {
+                Manual capture (no source URL)
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Type</dt>
+            <dd>{{ capture()!.contentType }}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{{ capture()!.status }}</dd>
+          </div>
+          <div>
+            <dt>Created</dt>
+            <dd>{{ capture()!.createdAt | date:'medium' }}</dd>
+          </div>
+          <div>
+            <dt>Processed</dt>
+            <dd>{{ capture()!.processedAt ? (capture()!.processedAt | date:'medium') : 'Not processed yet' }}</dd>
+          </div>
+          @if (capture()!.status.toLowerCase() === 'failed') {
+            <div>
+              <dt>Failure reason</dt>
+              <dd>{{ capture()!.failureReason || 'Capture processing failed. Retry from this page.' }}</dd>
+            </div>
+          }
+        </dl>
+        @if (capture()!.status.toLowerCase() === 'failed') {
+          <div class="retry-row">
+            <button type="button" class="premium-btn" (click)="retryCapture()" [disabled]="retrying()">
+              {{ retrying() ? 'Retrying...' : 'Retry Capture' }}
+            </button>
+          </div>
+        }
+
+        @if (capture()!.tags.length > 0) {
+          <div class="tag-list">
+            @for (tag of capture()!.tags; track tag) {
+              <span class="tag-chip">{{ tag }}</span>
+            }
+          </div>
+        }
+
+        @if (capture()!.labels.length > 0) {
+          <div class="label-list">
+            @for (label of capture()!.labels; track label.category + ':' + label.value) {
+              <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="glass-card">
+        <h2>Raw Content</h2>
+        <pre class="content-block">{{ capture()!.rawContent }}</pre>
+      </section>
+
+      <section class="glass-card">
+        <h2>Metadata</h2>
+        @if (metadataNode().type === 'list') {
+          <ul class="value-list">
+            @for (item of metadataNode().items; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        } @else {
+          <pre class="content-block">{{ metadataNode().value }}</pre>
+        }
+      </section>
+
+      <section class="glass-card" *ngIf="capture()!.processedInsight as insight; else noInsight">
+        <h2>Processed Insight</h2>
+        <dl class="overview-grid">
+          <div>
+            <dt>Title</dt>
+            <dd>{{ insight.title || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Summary</dt>
+            <dd>{{ insight.summary || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Source Title</dt>
+            <dd>{{ insight.sourceTitle || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Author</dt>
+            <dd>{{ insight.author || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Processed At</dt>
+            <dd>{{ insight.processedAt | date:'medium' }}</dd>
+          </div>
+        </dl>
+
+        <div class="insight-block">
+          <h3>Key Insights</h3>
+          @if (keyInsightsNode().type === 'list') {
+            <ul class="value-list">
+              @for (item of keyInsightsNode().items; track item) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          } @else {
+            <pre class="content-block">{{ keyInsightsNode().value }}</pre>
+          }
+        </div>
+
+        <div class="insight-block">
+          <h3>Action Items</h3>
+          @if (actionItemsNode().type === 'list') {
+            <ul class="value-list">
+              @for (item of actionItemsNode().items; track item) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          } @else {
+            <pre class="content-block">{{ actionItemsNode().value }}</pre>
+          }
+        </div>
+
+        @if (insight.tags.length > 0) {
+          <div class="tag-list">
+            @for (tag of insight.tags; track tag) {
+              <span class="tag-chip">{{ tag }}</span>
+            }
+          </div>
+        }
+
+         @if (insight.labels.length > 0) {
+           <div class="label-list">
+             @for (label of insight.labels; track label.category + ':' + label.value) {
+               <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+             }
+           </div>
+         }
+
+         @if (insight.cluster) {
+           <div class="topic-panel">
+             <h3>Topic</h3>
+             <a class="topic-link" [routerLink]="['/topics', insight.cluster.id]">
+               {{ insight.cluster.title }}
+             </a>
+             @if (insight.cluster.description) {
+               <p>{{ insight.cluster.description }}</p>
+             }
+             <span class="label-chip">{{ insight.cluster.suggestedLabel.category }}: {{ insight.cluster.suggestedLabel.value }}</span>
+           </div>
+         }
+       </section>
+
+      <ng-template #noInsight>
+        <section class="glass-card empty-state">
+          <h2>Processed Insight</h2>
+          <p>This capture does not have a processed insight yet.</p>
+        </section>
+      </ng-template>
+    </div>
+  }
+</div>

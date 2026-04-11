@@ -1,0 +1,118 @@
+<div class="create-capture-page">
+  <header class="page-header">
+    <div>
+      <h1>Create Capture</h1>
+      <p>Add a new capture directly from the frontend using a URL or pasted content.</p>
+    </div>
+    <a routerLink="/captures" class="secondary-link">Back to captures</a>
+  </header>
+
+  <div class="glass-card form-card">
+    @if (submissionError()) {
+      <p class="status error">{{ submissionError() }}</p>
+    }
+
+    @if (validationError()) {
+      <p class="status error">{{ validationError() }}</p>
+    }
+
+    @if (successMessage()) {
+      <p class="status success">{{ successMessage() }}</p>
+    }
+
+    <form (ngSubmit)="submit()">
+      <div class="form-group">
+        <label for="sourceUrl">Source URL</label>
+        <input
+          id="sourceUrl"
+          name="sourceUrl"
+          type="url"
+          [(ngModel)]="sourceUrl"
+          placeholder="https://example.com/article"
+        />
+        <p class="help-text">Optional for direct content. URL-only capture stores a minimal article-style record.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="contentType">Content Type</label>
+        <select
+          id="contentType"
+          name="contentType"
+          [ngModel]="selectedContentType()"
+          (ngModelChange)="selectedContentType.set($event)"
+          [disabled]="isUrlOnlyMode()"
+        >
+          <option value="">Select content type</option>
+          @for (type of contentTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+        @if (isUrlOnlyMode()) {
+          <p class="help-text">URL-only capture is submitted as <strong>Article</strong>.</p>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="rawContent">Content</label>
+        <textarea
+          id="rawContent"
+          name="rawContent"
+          [(ngModel)]="rawContent"
+          [attr.maxlength]="maxRawContentLength"
+          rows="14"
+          placeholder="Paste or type content here"
+        ></textarea>
+        <div class="content-meta">
+          <span>{{ trimmedContentLength() }}/{{ maxRawContentLength }}</span>
+          <span *ngIf="isUrlOnlyMode()">URL-only mode will generate minimal content from the URL.</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="tags">Tags</label>
+        <input
+          id="tags"
+          name="tags"
+          type="text"
+          [(ngModel)]="tags"
+          placeholder="tag-one, tag-two"
+        />
+      </div>
+
+      <div class="form-group">
+        <div class="field-header">
+          <label>Labels</label>
+          <button type="button" class="secondary-action" (click)="addLabelRow()">+ Add label</button>
+        </div>
+        <div class="label-rows">
+          @for (row of labelRows; track row.id) {
+            <div class="label-row">
+              <input
+                type="text"
+                [name]="'labelCategory-' + row.id"
+                [(ngModel)]="row.category"
+                placeholder="Category"
+              />
+              <input
+                type="text"
+                [name]="'labelValue-' + row.id"
+                [(ngModel)]="row.value"
+                placeholder="Value"
+              />
+              <button type="button" class="remove-label-button" (click)="removeLabelRow(row.id)">
+                Remove
+              </button>
+            </div>
+          }
+        </div>
+        <p class="help-text">Repeat categories are blocked before submission. Leave a row blank to skip it.</p>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="premium-btn" [disabled]="captureState.creating() || hasInvalidLabelRows()">
+          {{ captureState.creating() ? 'Creating capture...' : 'Create Capture' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,255 @@
+<div class="captures-page">
+  <header>
+    <div>
+      <h1>Captures</h1>
+      <p>Browse all captured items across their processing lifecycle.</p>
+    </div>
+    <a routerLink="/captures/new" class="premium-btn create-btn">Create Capture</a>
+  </header>
+
+  <!-- Filter bar -->
+  <div class="filter-bar glass-card">
+    <div class="filter-group">
+      <label for="filter-type">Type</label>
+      <select
+        id="filter-type"
+        [ngModel]="currentFilter().contentType ?? ''"
+        (ngModelChange)="onTypeFilterChange($event)"
+      >
+        <option value="">All types</option>
+        @for (type of captureState.availableContentTypes(); track type) {
+          <option [value]="type">{{ type }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="filter-status">Status</label>
+      <select
+        id="filter-status"
+        [ngModel]="currentFilter().status ?? ''"
+        (ngModelChange)="onStatusFilterChange($event)"
+      >
+        <option value="">All statuses</option>
+        @for (status of captureState.availableStatuses(); track status) {
+          <option [value]="status">{{ status }}</option>
+        }
+      </select>
+    </div>
+
+    @if (hasActiveFilters()) {
+      <button type="button" class="clear-filters-btn" (click)="captureState.clearFilters()">
+        ✕ Clear filters
+      </button>
+    }
+
+    <div class="filter-spacer"></div>
+
+    <div class="filter-group page-size-group">
+      <label for="page-size">Show</label>
+      <select
+        id="page-size"
+        [ngModel]="currentPagination().pageSize"
+        (ngModelChange)="onPageSizeChange($event)"
+      >
+        @for (size of pageSizeOptions; track size) {
+          <option [ngValue]="size">{{ size }}</option>
+        }
+      </select>
+    </div>
+
+    <span class="results-count">{{ captureState.totalFilteredCount() }} result{{ captureState.totalFilteredCount() === 1 ? '' : 's' }}</span>
+  </div>
+
+  <!-- Table -->
+  <div class="glass-card table-card">
+    @if (captureState.loadingList()) {
+      <div class="empty-state">
+        <p>Loading captures...</p>
+      </div>
+    } @else if (captureState.listError()) {
+      <div class="empty-state error">
+        <p>{{ captureState.listError() }}</p>
+      </div>
+    } @else if (captureState.totalFilteredCount() === 0) {
+      <div class="empty-state">
+        @if (hasActiveFilters()) {
+          <p>No captures match the current filters.</p>
+          <button type="button" class="premium-btn clear-btn" (click)="captureState.clearFilters()">Clear filters</button>
+        } @else {
+          <p>No captures have been saved yet.</p>
+        }
+      </div>
+    } @else {
+      <div class="table-actions">
+        <div class="selection-group">
+          <span class="selection-summary">
+            {{ selectedCount() }} selected
+            @if (selectedFailedCount() > 0) {
+              <span> • {{ selectedFailedCount() }} failed</span>
+            }
+          </span>
+          <button type="button" class="secondary-action-btn" (click)="toggleSelectPage(!allPageSelected())">
+            {{ allPageSelected() ? 'Clear page' : 'Select page' }}
+          </button>
+          <button
+            type="button"
+            class="secondary-action-btn"
+            (click)="selectFailedOnPage()"
+            [disabled]="failedCountOnPage() === 0"
+          >
+            Select failed
+          </button>
+          <button
+            type="button"
+            class="secondary-action-btn"
+            (click)="clearSelection()"
+            [disabled]="selectedCount() === 0"
+          >
+            Clear selection
+          </button>
+        </div>
+
+        <div class="retry-group">
+          <button
+            type="button"
+            class="secondary-action-btn retry-btn"
+            (click)="retrySelectedFailed()"
+            [disabled]="selectedFailedCount() === 0 || bulkActionPending()"
+          >
+            {{ bulkActionPending() ? 'Retrying...' : 'Retry selected failed' }}
+          </button>
+          <button
+            type="button"
+            class="premium-btn retry-btn"
+            (click)="retryAllFailed()"
+            [disabled]="!canRetryAllFailed() || bulkActionPending()"
+          >
+            {{ bulkActionPending() ? 'Retrying...' : 'Retry all failed' }}
+          </button>
+        </div>
+      </div>
+
+      @if (bulkActionMessage()) {
+        <div class="bulk-banner success">{{ bulkActionMessage() }}</div>
+      }
+
+      @if (bulkActionError()) {
+        <div class="bulk-banner error">{{ bulkActionError() }}</div>
+      }
+
+      <table class="captures-table">
+        <thead>
+          <tr>
+            <th class="checkbox-column">
+              <input
+                type="checkbox"
+                [checked]="allPageSelected()"
+                [disabled]="captureState.captures().length === 0"
+                aria-label="Select all captures on this page"
+                (click)="onCheckboxClick($event)"
+                (change)="toggleSelectPage(($any($event.target)).checked)"
+              />
+            </th>
+            <th>
+              <button type="button" (click)="sortBy('contentType')">
+                Type {{ sortIndicator('contentType') }}
+              </button>
+            </th>
+            <th>
+              <button type="button" (click)="sortBy('createdAt')">
+                Created {{ sortIndicator('createdAt') }}
+              </button>
+            </th>
+            <th>
+              <button type="button" (click)="sortBy('status')">
+                Status {{ sortIndicator('status') }}
+              </button>
+            </th>
+            <th>
+              <button type="button" (click)="sortBy('sourceUrl')">
+                Source {{ sortIndicator('sourceUrl') }}
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (capture of captureState.captures(); track capture.id) {
+            <tr (click)="openCapture(capture.id)" tabindex="0" (keyup.enter)="openCapture(capture.id)">
+              <td class="checkbox-column">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(capture.id)"
+                  [attr.aria-label]="'Select capture ' + capture.id"
+                  (click)="onCheckboxClick($event)"
+                  (change)="toggleSelection(capture.id, ($any($event.target)).checked)"
+                />
+              </td>
+              <td><span class="type-pill">{{ capture.contentType }}</span></td>
+              <td>{{ capture.createdAt | date:'medium' }}</td>
+              <td>
+                <span class="status-pill" [class]="statusClass(capture.status)">{{ capture.status }}</span>
+                @if (capture.status.toLowerCase() === 'failed') {
+                  <div class="failure-reason">{{ capture.failureReason || 'Processing failed. Open detail to retry.' }}</div>
+                }
+              </td>
+              <td class="source-cell">{{ capture.sourceUrl }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      @if (captureState.totalPages() > 1) {
+        <div class="pagination-bar">
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === 1"
+            (click)="captureState.setPage(1)"
+            aria-label="First page"
+          >⟨⟨</button>
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === 1"
+            (click)="captureState.setPage(currentPagination().page - 1)"
+            aria-label="Previous page"
+          >⟨</button>
+
+          @for (p of visiblePages(); track p) {
+            @if (p === -1) {
+              <span class="page-ellipsis">…</span>
+            } @else {
+              <button
+                type="button"
+                class="page-btn"
+                [class.active]="p === currentPagination().page"
+                (click)="captureState.setPage(p)"
+              >{{ p }}</button>
+            }
+          }
+
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === captureState.totalPages()"
+            (click)="captureState.setPage(currentPagination().page + 1)"
+            aria-label="Next page"
+          >⟩</button>
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === captureState.totalPages()"
+            (click)="captureState.setPage(captureState.totalPages())"
+            aria-label="Last page"
+          >⟩⟩</button>
+
+          <span class="page-info">
+            Page {{ currentPagination().page }} of {{ captureState.totalPages() }}
+          </span>
+        </div>
+      }
+    }
+  </div>
+</div>

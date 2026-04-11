@@ -1,0 +1,59 @@
+<div class="invitations-page">
+  <header>
+    <h1>Invitations</h1>
+    <p>Create invitation links for new users.</p>
+  </header>
+
+  @if (!isAdmin()) {
+    <div class="glass-card">
+      <p>You do not have permission to manage invitations.</p>
+    </div>
+  } @else {
+    <div class="glass-card form-card">
+      <p class="status error" *ngIf="error()">{{ error() }}</p>
+
+      <form (ngSubmit)="createInvitation()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" [(ngModel)]="email" required />
+          </div>
+
+          <div class="form-group">
+            <label for="displayName">Display Name</label>
+            <input id="displayName" name="displayName" [(ngModel)]="displayName" required />
+          </div>
+
+          <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role" name="role" [(ngModel)]="role">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="premium-btn" [disabled]="submitting()">
+          {{ submitting() ? 'Creating invitation...' : 'Create Invitation' }}
+        </button>
+      </form>
+    </div>
+
+    @if (createdInvitation()) {
+      <div class="glass-card result-card">
+        <h2>Invite Ready</h2>
+        <p><strong>Email:</strong> {{ createdInvitation()!.email }}</p>
+        <p><strong>Role:</strong> {{ createdInvitation()!.role }}</p>
+        <p><strong>Expires:</strong> {{ createdInvitation()!.expiresAt | date:'medium' }}</p>
+
+        <label for="inviteUrl">Invitation Link</label>
+        <textarea id="inviteUrl" readonly>{{ createdInvitation()!.invitationUrl }}</textarea>
+
+        <div class="actions">
+          <button type="button" class="premium-btn" (click)="copyInvitationUrl()">Copy Link</button>
+          <span class="copied" *ngIf="copied()">Copied</span>
+        </div>
+      </div>
+    }
+  }
+</div>
