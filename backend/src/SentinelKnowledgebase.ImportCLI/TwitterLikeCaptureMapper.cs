@@ -23,6 +23,7 @@ internal sealed class TwitterLikeCaptureMapper : ITwitterLikeCaptureMapper
 
         var captureMetadata = new TwitterLikeCaptureMetadata
         {
+            DeferClustering = true,
             TweetId = like.TweetId,
             ExpandedUrl = string.IsNullOrWhiteSpace(like.ExpandedUrl) ? sourceUrl : like.ExpandedUrl.Trim(),
             CapturedAt = importedAt,

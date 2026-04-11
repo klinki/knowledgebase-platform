@@ -1,10 +1,12 @@
 using AwesomeAssertions;
+using System.Text.Json;
 using Hangfire;
 using Hangfire.Common;
 using Hangfire.States;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Application.Hangfire;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -508,7 +510,54 @@ public class CaptureServiceTests
             Arg.Is<Job>(job =>
                 job.Type == typeof(IInsightClusteringService) &&
                 job.Method.Name == nameof(IInsightClusteringService.RebuildOwnerClustersAsync)),
+            Arg.Is<IState>(state => IsClusteringQueueState(state)));
+    }
+
+    [Fact]
+    public async Task ProcessCaptureAsync_ShouldSkipImmediateClustering_WhenMetadataDefersIt()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var rawCaptureId = Guid.NewGuid();
+        var rawCapture = new RawCapture
+        {
+            Id = rawCaptureId,
+            OwnerUserId = ownerUserId,
+            SourceUrl = "https://twitter.com/i/web/status/123",
+            ContentType = ContentType.Tweet,
+            RawContent = "Imported tweet",
+            Metadata = """{"source":"twitter","tweetId":"123","deferClustering":true}"""
+        };
+
+        _unitOfWork.RawCaptures.GetByIdAsync(rawCaptureId).Returns(rawCapture);
+        _contentProcessor.DenoiseContent(rawCapture.RawContent).Returns(rawCapture.RawContent);
+        _contentProcessor.ExtractInsightsAsync(rawCapture.RawContent, rawCapture.ContentType, Arg.Any<string?>())
+            .Returns(new ContentInsights
+            {
+                Title = "Processed title",
+                Summary = "Processed summary",
+                KeyInsights = ["Key insight"],
+                ActionItems = ["Action item"],
+                SourceTitle = "Source title",
+                Author = "Author"
+            });
+        _contentProcessor.GenerateEmbeddingAsync("Processed summary").Returns([0.1f, 0.2f, 0.3f]);
+
+        await _service.ProcessCaptureAsync(rawCaptureId);
+
+        using var metadataDocument = JsonDocument.Parse(rawCapture.Metadata!);
+        metadataDocument.RootElement.TryGetProperty("deferClustering", out _).Should().BeFalse();
+        metadataDocument.RootElement.GetProperty("source").GetString().Should().Be("twitter");
+        metadataDocument.RootElement.GetProperty("tweetId").GetString().Should().Be("123");
+        _backgroundJobClient.DidNotReceive().Create(
+            Arg.Is<Job>(job =>
+                job.Type == typeof(IInsightClusteringService) &&
+                job.Method.Name == nameof(IInsightClusteringService.RebuildOwnerClustersAsync)),
             Arg.Any<IState>());
+    }
+
+    private static bool IsClusteringQueueState(IState state)
+    {
+        return state is EnqueuedState enqueuedState && enqueuedState.Queue == HangfireQueues.Clustering;
     }
 
     [Fact]

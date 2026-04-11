@@ -148,6 +148,22 @@ internal sealed class SentinelCaptureClient : ISentinelCaptureClient
                 .ToList());
     }
 
+    public async Task<TriggerClusterRebuildResult> TriggerClusterRebuildAsync(string apiUrl, CancellationToken cancellationToken)
+    {
+        using var response = await SendAuthorizedAsync(
+            apiUrl,
+            accessToken => BuildRequest(HttpMethod.Post, $"{ApiUrlNormalizer.Normalize(apiUrl)}/api/v1/clusters/rebuild", accessToken),
+            cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return new TriggerClusterRebuildResult(true);
+        }
+
+        var errorText = await response.Content.ReadAsStringAsync(cancellationToken);
+        return new TriggerClusterRebuildResult(false, $"API returned {(int)response.StatusCode}: {errorText}");
+    }
+
     private async Task<HttpResponseMessage> SendAuthorizedAsync(
         string apiUrl,
         Func<string, HttpRequestMessage> requestFactory,

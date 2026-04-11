@@ -15,6 +15,7 @@ public sealed record TwitterLikesImportSummary(
 internal sealed record SubmitCaptureResult(bool Success, string? ErrorMessage = null);
 internal sealed record SubmitBulkCaptureFailure(int RequestIndex, string ErrorMessage);
 internal sealed record SubmitBulkCapturesResult(int SuccessfulCount, IReadOnlyList<SubmitBulkCaptureFailure> Failures);
+internal sealed record TriggerClusterRebuildResult(bool Success, string? ErrorMessage = null);
 
 internal sealed record TwitterArchiveMetadata(
     string? AccountId,
@@ -52,6 +53,7 @@ internal sealed class TwitterLikeCaptureMetadata
 {
     public string Source { get; set; } = "twitter";
     public string ImportSource { get; set; } = "twitter_archive_like";
+    public bool DeferClustering { get; set; }
     public string TweetId { get; set; } = string.Empty;
     public string? ExpandedUrl { get; set; }
     public DateTimeOffset CapturedAt { get; set; }
@@ -99,6 +101,7 @@ internal interface ISentinelCaptureClient
     Task<HashSet<string>> GetExistingTweetIdsAsync(string apiUrl, CancellationToken cancellationToken);
     Task<SubmitCaptureResult> CreateCaptureAsync(string apiUrl, CaptureRequestDto request, CancellationToken cancellationToken);
     Task<SubmitBulkCapturesResult> CreateCapturesAsync(string apiUrl, IReadOnlyList<CaptureRequestDto> requests, CancellationToken cancellationToken);
+    Task<TriggerClusterRebuildResult> TriggerClusterRebuildAsync(string apiUrl, CancellationToken cancellationToken);
 }
 
 internal interface ITokenCache

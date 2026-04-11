@@ -125,6 +125,7 @@ public class TwitterArchiveImportTests
         using var metadataDocument = JsonDocument.Parse(result.Metadata!);
         metadataDocument.RootElement.GetProperty("source").GetString().Should().Be("twitter");
         metadataDocument.RootElement.GetProperty("importSource").GetString().Should().Be("twitter_archive_like");
+        metadataDocument.RootElement.GetProperty("deferClustering").GetBoolean().Should().BeTrue();
         metadataDocument.RootElement.GetProperty("tweetId").GetString().Should().Be("2018256260119101805");
         metadataDocument.RootElement.GetProperty("capturedAt").GetDateTimeOffset().Should().Be(importedAt);
         metadataDocument.RootElement.GetProperty("archive").GetProperty("userName").GetString().Should().Be("klinkicz");
@@ -181,6 +182,8 @@ public class TwitterArchiveImportTests
             .Returns(Task.FromResult(new SubmitBulkCapturesResult(
                 1,
                 [new SubmitBulkCaptureFailure(1, "boom")])));
+        captureClient.TriggerClusterRebuildAsync("https://sentinel.example", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new TriggerClusterRebuildResult(true)));
 
         var reporter = new TestImportReporter();
         var service = new TwitterLikesImportService(
@@ -206,6 +209,7 @@ public class TwitterArchiveImportTests
             "https://sentinel.example",
             Arg.Any<IReadOnlyList<CaptureRequestDto>>(),
             Arg.Any<CancellationToken>());
+        await captureClient.Received(1).TriggerClusterRebuildAsync("https://sentinel.example", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -255,6 +259,8 @@ public class TwitterArchiveImportTests
                     timeProvider.Advance(TimeSpan.FromSeconds(10));
                     return Task.FromResult(new SubmitBulkCapturesResult(1, []));
                 });
+        captureClient.TriggerClusterRebuildAsync("https://sentinel.example", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new TriggerClusterRebuildResult(true)));
 
         var reporter = new TestImportReporter();
         var service = new TwitterLikesImportService(
@@ -274,6 +280,7 @@ public class TwitterArchiveImportTests
         reporter.InfoMessages.Should().Contain(message => message.Contains("Starting import of 3 liked tweets"));
         reporter.InfoMessages.Should().Contain(message => message.Contains("Progress: 2/3") && message.Contains("eta 10s"));
         reporter.InfoMessages.Should().Contain(message => message.Contains("Progress: 3/3") && message.Contains("eta 0s"));
+        reporter.InfoMessages.Should().Contain(message => message.Contains("Queued a single cluster rebuild after archive import."));
     }
 }
 

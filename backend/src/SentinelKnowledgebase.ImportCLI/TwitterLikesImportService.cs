@@ -124,6 +124,19 @@ internal sealed class TwitterLikesImportService : ITwitterLikesImportService
 
         await FlushPendingBatchAsync();
 
+        if (successCount > 0)
+        {
+            var clusterRebuild = await _captureClient.TriggerClusterRebuildAsync(options.ApiUrl, cancellationToken);
+            if (clusterRebuild.Success)
+            {
+                _reporter.WriteInfo("Queued a single cluster rebuild after archive import.");
+            }
+            else
+            {
+                _reporter.WriteWarning($"Imported captures successfully, but failed to queue the cluster rebuild: {clusterRebuild.ErrorMessage}");
+            }
+        }
+
         return new TwitterLikesImportSummary(
             TotalLikesRead: batch.TotalRecords,
             DuplicatesSkipped: duplicateCount,

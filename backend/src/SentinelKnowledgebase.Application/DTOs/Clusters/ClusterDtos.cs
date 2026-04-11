@@ -55,3 +55,9 @@ public class TopicClusterMembershipDto
     public List<string> Tags { get; set; } = new();
     public List<LabelAssignmentDto> Labels { get; set; } = new();
 }
+
+public class ClusterRebuildAcceptedDto
+{
+    public string JobId { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}

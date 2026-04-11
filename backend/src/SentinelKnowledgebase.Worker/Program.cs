@@ -2,6 +2,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Serilog;
 using SentinelKnowledgebase.Application;
+using SentinelKnowledgebase.Application.Hangfire;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Infrastructure;
 using SentinelKnowledgebase.Worker;
@@ -21,6 +22,10 @@ builder.Services.AddSingleton<CaptureProcessingStateFilter>();
 
 var hangfireRetryAttempts = builder.Configuration.GetValue<int?>("Hangfire:RetryAttempts") ?? 10;
 var hangfireRetryDelays = builder.Configuration.GetSection("Hangfire:RetryDelaysInSeconds").Get<int[]>();
+var configuredQueues = builder.Configuration.GetSection("Hangfire:Queues").Get<string[]>();
+var hangfireQueues = configuredQueues is { Length: > 0 }
+    ? configuredQueues
+    : [HangfireQueues.Default, HangfireQueues.Clustering];
 var retryFilter = new AutomaticRetryAttribute
 {
     Attempts = hangfireRetryAttempts
@@ -36,7 +41,7 @@ builder.Services.AddHangfire(configuration => configuration
     .UseFilter(retryFilter)
     .UsePostgreSqlStorage(options =>
         options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
-builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer(options => options.Queues = hangfireQueues);
 
 var host = builder.Build();
 GlobalJobFilters.Filters.Add(host.Services.GetRequiredService<CaptureProcessingStateFilter>());
@@ -44,6 +49,7 @@ GlobalJobFilters.Filters.Add(host.Services.GetRequiredService<CaptureProcessingS
 var recurringJobManager = host.Services.GetRequiredService<IRecurringJobManager>();
 recurringJobManager.AddOrUpdate<IInsightClusteringService>(
     "refresh-stale-insight-clusters",
+    HangfireQueues.Clustering,
     service => service.RebuildStaleOwnerClustersAsync(),
     Cron.Daily);
 host.Run();

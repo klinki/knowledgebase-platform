@@ -277,6 +277,11 @@ public class ImportCliHttpFlowTests
                         Message = "accepted"
                     }
                 }),
+                ("POST", "/api/v1/clusters/rebuild") => ImportCliTestData.JsonResponse(HttpStatusCode.Accepted, new
+                {
+                    jobId = "cluster-job-1",
+                    message = "accepted"
+                }),
                 _ => throw new InvalidOperationException($"Unexpected request {log.Method} {log.Path}")
             };
         });
@@ -301,6 +306,7 @@ public class ImportCliHttpFlowTests
 
         exitCode.Should().Be(0);
         handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/capture/bulk");
+        handler.Logs.Should().ContainSingle(log => log.Method == "POST" && log.Path == "/api/v1/clusters/rebuild");
         output.ToString().Should().Contain("Successfully submitted captures: 1");
         error.ToString().Should().BeEmpty();
     }

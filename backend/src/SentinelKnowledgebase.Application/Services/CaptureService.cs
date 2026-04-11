@@ -1,11 +1,14 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.DTOs.Clusters;
 using Microsoft.Extensions.Logging;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Capture;
+using SentinelKnowledgebase.Application.Hangfire;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
@@ -17,6 +20,7 @@ namespace SentinelKnowledgebase.Application.Services;
 
 public class CaptureService : ICaptureService
 {
+    private const string DeferClusteringMetadataKey = "deferClustering";
     private const string ProcessingErrorMetadataKey = "lastProcessingError";
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
@@ -339,21 +343,39 @@ public class CaptureService : ICaptureService
             
             await _unitOfWork.EmbeddingVectors.AddAsync(embeddingVector);
             
+            var deferClustering = ShouldDeferClustering(rawCapture.Metadata);
             rawCapture.Status = CaptureStatus.Completed;
             rawCapture.ProcessedAt = DateTime.UtcNow;
+            if (deferClustering)
+            {
+                rawCapture.Metadata = RemoveMetadataFlag(rawCapture.Metadata, DeferClusteringMetadataKey);
+            }
             await _unitOfWork.RawCaptures.UpdateAsync(rawCapture);
-            
+             
             await _unitOfWork.SaveChangesAsync();
 
-            var clusteringJobId = _backgroundJobClient.Enqueue<IInsightClusteringService>(
-                service => service.RebuildOwnerClustersAsync(rawCapture.OwnerUserId));
             processingStatus = "completed";
             _monitoringService.IncrementProcessedCaptures();
-            _logger.LogInformation(
-                "Capture {RawCaptureId} completed successfully as insight {ProcessedInsightId}; clustering job {ClusteringJobId} enqueued",
-                rawCaptureId,
-                processedInsight.Id,
-                clusteringJobId);
+            if (deferClustering)
+            {
+                _logger.LogInformation(
+                    "Capture {RawCaptureId} completed successfully as insight {ProcessedInsightId}; clustering enqueue deferred by metadata flag",
+                    rawCaptureId,
+                    processedInsight.Id);
+            }
+            else
+            {
+                var clusteringJobId = _backgroundJobClient.Create(
+                    Job.FromExpression<IInsightClusteringService>(
+                        service => service.RebuildOwnerClustersAsync(rawCapture.OwnerUserId)),
+                    new EnqueuedState(HangfireQueues.Clustering));
+                _logger.LogInformation(
+                    "Capture {RawCaptureId} completed successfully as insight {ProcessedInsightId}; clustering job {ClusteringJobId} enqueued on {QueueName}",
+                    rawCaptureId,
+                    processedInsight.Id,
+                    clusteringJobId,
+                    HangfireQueues.Clustering);
+            }
         }
         catch (Exception ex)
         {
@@ -746,6 +768,31 @@ public class CaptureService : ICaptureService
         }
     }
 
+    private static bool ShouldDeferClustering(string? metadata)
+    {
+        return GetMetadataBoolean(metadata, DeferClusteringMetadataKey);
+    }
+
+    private static bool GetMetadataBoolean(string? metadata, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadata);
+            return document.RootElement.TryGetProperty(propertyName, out var property)
+                && property.ValueKind is JsonValueKind.True or JsonValueKind.False
+                && property.GetBoolean();
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     private static List<LabelAssignmentDto> MapLabels(IEnumerable<RawCaptureLabelAssignment> assignments)
     {
         return assignments
@@ -806,18 +853,7 @@ public class CaptureService : ICaptureService
 
     private static string? ClearProcessingError(string? metadata)
     {
-        if (string.IsNullOrWhiteSpace(metadata))
-        {
-            return metadata;
-        }
-
-        var payload = ParseMetadata(metadata);
-        if (!payload.Remove(ProcessingErrorMetadataKey))
-        {
-            return metadata;
-        }
-
-        return payload.Count == 0 ? null : JsonSerializer.Serialize(payload);
+        return RemoveMetadataFlag(metadata, ProcessingErrorMetadataKey);
     }
 
     private static void ResetCaptureForRetry(RawCapture capture)
@@ -843,6 +879,22 @@ public class CaptureService : ICaptureService
         {
             return new Dictionary<string, object?>();
         }
+    }
+
+    private static string? RemoveMetadataFlag(string? metadata, string key)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return metadata;
+        }
+
+        var payload = ParseMetadata(metadata);
+        if (!payload.Remove(key))
+        {
+            return metadata;
+        }
+
+        return payload.Count == 0 ? null : JsonSerializer.Serialize(payload);
     }
 
 }
