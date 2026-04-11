@@ -4,14 +4,28 @@ namespace SentinelKnowledgebase.Application.DTOs.Clusters;
 
 public class TopicClusterSummaryDto
 {
-    public Guid Id { get; set; }
-    public string Title { get; set; } = string.Empty;
+  public Guid Id { get; set; }
+  public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public List<string> Keywords { get; set; } = new();
     public int MemberCount { get; set; }
     public DateTime UpdatedAt { get; set; }
-    public List<TopicClusterRepresentativeInsightDto> RepresentativeInsights { get; set; } = new();
-    public LabelAssignmentDto SuggestedLabel { get; set; } = new();
+  public List<TopicClusterRepresentativeInsightDto> RepresentativeInsights { get; set; } = new();
+  public LabelAssignmentDto SuggestedLabel { get; set; } = new();
+}
+
+public class TopicClusterListQueryDto
+{
+  public int Page { get; set; } = 1;
+  public int PageSize { get; set; } = 12;
+}
+
+public class TopicClusterListPageDto
+{
+  public List<TopicClusterSummaryDto> Items { get; set; } = new();
+  public int TotalCount { get; set; }
+  public int Page { get; set; }
+  public int PageSize { get; set; }
 }
 
 public class TopicClusterRepresentativeInsightDto

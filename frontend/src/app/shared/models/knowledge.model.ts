@@ -41,6 +41,13 @@ export interface TopicClusterSummary {
   suggestedLabel: LabelAssignment;
 }
 
+export interface TopicClusterListPage {
+  items: TopicClusterSummary[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface TopicClusterMember {
   captureId: string;
   processedInsightId: string;

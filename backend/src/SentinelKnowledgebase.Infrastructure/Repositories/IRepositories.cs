@@ -193,6 +193,19 @@ public interface IInsightClusterRepository
     Task AddMembershipsAsync(IEnumerable<InsightClusterMembership> memberships);
     Task<InsightCluster?> GetByIdAsync(Guid ownerUserId, Guid clusterId);
     Task<IReadOnlyList<InsightCluster>> GetTopAsync(Guid ownerUserId, int take);
+    Task<TopicClusterQueryResult> GetPagedAsync(Guid ownerUserId, TopicClusterQueryOptions options);
     Task<IReadOnlyList<Guid>> GetStaleOwnerIdsAsync(DateTime staleBefore, int take);
     Task DeleteByOwnerAsync(Guid ownerUserId);
+}
+
+public class TopicClusterQueryOptions
+{
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}
+
+public class TopicClusterQueryResult
+{
+    public List<InsightCluster> Items { get; set; } = new();
+    public int TotalCount { get; set; }
 }

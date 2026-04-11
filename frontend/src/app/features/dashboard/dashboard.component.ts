@@ -176,7 +176,10 @@ import { AuthService } from '../../core/services/auth.service';
 
         <section class="secondary-column">
           <div class="glass-card topics-section">
-            <h2>Topics</h2>
+            <div class="section-head">
+              <h2>Topics</h2>
+              <a routerLink="/topics" class="secondary-link">View all</a>
+            </div>
             @if (dashboardState.topicClusters().length > 0) {
               <div class="topics-list">
                 @for (cluster of dashboardState.topicClusters(); track cluster.id) {

@@ -132,6 +132,25 @@ public class InsightClusteringService : IInsightClusteringService
         return clusters.Select(MapSummary).ToList();
     }
 
+    public async Task<TopicClusterListPageDto> GetClusterListPageAsync(Guid ownerUserId, TopicClusterListQueryDto query)
+    {
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var result = await _unitOfWork.InsightClusters.GetPagedAsync(ownerUserId, new TopicClusterQueryOptions
+        {
+            Page = page,
+            PageSize = pageSize
+        });
+
+        return new TopicClusterListPageDto
+        {
+            Items = result.Items.Select(MapSummary).ToList(),
+            TotalCount = result.TotalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<TopicClusterDetailDto?> GetClusterDetailAsync(Guid ownerUserId, Guid clusterId)
     {
         var cluster = await _unitOfWork.InsightClusters.GetByIdAsync(ownerUserId, clusterId);

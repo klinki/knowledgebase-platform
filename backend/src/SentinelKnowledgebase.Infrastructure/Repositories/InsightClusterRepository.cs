@@ -60,6 +60,33 @@ public class InsightClusterRepository : IInsightClusterRepository
             .ToListAsync();
     }
 
+    public async Task<TopicClusterQueryResult> GetPagedAsync(Guid ownerUserId, TopicClusterQueryOptions options)
+    {
+        var query = _context.InsightClusters
+            .AsNoTracking()
+            .Where(cluster => cluster.OwnerUserId == ownerUserId);
+
+        var totalCount = await query.CountAsync();
+        var page = Math.Max(1, options.Page);
+        var pageSize = Math.Clamp(options.PageSize, 1, 100);
+
+        var items = await query
+            .OrderByDescending(cluster => cluster.MemberCount)
+            .ThenByDescending(cluster => cluster.UpdatedAt)
+            .Include(cluster => cluster.Memberships.OrderBy(membership => membership.Rank).Take(3))
+                .ThenInclude(membership => membership.ProcessedInsight)
+                    .ThenInclude(insight => insight.RawCapture)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new TopicClusterQueryResult
+        {
+            Items = items,
+            TotalCount = totalCount
+        };
+    }
+
     public async Task<IReadOnlyList<Guid>> GetStaleOwnerIdsAsync(DateTime staleBefore, int take)
     {
         return await _context.InsightClusters

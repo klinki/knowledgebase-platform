@@ -279,10 +279,13 @@ describe('DashboardComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('AI Infrastructure');
     expect(compiled.textContent).toContain('GPU scheduling note');
+    expect(compiled.textContent).toContain('View all');
 
     const topicLink = compiled.querySelector('.topic-title-link') as HTMLAnchorElement | null;
     const captureLink = compiled.querySelector('.topic-linkish') as HTMLAnchorElement | null;
+    const viewAllLink = compiled.querySelector('.topics-section .secondary-link') as HTMLAnchorElement | null;
     expect(topicLink?.getAttribute('href')).toContain('/topics/topic-1');
     expect(captureLink?.getAttribute('href')).toContain('/captures/capture-1');
+    expect(viewAllLink?.getAttribute('href')).toContain('/topics');
   });
 });

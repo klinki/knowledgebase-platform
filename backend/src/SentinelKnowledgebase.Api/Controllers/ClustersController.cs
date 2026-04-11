@@ -42,6 +42,19 @@ public class ClustersController : ControllerBase
         return Ok(clusters);
     }
 
+    [HttpGet("list")]
+    [ProducesResponseType(typeof(TopicClusterListPageDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetClusterList([FromQuery] TopicClusterListQueryDto query)
+    {
+        if (!User.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var page = await _insightClusteringService.GetClusterListPageAsync(userId, query);
+        return Ok(page);
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(TopicClusterDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

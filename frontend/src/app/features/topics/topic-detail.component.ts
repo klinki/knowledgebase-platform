@@ -15,7 +15,7 @@ import { TopicsStateService } from '../../core/services/topics-state.service';
           <h1>Topic</h1>
           <p>Explore a group of related processed insights discovered from embeddings.</p>
         </div>
-        <a routerLink="/dashboard" class="back-link">Back to dashboard</a>
+        <a routerLink="/topics" class="back-link">Back to topics</a>
       </header>
 
       @if (topicsState.loading()) {

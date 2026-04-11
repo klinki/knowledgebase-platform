@@ -87,7 +87,30 @@ public class ClustersControllerTests
         foreignResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
     }
 
-    private async Task<Guid> SeedClusterAsync(Guid ownerUserId, string title)
+    [Fact]
+    public async Task GetClusterList_ShouldReturnPagedClusters_WhenAuthenticated()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+
+        await SeedClusterAsync(ownerUserId, "Large Topic", memberCount: 5);
+        await SeedClusterAsync(ownerUserId, "Medium Topic", memberCount: 4);
+        await SeedClusterAsync(ownerUserId, "Small Topic", memberCount: 3);
+
+        var response = await client.GetAsync("/api/v1/clusters/list?page=2&pageSize=1");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.Page.Should().Be(2);
+        page.PageSize.Should().Be(1);
+        page.TotalCount.Should().Be(3);
+        page.Items.Should().ContainSingle();
+        page.Items[0].Title.Should().Be("Medium Topic");
+    }
+
+    private async Task<Guid> SeedClusterAsync(Guid ownerUserId, string title, int memberCount = 3)
     {
         var clusterId = Guid.NewGuid();
 
@@ -96,7 +119,7 @@ public class ClustersControllerTests
             var now = DateTime.UtcNow;
             var insightIds = new List<Guid>();
 
-            for (var index = 0; index < 3; index++)
+            for (var index = 0; index < memberCount; index++)
             {
                 var captureId = Guid.NewGuid();
                 var insightId = Guid.NewGuid();

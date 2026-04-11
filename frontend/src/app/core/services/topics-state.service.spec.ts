@@ -79,6 +79,66 @@ describe('TopicsStateService', () => {
     });
   });
 
+  it('loads a paginated topics list', async () => {
+    const loadPromise = service.loadTopicsPage(2, 6);
+
+    const request = http.expectOne('http://localhost:5000/api/v1/clusters/list?page=2&pageSize=6');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      items: [
+        {
+          id: 'topic-1',
+          title: ' Topic Alpha ',
+          description: ' Cluster description ',
+          keywords: [' alpha ', ' beta '],
+          memberCount: 8,
+          updatedAt: '2026-03-16T10:00:00Z',
+          representativeInsights: [
+            {
+              captureId: 'capture-1',
+              processedInsightId: 'insight-1',
+              title: ' Representative insight ',
+              summary: ' Summary ',
+              sourceUrl: ' https://example.com/topic '
+            }
+          ],
+          suggestedLabel: { category: ' Topic ', value: ' Topic Alpha ' }
+        }
+      ],
+      totalCount: 14,
+      page: 2,
+      pageSize: 6
+    });
+
+    await loadPromise;
+
+    expect(service.topicsPage()).toEqual({
+      items: [
+        {
+          id: 'topic-1',
+          title: 'Topic Alpha',
+          description: 'Cluster description',
+          keywords: ['alpha', 'beta'],
+          memberCount: 8,
+          updatedAt: '2026-03-16T10:00:00Z',
+          representativeInsights: [
+            {
+              captureId: 'capture-1',
+              processedInsightId: 'insight-1',
+              title: 'Representative insight',
+              summary: 'Summary',
+              sourceUrl: 'https://example.com/topic'
+            }
+          ],
+          suggestedLabel: { category: 'Topic', value: 'Topic Alpha' }
+        }
+      ],
+      totalCount: 14,
+      page: 2,
+      pageSize: 6
+    });
+  });
+
   it('sets notFound for missing topics', async () => {
     const loadPromise = service.loadTopic('missing-topic');
 

@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { TopicClusterDetail } from '../../shared/models/knowledge.model';
+import { TopicClusterDetail, TopicClusterListPage, TopicClusterSummary } from '../../shared/models/knowledge.model';
 
 @Injectable({
   providedIn: 'root'
@@ -12,10 +12,47 @@ export class TopicsStateService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/clusters`;
 
+  topicsPage = signal<TopicClusterListPage>({
+    items: [],
+    totalCount: 0,
+    page: 1,
+    pageSize: 12
+  });
   topicDetail = signal<TopicClusterDetail | null>(null);
   loading = signal(false);
   error = signal<string | null>(null);
   notFound = signal(false);
+
+  async loadTopicsPage(page = 1, pageSize = 12): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    this.notFound.set(false);
+
+    try {
+      const response = await firstValueFrom(
+        this.http.get<TopicClusterListPage>(`${this.apiUrl}/list`, {
+          params: {
+            page: String(page),
+            pageSize: String(pageSize)
+          }
+        })
+      );
+      this.topicsPage.set({
+        ...response,
+        items: (response.items ?? []).map(topic => this.normalizeTopicSummary(topic))
+      });
+    } catch {
+      this.error.set('Topics could not be loaded.');
+      this.topicsPage.set({
+        items: [],
+        totalCount: 0,
+        page,
+        pageSize
+      });
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   async loadTopic(id: string): Promise<void> {
     if (!id) {
@@ -49,10 +86,35 @@ export class TopicsStateService {
   }
 
   clear(): void {
+    this.topicsPage.set({
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 12
+    });
     this.topicDetail.set(null);
     this.loading.set(false);
     this.error.set(null);
     this.notFound.set(false);
+  }
+
+  private normalizeTopicSummary(topic: TopicClusterSummary): TopicClusterSummary {
+    return {
+      ...topic,
+      title: topic.title.trim(),
+      description: topic.description?.trim() ?? null,
+      keywords: (topic.keywords ?? []).map(keyword => keyword.trim()).filter(keyword => keyword.length > 0),
+      representativeInsights: (topic.representativeInsights ?? []).map(insight => ({
+        ...insight,
+        title: insight.title.trim(),
+        summary: insight.summary.trim(),
+        sourceUrl: insight.sourceUrl.trim()
+      })),
+      suggestedLabel: {
+        category: topic.suggestedLabel.category.trim(),
+        value: topic.suggestedLabel.value.trim()
+      }
+    };
   }
 
   private normalizeTopicDetail(topic: TopicClusterDetail): TopicClusterDetail {
