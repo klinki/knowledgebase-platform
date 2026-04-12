@@ -70,11 +70,8 @@ public class CaptureService : ICaptureService
             .ToDictionary(tag => tag.Name, StringComparer.OrdinalIgnoreCase);
 
         var existingCategories = (await _unitOfWork.LabelCategories.GetAllWithValuesAsync(ownerUserId)).ToList();
-        var categoriesByName = existingCategories
-            .ToDictionary(category => category.Name, StringComparer.OrdinalIgnoreCase);
-        var valuesByCategoryId = existingCategories.ToDictionary(
-            category => category.Id,
-            category => category.Values.ToDictionary(value => value.Value, StringComparer.OrdinalIgnoreCase));
+        var categoriesByName = BuildCategoryLookup(ownerUserId, existingCategories);
+        var valuesByCategoryId = BuildValueLookup(ownerUserId, existingCategories);
 
         var responses = new List<CaptureResponseDto>(requests.Count);
 
@@ -587,6 +584,66 @@ public class CaptureService : ICaptureService
 
             rawCapture.Tags.Add(tag);
         }
+    }
+
+    private Dictionary<string, LabelCategory> BuildCategoryLookup(
+        Guid ownerUserId,
+        IEnumerable<LabelCategory> categories)
+    {
+        var categoriesByName = new Dictionary<string, LabelCategory>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var category in categories
+            .OrderBy(category => category.CreatedAt)
+            .ThenBy(category => category.Id))
+        {
+            if (categoriesByName.TryAdd(category.Name, category))
+            {
+                continue;
+            }
+
+            _logger.LogWarning(
+                "Duplicate label category '{CategoryName}' detected for owner {OwnerUserId}. Using existing category {ExistingCategoryId} and ignoring duplicate {DuplicateCategoryId}.",
+                category.Name,
+                ownerUserId,
+                categoriesByName[category.Name].Id,
+                category.Id);
+        }
+
+        return categoriesByName;
+    }
+
+    private Dictionary<Guid, Dictionary<string, LabelValue>> BuildValueLookup(
+        Guid ownerUserId,
+        IEnumerable<LabelCategory> categories)
+    {
+        var valuesByCategoryId = new Dictionary<Guid, Dictionary<string, LabelValue>>();
+
+        foreach (var category in categories)
+        {
+            var valuesByName = new Dictionary<string, LabelValue>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var value in category.Values
+                .OrderBy(value => value.CreatedAt)
+                .ThenBy(value => value.Id))
+            {
+                if (valuesByName.TryAdd(value.Value, value))
+                {
+                    continue;
+                }
+
+                _logger.LogWarning(
+                    "Duplicate label value '{LabelValue}' detected in category '{CategoryName}' for owner {OwnerUserId}. Using existing value {ExistingValueId} and ignoring duplicate {DuplicateValueId}.",
+                    value.Value,
+                    category.Name,
+                    ownerUserId,
+                    valuesByName[value.Value].Id,
+                    value.Id);
+            }
+
+            valuesByCategoryId[category.Id] = valuesByName;
+        }
+
+        return valuesByCategoryId;
     }
 
     private async Task<List<RawCaptureLabelAssignment>> ResolveRawCaptureLabelsAsync(

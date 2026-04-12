@@ -149,6 +149,58 @@ public class CaptureServiceTests
     }
 
     [Fact]
+    public async Task CreateCaptureAsync_ShouldTolerateDuplicateExistingLabelValuesDifferingByCase()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var existingCategory = new LabelCategory
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            Name = "Source",
+            CreatedAt = new DateTime(2026, 4, 1, 9, 0, 0, DateTimeKind.Utc),
+            Values =
+            [
+                new LabelValue
+                {
+                    Id = Guid.NewGuid(),
+                    LabelCategoryId = Guid.Empty,
+                    Value = "Twitter",
+                    CreatedAt = new DateTime(2026, 4, 1, 9, 1, 0, DateTimeKind.Utc)
+                },
+                new LabelValue
+                {
+                    Id = Guid.NewGuid(),
+                    LabelCategoryId = Guid.Empty,
+                    Value = "twitter",
+                    CreatedAt = new DateTime(2026, 4, 1, 9, 2, 0, DateTimeKind.Utc)
+                }
+            ]
+        };
+        foreach (var value in existingCategory.Values)
+        {
+            value.LabelCategoryId = existingCategory.Id;
+            value.LabelCategory = existingCategory;
+        }
+
+        _unitOfWork.LabelCategories.GetAllWithValuesAsync(ownerUserId)
+            .Returns(Task.FromResult<IEnumerable<LabelCategory>>([existingCategory]));
+
+        var request = new CaptureRequestDto
+        {
+            SourceUrl = "https://example.com",
+            ContentType = ContentType.Tweet,
+            RawContent = "Tweet body",
+            Metadata = """{"source":"twitter"}"""
+        };
+
+        var result = await _service.CreateCaptureAsync(ownerUserId, request);
+
+        result.Labels.Should().Contain(label => label.Category == "Source" && label.Value == "Twitter");
+        await _unitOfWork.LabelValues.DidNotReceive().AddAsync(Arg.Any<LabelValue>());
+        await _unitOfWork.Received(1).SaveChangesAsync();
+    }
+
+    [Fact]
     public async Task CreateCaptureAsync_ShouldAutoFillSourceAndLanguageLabels()
     {
         var ownerUserId = Guid.NewGuid();
