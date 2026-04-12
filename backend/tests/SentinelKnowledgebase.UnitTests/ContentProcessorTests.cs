@@ -181,6 +181,80 @@ Final important content.
         properties.TryGetProperty("keywords", out _).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ExtractInsightsAsync_ShouldFallbackToJsonObject_WhenJsonSchemaIsUnsupported()
+    {
+        var handler = new RecordingHttpMessageHandler(
+            CreateErrorResponse(HttpStatusCode.BadRequest, """
+                {"error":{"message":"response_format json_schema is unsupported for this model"}}
+                """),
+            CreateSuccessResponse(CreateChatResponse("""
+                {"title":"Test title","summary":"Test summary","keyInsights":["One"],"actionItems":["Act"],"sourceTitle":"Source","author":"Author"}
+                """)));
+        var processor = CreateProcessor(
+            overrides: new Dictionary<string, string?>
+            {
+                { "OpenAI:ApiKey", "test-key" }
+            },
+            httpClient: new HttpClient(handler));
+
+        var result = await processor.ExtractInsightsAsync("Article content", ContentType.Article);
+
+        result.Title.Should().Be("Test title");
+        handler.RequestMessages.Should().HaveCount(2);
+        var firstPayload = await ReadRequestPayloadAsync(handler.RequestMessages[0]);
+        firstPayload.GetProperty("response_format").GetProperty("type").GetString().Should().Be("json_schema");
+        var secondPayload = await ReadRequestPayloadAsync(handler.RequestMessages[1]);
+        secondPayload.GetProperty("response_format").GetProperty("type").GetString().Should().Be("json_object");
+        secondPayload.GetProperty("response_format").TryGetProperty("json_schema", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExtractInsightsAsync_ShouldFallbackToJsonObject_WhenSchemaResponseIsInvalid()
+    {
+        var handler = new RecordingHttpMessageHandler(
+            CreateSuccessResponse(CreateChatResponse("""
+                {"title":"","summary":"Test summary","keyInsights":["One"],"actionItems":["Act"],"sourceTitle":"Source","author":"Author"}
+                """)),
+            CreateSuccessResponse(CreateChatResponse("""
+                {"title":"Recovered title","summary":"Recovered summary","keyInsights":["One"],"actionItems":["Act"],"sourceTitle":"Source","author":"Author"}
+                """)));
+        var processor = CreateProcessor(
+            overrides: new Dictionary<string, string?>
+            {
+                { "OpenAI:ApiKey", "test-key" }
+            },
+            httpClient: new HttpClient(handler));
+
+        var result = await processor.ExtractInsightsAsync("Article content", ContentType.Article);
+
+        result.Title.Should().Be("Recovered title");
+        handler.RequestMessages.Should().HaveCount(2);
+        var secondPayload = await ReadRequestPayloadAsync(handler.RequestMessages[1]);
+        secondPayload.GetProperty("response_format").GetProperty("type").GetString().Should().Be("json_object");
+    }
+
+    [Fact]
+    public async Task ExtractInsightsAsync_ShouldAllowForcingJsonObjectMode()
+    {
+        var handler = new RecordingHttpMessageHandler(CreateChatResponse("""
+            {"title":"Test title","summary":"Test summary","keyInsights":["One"],"actionItems":["Act"],"sourceTitle":"Source","author":"Author"}
+            """));
+        var processor = CreateProcessor(
+            overrides: new Dictionary<string, string?>
+            {
+                { "OpenAI:ApiKey", "test-key" },
+                { "OpenAI:StructuredOutputMode", "json_object" }
+            },
+            httpClient: new HttpClient(handler));
+
+        await processor.ExtractInsightsAsync("Article content", ContentType.Article);
+
+        var payload = await ReadRequestPayloadAsync(handler.LastRequestMessage);
+        payload.GetProperty("response_format").GetProperty("type").GetString().Should().Be("json_object");
+        payload.GetProperty("response_format").TryGetProperty("json_schema", out _).Should().BeFalse();
+    }
+
     private static ContentProcessor CreateProcessor(
         IDictionary<string, string?>? overrides = null,
         HttpClient? httpClient = null)
@@ -189,6 +263,7 @@ Final important content.
         {
             { "OpenAI:ApiKey", string.Empty },
             { "OpenAI:Model", "gpt-4" },
+            { "OpenAI:StructuredOutputMode", "auto" },
             { "OpenAI:EmbeddingModel", "text-embedding-3-small" },
             { "OpenAI:EmbeddingsUrl", "https://example.com/v1/embeddings" },
             { "OpenAI:ChatCompletionsUrl", "https://example.com/v1/chat/completions" }
@@ -263,6 +338,22 @@ Final important content.
         return new StringContent(payload, Encoding.UTF8, "application/json");
     }
 
+    private static HttpResponseMessage CreateErrorResponse(HttpStatusCode statusCode, string payload)
+    {
+        return new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(payload, Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static HttpResponseMessage CreateSuccessResponse(HttpContent payload)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = payload
+        };
+    }
+
     private static async Task<JsonElement> ReadRequestPayloadAsync(HttpRequestMessage? requestMessage)
     {
         requestMessage.Should().NotBeNull();
@@ -273,18 +364,37 @@ Final important content.
         return document.RootElement.Clone();
     }
 
-    private sealed class RecordingHttpMessageHandler(HttpContent responseContent) : HttpMessageHandler
+    private sealed class RecordingHttpMessageHandler : HttpMessageHandler
     {
+        private readonly Queue<HttpResponseMessage> _responses;
+
+        public RecordingHttpMessageHandler(params HttpResponseMessage[] responses)
+        {
+            _responses = new Queue<HttpResponseMessage>(responses);
+        }
+
+        public RecordingHttpMessageHandler(HttpContent responseContent)
+            : this(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = responseContent
+            })
+        {
+        }
+
         public HttpRequestMessage? LastRequestMessage { get; private set; }
+        public List<HttpRequestMessage> RequestMessages { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequestMessage = request;
+            RequestMessages.Add(request);
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            if (_responses.Count == 0)
             {
-                Content = responseContent
-            });
+                throw new InvalidOperationException("No queued HTTP response is available for this request.");
+            }
+
+            return Task.FromResult(_responses.Dequeue());
         }
     }
 }

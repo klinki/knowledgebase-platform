@@ -14,6 +14,10 @@ namespace SentinelKnowledgebase.Application.Services;
 
 public class ContentProcessor : IContentProcessor
 {
+    private const string StructuredOutputModeConfigKey = "OpenAI:StructuredOutputMode";
+    private const string StructuredOutputModeAuto = "auto";
+    private const string StructuredOutputModeJsonSchema = "json_schema";
+    private const string StructuredOutputModeJsonObject = "json_object";
     private readonly IConfiguration _configuration;
     private readonly HttpClient _httpClient;
     private readonly IMonitoringService _monitoringService;
@@ -150,64 +154,87 @@ Respond with valid JSON only.";
     
     private async Task<ContentInsights> CallOpenAIForInsights(string prompt)
     {
-        var apiKey = _configuration["OpenAI:ApiKey"];
-        var model = _configuration["OpenAI:Model"] ?? "gpt-4";
-        
-        _httpClient.DefaultRequestHeaders.Authorization = 
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-        
-        var requestBody = new ChatCompletionRequest
-        {
-            Model = model,
-            Messages =
-            [
-                new ChatMessageRequest("system", "You are a helpful content analysis assistant. Always respond with valid JSON."),
-                new ChatMessageRequest("user", prompt)
-            ],
-            Temperature = 0.3,
-            ResponseFormat = CreateContentInsightsResponseFormat()
-        };
-        
-        var chatCompletionsUrl = _configuration["OpenAI:ChatCompletionsUrl"] ?? "https://api.openai.com/v1/chat/completions";
-        var response = await _httpClient.PostAsJsonAsync(
-            chatCompletionsUrl, requestBody);
-        
-        if (response.IsSuccessStatusCode)
-        {
-            var responseContent = await response.Content.ReadFromJsonAsync<OpenAIChatResponse>();
-            var usage = responseContent?.usage;
-            if (usage != null)
-            {
-                _monitoringService.RecordAiTokenUsage(
-                    usage.prompt_tokens,
-                    usage.completion_tokens,
-                    usage.total_tokens,
-                    "chat_completion");
-            }
-
-            var content = responseContent?.choices?[0].message?.content;
-            
-            if (!string.IsNullOrEmpty(content))
-            {
-                return ParseJsonToInsights(content);
-            }
-
-            throw new InvalidOperationException("Chat completions response did not contain a message content payload.");
-        }
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        _logger.LogWarning(
-            "Insight extraction request failed with status {StatusCode}. Response: {ResponseBody}",
-            (int)response.StatusCode,
-            responseBody);
-
-        throw new HttpRequestException(
-            $"Insight extraction request failed with status {(int)response.StatusCode}.",
-            null,
-            response.StatusCode);
+        return await ExecuteStructuredChatCompletionAsync(
+            prompt,
+            "You are a helpful content analysis assistant. Always respond with valid JSON.",
+            0.3,
+            CreateContentInsightsResponseFormat(),
+            ParseJsonToInsights,
+            ValidateContentInsights,
+            "Insight extraction");
     }
 
     private async Task<ClusterMetadata> CallOpenAIForClusterMetadata(string prompt)
+    {
+        return await ExecuteStructuredChatCompletionAsync(
+            prompt,
+            "You name semantic knowledge clusters. Always respond with valid JSON.",
+            0.2,
+            CreateClusterMetadataResponseFormat(),
+            ParseJsonToClusterMetadata,
+            ValidateClusterMetadata,
+            "Cluster metadata");
+    }
+
+    private async Task<T> ExecuteStructuredChatCompletionAsync<T>(
+        string prompt,
+        string systemPrompt,
+        double temperature,
+        ResponseFormatRequest schemaResponseFormat,
+        Func<string, T> parseResponse,
+        Action<T> validateResponse,
+        string operationName)
+    {
+        var mode = GetStructuredOutputMode();
+        var initialFormat = mode == StructuredOutputModeJsonObject
+            ? CreateJsonObjectResponseFormat()
+            : schemaResponseFormat;
+        var fallbackFormat = CreateJsonObjectResponseFormat();
+
+        try
+        {
+            return await SendChatCompletionAsync(
+                prompt,
+                systemPrompt,
+                temperature,
+                initialFormat,
+                parseResponse,
+                validateResponse);
+        }
+        catch (StructuredOutputUnsupportedException) when (mode == StructuredOutputModeAuto && initialFormat.Type == StructuredOutputModeJsonSchema)
+        {
+            _logger.LogWarning(
+                "{OperationName} structured output fallback activated because json_schema is unsupported for model {Model}. Retrying with json_object.",
+                operationName,
+                _configuration["OpenAI:Model"] ?? "gpt-4");
+        }
+        catch (Exception exception) when (
+            mode == StructuredOutputModeAuto
+            && initialFormat.Type == StructuredOutputModeJsonSchema
+            && (exception is InvalidOperationException || exception is JsonException))
+        {
+            _logger.LogWarning(
+                exception,
+                "{OperationName} returned unusable schema-constrained JSON. Retrying with json_object fallback.",
+                operationName);
+        }
+
+        return await SendChatCompletionAsync(
+            prompt,
+            $"{systemPrompt} Return only a JSON object. Do not include markdown, prose, comments, or code fences.",
+            temperature,
+            fallbackFormat,
+            parseResponse,
+            validateResponse);
+    }
+
+    private async Task<T> SendChatCompletionAsync<T>(
+        string prompt,
+        string systemPrompt,
+        double temperature,
+        ResponseFormatRequest responseFormat,
+        Func<string, T> parseResponse,
+        Action<T> validateResponse)
     {
         var apiKey = _configuration["OpenAI:ApiKey"];
         var model = _configuration["OpenAI:Model"] ?? "gpt-4";
@@ -220,41 +247,56 @@ Respond with valid JSON only.";
             Model = model,
             Messages =
             [
-                new ChatMessageRequest("system", "You name semantic knowledge clusters. Always respond with valid JSON."),
+                new ChatMessageRequest("system", systemPrompt),
                 new ChatMessageRequest("user", prompt)
             ],
-            Temperature = 0.2,
-            ResponseFormat = CreateClusterMetadataResponseFormat()
+            Temperature = temperature,
+            ResponseFormat = responseFormat
         };
 
         var chatCompletionsUrl = _configuration["OpenAI:ChatCompletionsUrl"] ?? "https://api.openai.com/v1/chat/completions";
         var response = await _httpClient.PostAsJsonAsync(chatCompletionsUrl, requestBody);
-        if (response.IsSuccessStatusCode)
+
+        if (!response.IsSuccessStatusCode)
         {
-            var responseContent = await response.Content.ReadFromJsonAsync<OpenAIChatResponse>();
-            var content = responseContent?.choices?[0].message?.content;
-            if (!string.IsNullOrWhiteSpace(content))
+            var responseBody = await response.Content.ReadAsStringAsync();
+            if (responseFormat.Type == StructuredOutputModeJsonSchema
+                && IsStructuredOutputUnsupported(response.StatusCode, responseBody))
             {
-                var normalizedJson = NormalizeJsonPayload(content);
-                return JsonSerializer.Deserialize<ClusterMetadata>(normalizedJson, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? throw new InvalidOperationException("Cluster metadata response contained an empty JSON payload.");
+                throw new StructuredOutputUnsupportedException(response.StatusCode, responseBody);
             }
 
-            throw new InvalidOperationException("Chat completions response did not contain a cluster metadata payload.");
+            _logger.LogWarning(
+                "Chat completion request failed with status {StatusCode}. Response: {ResponseBody}",
+                (int)response.StatusCode,
+                responseBody);
+
+            throw new HttpRequestException(
+                $"Chat completion request failed with status {(int)response.StatusCode}.",
+                null,
+                response.StatusCode);
         }
 
-        var responseBody = await response.Content.ReadAsStringAsync();
-        _logger.LogWarning(
-            "Cluster metadata request failed with status {StatusCode}. Response: {ResponseBody}",
-            (int)response.StatusCode,
-            responseBody);
+        var responseContent = await response.Content.ReadFromJsonAsync<OpenAIChatResponse>();
+        var usage = responseContent?.usage;
+        if (usage != null)
+        {
+            _monitoringService.RecordAiTokenUsage(
+                usage.prompt_tokens,
+                usage.completion_tokens,
+                usage.total_tokens,
+                "chat_completion");
+        }
 
-        throw new HttpRequestException(
-            $"Cluster metadata request failed with status {(int)response.StatusCode}.",
-            null,
-            response.StatusCode);
+        var content = responseContent?.choices?[0].message?.content;
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new InvalidOperationException("Chat completions response did not contain a message content payload.");
+        }
+
+        var parsed = parseResponse(content);
+        validateResponse(parsed);
+        return parsed;
     }
     
     private ContentInsights ParseJsonToInsights(string json)
@@ -276,6 +318,31 @@ Respond with valid JSON only.";
             _logger.LogWarning(
                 exception,
                 "Failed to parse content insights JSON. Raw response: {ResponseBody}",
+                normalizedJson);
+
+            throw;
+        }
+    }
+
+    private ClusterMetadata ParseJsonToClusterMetadata(string json)
+    {
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var normalizedJson = NormalizeJsonPayload(json);
+
+        try
+        {
+            return JsonSerializer.Deserialize<ClusterMetadata>(normalizedJson, options)
+                ?? throw new InvalidOperationException("Cluster metadata response contained an empty JSON payload.");
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to parse cluster metadata JSON. Raw response: {ResponseBody}",
                 normalizedJson);
 
             throw;
@@ -386,6 +453,11 @@ Respond with valid JSON only.";
                 }));
     }
 
+    private static ResponseFormatRequest CreateJsonObjectResponseFormat()
+    {
+        return new ResponseFormatRequest("json_object");
+    }
+
     private static ResponseFormatRequest CreateClusterMetadataResponseFormat()
     {
         return new ResponseFormatRequest(
@@ -423,6 +495,73 @@ Summaries:
 {joinedSummaries}
 
 Respond with valid JSON only.";
+    }
+
+    private static void ValidateContentInsights(ContentInsights insights)
+    {
+        if (string.IsNullOrWhiteSpace(insights.Title))
+        {
+            throw new InvalidOperationException("Content insights response did not contain a title.");
+        }
+
+        if (string.IsNullOrWhiteSpace(insights.Summary))
+        {
+            throw new InvalidOperationException("Content insights response did not contain a summary.");
+        }
+
+        if (insights.KeyInsights == null)
+        {
+            throw new InvalidOperationException("Content insights response did not contain key insights.");
+        }
+
+        if (insights.ActionItems == null)
+        {
+            throw new InvalidOperationException("Content insights response did not contain action items.");
+        }
+    }
+
+    private static void ValidateClusterMetadata(ClusterMetadata metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.Title))
+        {
+            throw new InvalidOperationException("Cluster metadata response did not contain a title.");
+        }
+
+        if (metadata.Keywords == null || metadata.Keywords.Count == 0 || metadata.Keywords.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidOperationException("Cluster metadata response did not contain usable keywords.");
+        }
+    }
+
+    private string GetStructuredOutputMode()
+    {
+        var configuredMode = _configuration[StructuredOutputModeConfigKey]?.Trim().ToLowerInvariant();
+        return configuredMode switch
+        {
+            StructuredOutputModeJsonSchema => StructuredOutputModeJsonSchema,
+            StructuredOutputModeJsonObject => StructuredOutputModeJsonObject,
+            _ => StructuredOutputModeAuto
+        };
+    }
+
+    private static bool IsStructuredOutputUnsupported(System.Net.HttpStatusCode statusCode, string responseBody)
+    {
+        if (statusCode != System.Net.HttpStatusCode.BadRequest
+            && (int)statusCode != 422
+            && statusCode != System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            return false;
+        }
+
+        return responseBody.Contains("response_format", StringComparison.OrdinalIgnoreCase)
+            || responseBody.Contains("json_schema", StringComparison.OrdinalIgnoreCase)
+            || responseBody.Contains("structured output", StringComparison.OrdinalIgnoreCase)
+            || responseBody.Contains("unsupported", StringComparison.OrdinalIgnoreCase);
     }
     
     private bool IsNoiseLine(string line)
@@ -489,12 +628,38 @@ Respond with valid JSON only.";
         [property: JsonPropertyName("role")] string Role,
         [property: JsonPropertyName("content")] string Content);
 
-    private sealed record ResponseFormatRequest(
-        [property: JsonPropertyName("type")] string Type,
-        [property: JsonPropertyName("json_schema")] JsonSchemaRequest JsonSchema);
+    private sealed class ResponseFormatRequest
+    {
+        public ResponseFormatRequest(string type, JsonSchemaRequest? jsonSchema = null)
+        {
+            Type = type;
+            JsonSchema = jsonSchema;
+        }
+
+        [JsonPropertyName("type")]
+        public string Type { get; }
+
+        [JsonPropertyName("json_schema")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public JsonSchemaRequest? JsonSchema { get; }
+    }
 
     private sealed record JsonSchemaRequest(
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("strict")] bool Strict,
         [property: JsonPropertyName("schema")] Dictionary<string, object?> Schema);
+
+    private sealed class StructuredOutputUnsupportedException : Exception
+    {
+        public StructuredOutputUnsupportedException(System.Net.HttpStatusCode statusCode, string responseBody)
+            : base($"Structured output is unsupported for this route. Status {(int)statusCode}.")
+        {
+            StatusCode = statusCode;
+            ResponseBody = responseBody;
+        }
+
+        public System.Net.HttpStatusCode StatusCode { get; }
+
+        public string ResponseBody { get; }
+    }
 }
