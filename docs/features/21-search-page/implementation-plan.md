@@ -21,15 +21,15 @@
 
 ## Backend Changes
 
-- Extend [SearchDto.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/DTOs/Search/SearchDto.cs) with:
+- Extend [SearchDto.cs](/backend/src/SentinelKnowledgebase.Application/DTOs/Search/SearchDto.cs) with:
   - `SearchRequestDto`
   - `SearchResultDto`
   - shared enum/string contract for `tagMatchMode` and `labelMatchMode`
-- Extend [ISearchService.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/Interfaces/ISearchService.cs) with a combined search method:
+- Extend [ISearchService.cs](/backend/src/SentinelKnowledgebase.Application/Services/Interfaces/ISearchService.cs) with a combined search method:
   - `SearchAsync(Guid ownerUserId, SearchRequestDto request)`
-- Add `POST /api/v1/search` to [SearchController.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs).
+- Add `POST /api/v1/search` to [SearchController.cs](/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs).
 - Keep existing `/semantic`, `/tags`, and `/labels` endpoints unchanged for compatibility.
-- Extend [IRepositories.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/IRepositories.cs) and [ProcessedInsightRepository.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/ProcessedInsightRepository.cs) with a single combined repository query that:
+- Extend [IRepositories.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/IRepositories.cs) and [ProcessedInsightRepository.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/ProcessedInsightRepository.cs) with a single combined repository query that:
   - supports optional semantic query, optional tags, and optional label pairs
   - enforces `ownerUserId`
   - treats semantic match as required when `query` is present
@@ -38,7 +38,7 @@
   - returns `similarity` when semantic search is used, otherwise `null`
   - orders by `similarity desc` for semantic searches, else `processedAt desc`
   - returns paged results with `page`, `pageSize`, and `totalCount`
-- Implement request normalization in [SearchService.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs):
+- Implement request normalization in [SearchService.cs](/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs):
   - trim query
   - deduplicate tags case-insensitively
   - deduplicate label pairs case-insensitively
@@ -56,17 +56,17 @@
   - tag match mode toggle (`any`/`all`)
   - label match mode toggle (`any`/`all`)
   - explicit submit and clear actions
-- Add `/search` to [app.routes.ts](C:/ai-workspace/knowledgebase-platform/frontend/src/app/app.routes.ts).
-- Add a `Search` nav item to [shell.component.ts](C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/shell/shell.component.ts).
-- Replace the current semantic-only [search-state.service.ts](C:/ai-workspace/knowledgebase-platform/frontend/src/app/core/services/search-state.service.ts) with a page-oriented combined search service that:
+- Add `/search` to [app.routes.ts](/frontend/src/app/app.routes.ts).
+- Add a `Search` nav item to [shell.component.ts](/frontend/src/app/features/shell/shell.component.ts).
+- Replace the current semantic-only [search-state.service.ts](/frontend/src/app/core/services/search-state.service.ts) with a page-oriented combined search service that:
   - builds the new request payload
   - calls `POST /v1/search`
   - exposes results/loading/error state
   - exposes pagination and total-count state
   - parses URL query params into page state
   - writes page state back to URL on submit and clear
-- Update [knowledge.model.ts](C:/ai-workspace/knowledgebase-platform/frontend/src/app/shared/models/knowledge.model.ts) with a shared search result model that includes `processedAt` and nullable `similarity`.
-- Remove dashboard search UI and semantic-search mode from [dashboard.component.ts](C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/dashboard/dashboard.component.ts).
+- Update [knowledge.model.ts](/frontend/src/app/shared/models/knowledge.model.ts) with a shared search result model that includes `processedAt` and nullable `similarity`.
+- Remove dashboard search UI and semantic-search mode from [dashboard.component.ts](/frontend/src/app/features/dashboard/dashboard.component.ts).
 - Leave the Labels page exact-pair search in place; do not migrate or remove it in this feature.
 - Reuse existing tag and label catalog data for suggestions where practical; do not add new suggestion endpoints in v1.
 

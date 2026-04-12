@@ -81,7 +81,7 @@ Add real authentication and authorization to Sentinel for the Angular dashboard,
 - [x] Scope dashboard overview, tag summaries, semantic search, and tag search to the authenticated owner.
 - [x] Replace global tag uniqueness with per-user tag uniqueness.
 - [x] Update repositories, services, and tests for owner-scoped knowledge data.
-- [x] Update [docs/ENTITY-MODEL.md](../../ENTITY-MODEL.md) after ownership implementation lands.
+- [x] Update [docs/ENTITY-MODEL.md](/docs/ENTITY-MODEL.md) after ownership implementation lands.
 
 ## Verification Plan
 

@@ -15,7 +15,7 @@
 
 ## Public Interfaces
 
-- Add a new client CLI project at [backend/src/SentinelKnowledgebase.ImportCLI](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.ImportCLI).
+- Add a new client CLI project at [cli/src/SentinelKnowledgebase.ImportCLI/](/cli/src/SentinelKnowledgebase.ImportCLI/).
 - Expose one primary command for v1:
   - `sentinel-import twitter likes --input <path> --api-url <url>`
 - `--input` accepts either:
@@ -79,7 +79,7 @@
   - expired access token refreshes successfully
   - failed capture posts are reported and do not abort the full batch
 - Manual acceptance:
-  - run against the provided archive in [twitter_export](/C:/ai-workspace/knowledgebase-platform/twitter_export)
+  - run against the provided archive in [twitter_export](/docs/features/17-twitter-archive-import/twitter_export)
   - verify imported items appear as Twitter captures and enter the normal async processing pipeline
 
 ## Assumptions

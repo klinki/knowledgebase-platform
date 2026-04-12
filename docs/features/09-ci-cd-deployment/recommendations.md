@@ -57,7 +57,7 @@ Production rollout now happens in this order:
 3. Run the one-shot `migrator` service.
 4. Start `api`, `worker`, and `web`.
 
-The `migrator` image is an EF Core migration bundle built from [backend/src/SentinelKnowledgebase.Migrations](../../../backend/src/SentinelKnowledgebase.Migrations/). It is not a separate migrations source tree.
+The `migrator` image is an EF Core migration bundle built from [backend/src/SentinelKnowledgebase.Migrations](/backend/src/SentinelKnowledgebase.Migrations/). It is not a separate migrations source tree.
 
 ## Follow-up Setup Steps
 

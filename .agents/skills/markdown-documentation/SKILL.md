@@ -15,13 +15,13 @@ metadata:
 
 Before editing a Markdown construct, MUST load the matching reference file.
 
-- Tables: [references/tables.md](references/tables.md)
-- Lists: [references/lists.md](references/lists.md)
-- Links and images: [references/links-and-images.md](references/links-and-images.md)
-- Mermaid diagrams: [references/mermaid-diagrams.md](references/mermaid-diagrams.md)
-- Extended syntax: [references/extended-syntax-github-flavored-markdown.md](references/extended-syntax-github-flavored-markdown.md)
-- Collapsible sections and badges: [references/collapsible-sections.md](references/collapsible-sections.md)
-- Alerts and callouts: [references/alerts-and-callouts.md](references/alerts-and-callouts.md)
+- Tables: [references/tables.md](/.agents/skills/markdown-documentation/references/tables.md)
+- Lists: [references/lists.md](/.agents/skills/markdown-documentation/references/lists.md)
+- Links and images: [references/links-and-images.md](/.agents/skills/markdown-documentation/references/links-and-images.md)
+- Mermaid diagrams: [references/mermaid-diagrams.md](/.agents/skills/markdown-documentation/references/mermaid-diagrams.md)
+- Extended syntax: [references/extended-syntax-github-flavored-markdown.md](/.agents/skills/markdown-documentation/references/extended-syntax-github-flavored-markdown.md)
+- Collapsible sections and badges: [references/collapsible-sections.md](/.agents/skills/markdown-documentation/references/collapsible-sections.md)
+- Alerts and callouts: [references/alerts-and-callouts.md](/.agents/skills/markdown-documentation/references/alerts-and-callouts.md)
 
 Load only the references relevant to the current edit.
 

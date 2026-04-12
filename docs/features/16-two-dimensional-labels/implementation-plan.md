@@ -26,17 +26,17 @@
   - `LabelValue`
   - `RawCaptureLabelAssignment`
   - `ProcessedInsightLabelAssignment`
-- Extend [RawCapture.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Domain/Entities/RawCapture.cs) and [ProcessedInsight.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Domain/Entities/ProcessedInsight.cs) with label-assignment navigations.
-- Update [ApplicationDbContext.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs) with:
+- Extend [RawCapture.cs](/backend/src/SentinelKnowledgebase.Domain/Entities/RawCapture.cs) and [ProcessedInsight.cs](/backend/src/SentinelKnowledgebase.Domain/Entities/ProcessedInsight.cs) with label-assignment navigations.
+- Update [ApplicationDbContext.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs) with:
   - unique `(OwnerUserId, Name)` on categories
   - unique `(LabelCategoryId, Value)` on values
   - unique `(RawCaptureId, LabelCategoryId)` on raw assignments
   - unique `(ProcessedInsightId, LabelCategoryId)` on processed assignments
-- Generate a new EF migration plus snapshot update under [backend/src/SentinelKnowledgebase.Migrations/Migrations](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Migrations/Migrations).
+- Generate a new EF migration plus snapshot update under [backend/src/SentinelKnowledgebase.Migrations/Migrations](/backend/src/SentinelKnowledgebase.Migrations/Migrations).
 
 ### Backend services and contracts
 
-- Extend [CaptureDto.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/DTOs/Capture/CaptureDto.cs) so capture requests accept:
+- Extend [CaptureDto.cs](/backend/src/SentinelKnowledgebase.Application/DTOs/Capture/CaptureDto.cs) so capture requests accept:
   - `tags?: string[]`
   - `labels?: { category: string; value: string }[]`
 - Extend capture, dashboard, and search response DTOs to return `labels` alongside existing `tags`.
@@ -45,17 +45,17 @@
   - non-empty category/value after trim
   - max length `100`
   - no duplicate categories within one request
-- Add label resolution and assignment logic in [CaptureService.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs):
+- Add label resolution and assignment logic in [CaptureService.cs](/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs):
   - explicit request labels
   - auto-filled `Source` and `Language`
   - explicit request wins over auto-fill for the same category
 - During `ProcessCaptureAsync`, copy raw label assignments into processed-insight label assignments before save completes.
 - Add repositories and unit-of-work wiring in:
-  - [IRepositories.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/IRepositories.cs)
-  - [UnitOfWork.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/UnitOfWork.cs)
+  - [IRepositories.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/IRepositories.cs)
+  - [UnitOfWork.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/UnitOfWork.cs)
   - new label repositories
 - Add `LabelService` and `ILabelService`.
-- Add [LabelsController.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Api/Controllers/LabelsController.cs) with:
+- Add [LabelsController.cs](/backend/src/SentinelKnowledgebase.Api/Controllers/LabelsController.cs) with:
   - `GET /api/v1/labels`
   - `POST /api/v1/labels/categories`
   - `PATCH /api/v1/labels/categories/{id}`
@@ -63,37 +63,37 @@
   - `POST /api/v1/labels/categories/{id}/values`
   - `PATCH /api/v1/labels/values/{id}`
   - `DELETE /api/v1/labels/values/{id}`
-- Add `POST /api/v1/search/labels` in [SearchController.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs), backed by processed-insight label assignments only.
+- Add `POST /api/v1/search/labels` in [SearchController.cs](/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs), backed by processed-insight label assignments only.
 - Keep `/api/v1/tags` and `/api/v1/search/tags` unchanged.
 - Refresh OpenAPI after backend contract changes land.
 
 ### Frontend
 
-- Update shared models in [knowledge.model.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/shared/models/knowledge.model.ts) to add label shapes without removing tags.
-- Add labels state in a new [labels-state.service.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/core/services/labels-state.service.ts).
+- Update shared models in [knowledge.model.ts](/frontend/src/app/shared/models/knowledge.model.ts) to add label shapes without removing tags.
+- Add labels state in a new [labels-state.service.ts](/frontend/src/app/core/services/labels-state.service.ts).
 - Update:
-  - [capture-state.service.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/core/services/capture-state.service.ts)
-  - [dashboard-state.service.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/core/services/dashboard-state.service.ts)
-  - [search-state.service.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/core/services/search-state.service.ts)
-- Add new labels page at [labels.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/labels/labels.component.ts).
-- Wire `/labels` route in [app.routes.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/app.routes.ts) and add shell navigation in [shell.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/shell/shell.component.ts).
-- Update [create-capture.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/captures/create-capture.component.ts):
+  - [capture-state.service.ts](/frontend/src/app/core/services/capture-state.service.ts)
+  - [dashboard-state.service.ts](/frontend/src/app/core/services/dashboard-state.service.ts)
+  - [search-state.service.ts](/frontend/src/app/core/services/search-state.service.ts)
+- Add new labels page at [labels.component.ts](/frontend/src/app/features/labels/labels.component.ts).
+- Wire `/labels` route in [app.routes.ts](/frontend/src/app/app.routes.ts) and add shell navigation in [shell.component.ts](/frontend/src/app/features/shell/shell.component.ts).
+- Update [create-capture.component.ts](/frontend/src/app/features/captures/create-capture.component.ts):
   - keep tags input
   - add repeatable label rows
   - prevent duplicate categories client-side
-- Update [capture-detail.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/captures/capture-detail.component.ts) and [dashboard.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/dashboard/dashboard.component.ts) to render `Category: Value` chips alongside tags.
+- Update [capture-detail.component.ts](/frontend/src/app/features/captures/capture-detail.component.ts) and [dashboard.component.ts](/frontend/src/app/features/dashboard/dashboard.component.ts) to render `Category: Value` chips alongside tags.
 - Keep semantic search UI unchanged; label search lives on the labels page.
 
 ### Browser extension
 
-- Update [background.ts](/C:/ai-workspace/knowledgebase-platform/browser-extension/src/background.ts) only:
+- Update [background.ts](/browser-extension/src/background.ts) only:
   - add `labels` to `CaptureRequestPayload`
   - keep `tags` unchanged
   - tweet => `Source=Twitter`
   - webpage and selection => `Source=Web`
   - webpage => add `Language` from existing `metadata.language` when present
   - selection does not add `Language` in v1 unless page-language capture is separately implemented
-- Refresh [openapi.json](/C:/ai-workspace/knowledgebase-platform/browser-extension/openapi.json) from backend output after API changes are complete.
+- Refresh [openapi.json](/browser-extension/openapi.json) from backend output after API changes are complete.
 
 ## Parallel Execution
 
@@ -110,7 +110,7 @@
 1. **Worker A: Backend schema + repositories**
    - Ownership:
      - domain label entities
-     - [ApplicationDbContext.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs)
+     - [ApplicationDbContext.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs)
      - migration files
      - repository interfaces/implementations
      - unit-of-work wiring
@@ -120,37 +120,37 @@
    - Ownership:
      - DTOs
      - validators
-     - [CaptureService.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs)
-     - [DashboardService.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/DashboardService.cs)
-     - [SearchService.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs)
+     - [CaptureService.cs](/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs)
+     - [DashboardService.cs](/backend/src/SentinelKnowledgebase.Application/Services/DashboardService.cs)
+     - [SearchService.cs](/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs)
      - new `LabelService`
-     - [SearchController.cs](/C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs)
+     - [SearchController.cs](/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs)
      - new `LabelsController.cs`
    - Coordinate with Worker A on final repository shapes; do not edit migration files.
 
 3. **Worker C: Frontend contracts + labels page**
    - Ownership:
-     - [knowledge.model.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/shared/models/knowledge.model.ts)
+     - [knowledge.model.ts](/frontend/src/app/shared/models/knowledge.model.ts)
      - new `labels-state.service.ts`
-     - [app.routes.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/app.routes.ts)
-     - [shell.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/shell/shell.component.ts)
+     - [app.routes.ts](/frontend/src/app/app.routes.ts)
+     - [shell.component.ts](/frontend/src/app/features/shell/shell.component.ts)
      - new `labels.component.ts`
    - Starts after backend DTO shape is stable enough to mirror.
 
 4. **Worker D: Frontend capture/dashboard/detail integration**
    - Ownership:
-     - [capture-state.service.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/core/services/capture-state.service.ts)
-     - [create-capture.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/captures/create-capture.component.ts)
-     - [capture-detail.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/captures/capture-detail.component.ts)
-     - [dashboard.component.ts](/C:/ai-workspace/knowledgebase-platform/frontend/src/app/features/dashboard/dashboard.component.ts)
+     - [capture-state.service.ts](/frontend/src/app/core/services/capture-state.service.ts)
+     - [create-capture.component.ts](/frontend/src/app/features/captures/create-capture.component.ts)
+     - [capture-detail.component.ts](/frontend/src/app/features/captures/capture-detail.component.ts)
+     - [dashboard.component.ts](/frontend/src/app/features/dashboard/dashboard.component.ts)
      - related unit specs
    - Coordinate with Worker C on shared frontend model definitions; do not edit labels page files.
 
 5. **Worker E: Browser extension + contract snapshot**
    - Ownership:
-     - [background.ts](/C:/ai-workspace/knowledgebase-platform/browser-extension/src/background.ts)
+     - [background.ts](/browser-extension/src/background.ts)
      - extension tests
-     - [openapi.json](/C:/ai-workspace/knowledgebase-platform/browser-extension/openapi.json)
+     - [openapi.json](/browser-extension/openapi.json)
    - Starts after backend OpenAPI is generated; do not hand-edit schema assumptions before backend contract is finalized.
 
 ### Coordination rules

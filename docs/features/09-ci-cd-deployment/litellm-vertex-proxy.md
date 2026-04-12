@@ -7,9 +7,9 @@ front of Vertex AI than the minimal `ovai` proxy.
 
 This guide uses:
 
-- [deploy/docker-compose.litellm.yml](../../../deploy/docker-compose.litellm.yml)
-- [deploy/.env.litellm.example](../../../deploy/.env.litellm.example)
-- [deploy/litellm.vertex.yaml](../../../deploy/litellm.vertex.yaml)
+- [deploy/docker-compose.litellm.yml](/deploy/docker-compose.litellm.yml)
+- [deploy/.env.litellm.example](/deploy/.env.litellm.example)
+- [deploy/litellm.vertex.yaml](/deploy/litellm.vertex.yaml)
 - [LiteLLM](https://docs.litellm.ai/)
 
 LiteLLM gives you:
@@ -102,7 +102,7 @@ curl -X POST http://127.0.0.1:4000/v1/embeddings \
 ## Configure Sentinel To Use LiteLLM
 
 Sentinel already supports custom OpenAI-compatible URLs through
-[deploy/docker-compose.prod.yml](../../../deploy/docker-compose.prod.yml).
+[deploy/docker-compose.prod.yml](/deploy/docker-compose.prod.yml).
 
 Set these values in `deploy/.env.production`:
 
@@ -137,9 +137,9 @@ Do not enable Vertex-backed embeddings in production until you verify that:
 
 Relevant code paths:
 
-- [backend/src/SentinelKnowledgebase.Domain/Entities/EmbeddingVector.cs](../../../backend/src/SentinelKnowledgebase.Domain/Entities/EmbeddingVector.cs)
-- [backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs](../../../backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs)
-- [backend/src/SentinelKnowledgebase.Api/appsettings.json](../../../backend/src/SentinelKnowledgebase.Api/appsettings.json)
+- [backend/src/SentinelKnowledgebase.Domain/Entities/EmbeddingVector.cs](/backend/src/SentinelKnowledgebase.Domain/Entities/EmbeddingVector.cs)
+- [backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs](/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs)
+- [backend/src/SentinelKnowledgebase.Api/appsettings.json](/backend/src/SentinelKnowledgebase.Api/appsettings.json)
 
 ## Debugging
 

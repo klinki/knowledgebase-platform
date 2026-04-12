@@ -13,42 +13,42 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 ### Files Reviewed
 
 **Backend - API Layer:**
-- [`Program.cs`](../backend/src/SentinelKnowledgebase.Api/Program.cs)
-- [`Controllers/CaptureController.cs`](../backend/src/SentinelKnowledgebase.Api/Controllers/CaptureController.cs)
-- [`Controllers/SearchController.cs`](../backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs)
+- [`Program.cs`](/docs/features/backend/src/SentinelKnowledgebase.Api/Program.cs)
+- [`Controllers/CaptureController.cs`](/docs/features/backend/src/SentinelKnowledgebase.Api/Controllers/CaptureController.cs)
+- [`Controllers/SearchController.cs`](/docs/features/backend/src/SentinelKnowledgebase.Api/Controllers/SearchController.cs)
 
 **Backend - Application Layer:**
-- [`Services/CaptureService.cs`](../backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs)
-- [`Services/SearchService.cs`](../backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs)
-- [`Services/ContentProcessor.cs`](../backend/src/SentinelKnowledgebase.Application/Services/ContentProcessor.cs)
-- [`DTOs/Capture/CaptureDto.cs`](../backend/src/SentinelKnowledgebase.Application/DTOs/Capture/CaptureDto.cs)
-- [`DTOs/Search/SearchDto.cs`](../backend/src/SentinelKnowledgebase.Application/DTOs/Search/SearchDto.cs)
-- [`Validators/Validators.cs`](../backend/src/SentinelKnowledgebase.Application/Validators/Validators.cs)
+- [`Services/CaptureService.cs`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs)
+- [`Services/SearchService.cs`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs)
+- [`Services/ContentProcessor.cs`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/ContentProcessor.cs)
+- [`DTOs/Capture/CaptureDto.cs`](/docs/features/backend/src/SentinelKnowledgebase.Application/DTOs/Capture/CaptureDto.cs)
+- [`DTOs/Search/SearchDto.cs`](/docs/features/backend/src/SentinelKnowledgebase.Application/DTOs/Search/SearchDto.cs)
+- [`Validators/Validators.cs`](/docs/features/backend/src/SentinelKnowledgebase.Application/Validators/Validators.cs)
 
 **Backend - Domain Layer:**
-- [`Entities/RawCapture.cs`](../backend/src/SentinelKnowledgebase.Domain/Entities/RawCapture.cs)
-- [`Entities/ProcessedInsight.cs`](../backend/src/SentinelKnowledgebase.Domain/Entities/ProcessedInsight.cs)
-- [`Entities/EmbeddingVector.cs`](../backend/src/SentinelKnowledgebase.Domain/Entities/EmbeddingVector.cs)
-- [`Entities/Tag.cs`](../backend/src/SentinelKnowledgebase.Domain/Entities/Tag.cs)
-- [`Enums/Enums.cs`](../backend/src/SentinelKnowledgebase.Domain/Enums/Enums.cs)
+- [`Entities/RawCapture.cs`](/docs/features/backend/src/SentinelKnowledgebase.Domain/Entities/RawCapture.cs)
+- [`Entities/ProcessedInsight.cs`](/docs/features/backend/src/SentinelKnowledgebase.Domain/Entities/ProcessedInsight.cs)
+- [`Entities/EmbeddingVector.cs`](/docs/features/backend/src/SentinelKnowledgebase.Domain/Entities/EmbeddingVector.cs)
+- [`Entities/Tag.cs`](/docs/features/backend/src/SentinelKnowledgebase.Domain/Entities/Tag.cs)
+- [`Enums/Enums.cs`](/docs/features/backend/src/SentinelKnowledgebase.Domain/Enums/Enums.cs)
 
 **Backend - Infrastructure Layer:**
-- [`Data/ApplicationDbContext.cs`](../backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs)
-- [`Repositories/*.cs`](../backend/src/SentinelKnowledgebase.Infrastructure/Repositories/)
-- [`DependencyInjection.cs`](../backend/src/SentinelKnowledgebase.Infrastructure/DependencyInjection.cs)
+- [`Data/ApplicationDbContext.cs`](/docs/features/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs)
+- [`Repositories/*.cs`](/docs/features/backend/src/SentinelKnowledgebase.Infrastructure/Repositories/)
+- [`DependencyInjection.cs`](/docs/features/backend/src/SentinelKnowledgebase.Infrastructure/DependencyInjection.cs)
 
 **Backend - Tests:**
-- [`UnitTests/*.cs`](../backend/tests/SentinelKnowledgebase.UnitTests/)
-- [`IntegrationTests/*.cs`](../backend/tests/SentinelKnowledgebase.IntegrationTests/)
+- [`UnitTests/*.cs`](/docs/features/backend/tests/SentinelKnowledgebase.UnitTests/)
+- [`IntegrationTests/*.cs`](/docs/features/backend/tests/SentinelKnowledgebase.IntegrationTests/)
 
 **Browser Extension:**
-- [`manifest.json`](../browser-extension/manifest.json)
-- [`src/background.ts`](../browser-extension/src/background.ts)
-- [`src/content.ts`](../browser-extension/src/content.ts)
-- [`src/content.css`](../browser-extension/src/content.css)
-- [`src/options.ts`](../browser-extension/src/options.ts)
-- [`src/popup.ts`](../browser-extension/src/popup.ts)
-- [`src/constants.ts`](../browser-extension/src/constants.ts)
+- [`manifest.json`](/docs/features/browser-extension/manifest.json)
+- [`src/background.ts`](/docs/features/browser-extension/src/background.ts)
+- [`src/content.ts`](/docs/features/browser-extension/src/content.ts)
+- [`src/content.css`](/docs/features/browser-extension/src/content.css)
+- [`src/options.ts`](/docs/features/browser-extension/src/options.ts)
+- [`src/popup.ts`](/docs/features/browser-extension/src/popup.ts)
+- [`src/constants.ts`](/docs/features/browser-extension/src/constants.ts)
 
 ---
 
@@ -73,7 +73,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### CRITICAL: Fire-and-forget Task Without Error Handling
 
-- **File:** [`CaptureService.cs:52`](../backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs#L52)
+- **File:** [`CaptureService.cs:52`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs#L52)
 - **Confidence:** 95%
 - **Problem:**
   ```csharp
@@ -91,7 +91,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### CRITICAL: Missing API Authentication/Authorization
 
-- **File:** [`Program.cs`](../backend/src/SentinelKnowledgebase.Api/Program.cs)
+- **File:** [`Program.cs`](/docs/features/backend/src/SentinelKnowledgebase.Api/Program.cs)
 - **Confidence:** 95%
 - **Problem:** No authentication middleware is configured. All endpoints are publicly accessible without any API key validation, despite the extension sending `Authorization` headers.
 - **Suggestion:** Add authentication middleware:
@@ -106,7 +106,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### WARNING: N+1 Query Problem in Semantic Search
 
-- **File:** [`SearchService.cs:25-51`](../backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs#L25)
+- **File:** [`SearchService.cs:25-51`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs#L25)
 - **Confidence:** 90%
 - **Problem:** Loading all insights, then fetching embeddings one-by-one in a loop:
   ```csharp
@@ -135,7 +135,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### WARNING: Race Condition with DbContext
 
-- **File:** [`CaptureService.cs:49-52`](../backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs#L49)
+- **File:** [`CaptureService.cs:49-52`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs#L49)
 - **Confidence:** 85%
 - **Problem:** `SaveChangesAsync` is called in repository methods AND in the service layer. The background task uses the same `UnitOfWork` instance, creating race conditions when both the main request and background task modify entities.
 - **Suggestion:** Either:
@@ -144,7 +144,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### WARNING: Silent Exception Swallowing
 
-- **File:** [`CaptureService.cs:125-134`](../backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs#L125)
+- **File:** [`CaptureService.cs:125-134`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/CaptureService.cs#L125)
 - **Confidence:** 85%
 - **Problem:** The catch block doesn't log the exception:
   ```csharp
@@ -166,7 +166,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### WARNING: Deterministic Random Embeddings
 
-- **File:** [`ContentProcessor.cs:176-178`](../backend/src/SentinelKnowledgebase.Application/Services/ContentProcessor.cs#L176)
+- **File:** [`ContentProcessor.cs:176-178`](/docs/features/backend/src/SentinelKnowledgebase.Application/Services/ContentProcessor.cs#L176)
 - **Confidence:** 85%
 - **Problem:** Using `new Random(42)` produces identical "random" embeddings for all content when OpenAI API is unavailable:
   ```csharp
@@ -180,7 +180,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### WARNING: Missing Pagination
 
-- **File:** [`CaptureController.cs:59-63`](../backend/src/SentinelKnowledgebase.Api/Controllers/CaptureController.cs#L59)
+- **File:** [`CaptureController.cs:59-63`](/docs/features/backend/src/SentinelKnowledgebase.Api/Controllers/CaptureController.cs#L59)
 - **Confidence:** 80%
 - **Problem:** `GetAllCaptures` returns all records without pagination, potentially causing memory issues and slow responses with large datasets.
 - **Suggestion:** Add pagination parameters:
@@ -194,7 +194,7 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### WARNING: Missing Health Check Endpoint
 
-- **File:** [`options.ts:78`](../browser-extension/src/options.ts#L78)
+- **File:** [`options.ts:78`](/docs/features/browser-extension/src/options.ts#L78)
 - **Confidence:** 85%
 - **Problem:** The extension tests `/api/v1/health` but this endpoint doesn't exist in the backend, causing connection tests to always fail.
 - **Suggestion:** Add health check endpoint in `Program.cs`:
@@ -205,14 +205,14 @@ The Sentinel Knowledgebase platform consists of a .NET 8 backend with clean arch
 
 ### SUGGESTION: Duplicate Type Definitions
 
-- **File:** [`content.ts:359-375`](../browser-extension/src/content.ts#L359), [`background.ts:86-102`](../browser-extension/src/background.ts#L86)
+- **File:** [`content.ts:359-375`](/docs/features/browser-extension/src/content.ts#L359), [`background.ts:86-102`](/docs/features/browser-extension/src/background.ts#L86)
 - **Confidence:** 75%
 - **Problem:** `TweetData` and `AuthorData` interfaces are duplicated in multiple files.
-- **Suggestion:** Move to [`types/index.ts`](../browser-extension/src/types) and import where needed.
+- **Suggestion:** Move to [`types/index.ts`](/docs/features/browser-extension/src/types) and import where needed.
 
 ### SUGGESTION: Non-standard CSS Selector
 
-- **File:** [`content.css:149`](../browser-extension/src/content.css#L149)
+- **File:** [`content.css:149`](/docs/features/browser-extension/src/content.css#L149)
 - **Confidence:** 75%
 - **Problem:** The `:contains()` pseudo-selector is non-standard and won't work:
   ```css

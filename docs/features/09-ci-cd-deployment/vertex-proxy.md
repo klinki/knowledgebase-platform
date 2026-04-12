@@ -7,8 +7,8 @@ while the actual model execution runs through Google Vertex AI.
 
 This guide uses:
 
-- [deploy/docker-compose.vertex-proxy.yml](../../../deploy/docker-compose.vertex-proxy.yml)
-- [deploy/.env.vertex-proxy.example](../../../deploy/.env.vertex-proxy.example)
+- [deploy/docker-compose.vertex-proxy.yml](/deploy/docker-compose.vertex-proxy.yml)
+- [deploy/.env.vertex-proxy.example](/deploy/.env.vertex-proxy.example)
 - [`ghcr.io/prantlf/ovai`](https://github.com/prantlf/ovai)
 
 The proxy runs locally on the server and exposes OpenAI-compatible endpoints

@@ -7,7 +7,7 @@ Captured content, processed insights, search results, dashboard data, and tags
 are not yet scoped to the authenticated user who owns them.
 
 This document defines the ownership model for feature
-[10-user-authentication](feature-spec.md). The implementation is now in place,
+[10-user-authentication](/docs/features/10-user-authentication/feature-spec.md). The implementation is now in place,
 with strict owner scoping by default:
 
 - knowledge data is visible only to its owner
@@ -24,7 +24,7 @@ with strict owner scoping by default:
 - `RawCapture`
   Requires `OwnerUserId`.
   The EF relationship to the owning user is configured in
-  [ApplicationDbContext](../../../backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs).
+  [ApplicationDbContext](/backend/src/SentinelKnowledgebase.Infrastructure/Data/ApplicationDbContext.cs).
 - `ProcessedInsight`
   Requires `OwnerUserId`.
   The owner must always match the source raw capture owner.
@@ -132,5 +132,5 @@ Behavior changes to lock in:
 - Existing ownerless knowledge data is cleared by the ownership migration
   before the new foreign keys are applied.
 - This plan does not require a production backfill strategy for prior data.
-- [docs/ENTITY-MODEL.md](../../ENTITY-MODEL.md) is updated to reflect explicit
+- [docs/ENTITY-MODEL.md](/docs/ENTITY-MODEL.md) is updated to reflect explicit
   ownership on knowledge entities.

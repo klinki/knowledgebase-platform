@@ -13,14 +13,14 @@ This is a well-structured Chrome Manifest V3 extension that captures tweets from
 
 ### Files Reviewed
 
-- [`manifest.json`](../browser-extension/manifest.json)
-- [`src/background.ts`](../browser-extension/src/background.ts)
-- [`src/content.ts`](../browser-extension/src/content.ts)
-- [`src/content.css`](../browser-extension/src/content.css)
-- [`src/options.ts`](../browser-extension/src/options.ts)
-- [`src/popup.ts`](../browser-extension/src/popup.ts)
-- [`tsconfig.json`](../browser-extension/tsconfig.json)
-- [`package.json`](../browser-extension/package.json)
+- [`manifest.json`](/browser-extension/manifest.json)
+- [`src/background.ts`](/browser-extension/src/background.ts)
+- [`src/content.ts`](/browser-extension/src/content.ts)
+- [`src/content.css`](/browser-extension/src/content.css)
+- [`src/options.ts`](/browser-extension/src/options.ts)
+- [`src/popup.ts`](/browser-extension/src/popup.ts)
+- [`tsconfig.json`](/browser-extension/tsconfig.json)
+- [`package.json`](/browser-extension/package.json)
 
 ---
 
@@ -28,12 +28,12 @@ This is a well-structured Chrome Manifest V3 extension that captures tweets from
 
 | Severity | File:Line | Issue |
 |----------|-----------|-------|
-| WARNING | [`manifest.json:37-46`](../browser-extension/manifest.json:37) | Missing icon files referenced in manifest will cause extension load failure |
-| WARNING | [`background.ts:7`](../browser-extension/src/background.ts:7) | Hardcoded `API_BASE_URL` ignores user-configured value from storage |
-| WARNING | [`content.ts:7`](../browser-extension/src/content.ts:7) | `processedTweets` Set grows unbounded - memory leak on long sessions |
-| WARNING | [`content.ts:319`](../browser-extension/src/content.ts:319) | `MutationObserver` observes entire document body as fallback - performance impact |
-| SUGGESTION | [`content.ts:185-227`](../browser-extension/src/content.ts:185) | Event listener uses anonymous async function - potential memory leak if not cleaned up |
-| SUGGESTION | [`options.ts:14`](../browser-extension/src/options.ts:14) | Default API URL constant duplicated across files |
+| WARNING | [`manifest.json:37-46`](/browser-extension/manifest.json:37) | Missing icon files referenced in manifest will cause extension load failure |
+| WARNING | [`background.ts:7`](/browser-extension/src/background.ts:7) | Hardcoded `API_BASE_URL` ignores user-configured value from storage |
+| WARNING | [`content.ts:7`](/browser-extension/src/content.ts:7) | `processedTweets` Set grows unbounded - memory leak on long sessions |
+| WARNING | [`content.ts:319`](/browser-extension/src/content.ts:319) | `MutationObserver` observes entire document body as fallback - performance impact |
+| SUGGESTION | [`content.ts:185-227`](/browser-extension/src/content.ts:185) | Event listener uses anonymous async function - potential memory leak if not cleaned up |
+| SUGGESTION | [`options.ts:14`](/browser-extension/src/options.ts:14) | Default API URL constant duplicated across files |
 
 ---
 
@@ -41,7 +41,7 @@ This is a well-structured Chrome Manifest V3 extension that captures tweets from
 
 ### WARNING: Missing Icon Files
 
-**File:** [`manifest.json:37-46`](../browser-extension/manifest.json:37)
+**File:** [`manifest.json:37-46`](/browser-extension/manifest.json:37)
 **Confidence:** 90%
 
 **Problem:** The manifest references `icons/icon16.png`, `icons/icon48.png`, and `icons/icon128.png` but no icons directory exists. Chrome will fail to load the extension.
@@ -62,7 +62,7 @@ This is a well-structured Chrome Manifest V3 extension that captures tweets from
 
 ### WARNING: Hardcoded API URL Ignores User Settings
 
-**File:** [`background.ts:7`](../browser-extension/src/background.ts:7)
+**File:** [`background.ts:7`](/browser-extension/src/background.ts:7)
 **Confidence:** 95%
 
 **Problem:** The `API_BASE_URL` constant is hardcoded to `localhost:3000`, but users can configure a different URL in options. The background script ignores their preference.
@@ -102,7 +102,7 @@ async function handleSaveTweet(tweetData: TweetData): Promise<{ success: boolean
 
 ### WARNING: Unbounded Set Growth (Memory Leak)
 
-**File:** [`content.ts:7`](../browser-extension/src/content.ts:7)
+**File:** [`content.ts:7`](/browser-extension/src/content.ts:7)
 **Confidence:** 85%
 
 **Problem:** `processedTweets` accumulates tweet IDs indefinitely. On long browsing sessions with infinite scroll, this could consume significant memory.
@@ -132,7 +132,7 @@ function addProcessedTweet(tweetId: string): void {
 
 ### WARNING: Overly Broad MutationObserver
 
-**File:** [`content.ts:319`](../browser-extension/src/content.ts:319)
+**File:** [`content.ts:319`](/browser-extension/src/content.ts:319)
 **Confidence:** 80%
 
 **Problem:** Falls back to observing `document.body` with `subtree: true`, which observes all DOM changes on the page - potentially expensive on dynamic sites like X.com.
@@ -179,7 +179,7 @@ const observer = new MutationObserver((mutations) => {
 
 ### SUGGESTION: Duplicate Default URL Constant
 
-**File:** [`options.ts:14`](../browser-extension/src/options.ts:14), [`background.ts:7`](../browser-extension/src/background.ts:7)
+**File:** [`options.ts:14`](/browser-extension/src/options.ts:14), [`background.ts:7`](/browser-extension/src/background.ts:7)
 **Confidence:** 90%
 
 **Problem:** The default API URL is defined in multiple places, creating maintenance risk.
@@ -200,22 +200,22 @@ import { DEFAULT_API_URL } from './constants.js';
 ## Positive Observations
 
 ### 1. Good TypeScript Practices
-- Strict mode enabled in [`tsconfig.json`](../browser-extension/tsconfig.json:12)
+- Strict mode enabled in [`tsconfig.json`](/browser-extension/tsconfig.json:12)
 - Explicit return types on functions
 - Proper null checks with optional chaining
 - Interface definitions at bottom of files (could be in separate types file)
 
 ### 2. Clean DOM Extraction
-Multiple fallback strategies in [`extractTweetId()`](../browser-extension/src/content.ts:66):
+Multiple fallback strategies in [`extractTweetId()`](/browser-extension/src/content.ts:66):
 - Data attributes first
 - Time element links
 - Any status link in the tweet
 
 ### 3. Proper Error Handling
-Try-catch blocks with user-friendly error messages in [`handleSaveTweet()`](../browser-extension/src/background.ts:28)
+Try-catch blocks with user-friendly error messages in [`handleSaveTweet()`](/browser-extension/src/background.ts:28)
 
 ### 4. Chrome Manifest V3 Compliant
-- Uses service worker correctly ([`background.ts`](../browser-extension/src/background.ts))
+- Uses service worker correctly ([`background.ts`](/browser-extension/src/background.ts))
 - Proper `host_permissions` for X.com domains
 - ES module type for background script
 
@@ -225,7 +225,7 @@ Try-catch blocks with user-friendly error messages in [`handleSaveTweet()`](../b
 - Bearer token authorization header properly formatted
 
 ### 6. Accessibility
-- Buttons have `aria-label` attributes ([`content.ts:181-182`](../browser-extension/src/content.ts:181))
+- Buttons have `aria-label` attributes ([`content.ts:181-182`](/browser-extension/src/content.ts:181))
 - Proper semantic HTML in options page
 
 ### 7. User Experience

@@ -6,12 +6,12 @@ This document provides guidelines for AI assistants working on the Sentinel Know
 Detailed coding standards, conventions, and workflows are isolated into specific skill files. When working on a task, you **MUST** consult the relevant guidelines below if you are uncertain about the project's patterns:
 
 ### Coding Standards
-- [C# and .NET Conventions](.agents/docs/csharp-conventions.md)
-- [Testing Patterns](.agents/docs/testing-patterns.md)
+- [C# and .NET Conventions](/.agents/docs/csharp-conventions.md)
+- [Testing Patterns](/.agents/docs/testing-patterns.md)
 
 ### Agent Workflows & Protocols
-- [Communication Preferences](.agents/docs/communication-guidelines.md)
-- [Docs-as-Code Workflow](.agents/docs/docs-as-code-workflow.md)
+- [Communication Preferences](/.agents/docs/communication-guidelines.md)
+- [Docs-as-Code Workflow](/.agents/docs/docs-as-code-workflow.md)
 
 ## Code Style Guidelines
 

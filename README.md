@@ -75,7 +75,7 @@ The project consists of three main components working in concert:
 
 ## Documentation
 
-- [System entity model](docs/ENTITY-MODEL.md): canonical overview of the
+- [System entity model](/docs/ENTITY-MODEL.md): canonical overview of the
   implemented entities, lifecycle states, and main data flows.
 
 ## Quick Start
@@ -273,7 +273,7 @@ The GitHub deployment workflow now builds and publishes five images:
 - `sentinel-servercli`
 - `sentinel-web`
 
-The `sentinel-migrator` image is not a separate source project. It is an EF Core migration bundle built from the existing [backend migrations project](backend/src/SentinelKnowledgebase.Migrations/).
+The `sentinel-migrator` image is not a separate source project. It is an EF Core migration bundle built from the existing [backend migrations project](/backend/src/SentinelKnowledgebase.Migrations/).
 
 Server bootstrap (one-time):
 

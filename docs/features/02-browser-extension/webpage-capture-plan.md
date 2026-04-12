@@ -43,7 +43,7 @@ flowchart TB
 
 ### Task 1: Manifest Updates
 
-**File:** [`browser-extension/manifest.json`](browser-extension/manifest.json)
+**File:** [`browser-extension/manifest.json`](/browser-extension/manifest.json)
 
 **Changes Required:**
 1. Add `bookmarks` permission
@@ -74,7 +74,7 @@ flowchart TB
 
 ### Task 2: Background Script Bookmark Listener
 
-**File:** [`browser-extension/src/background.ts`](browser-extension/src/background.ts)
+**File:** [`browser-extension/src/background.ts`](/browser-extension/src/background.ts)
 
 **Implementation:**
 1. Listen for `chrome.bookmarks.onCreated` events
@@ -202,7 +202,7 @@ Content-Type: application/json
 
 ### Task 5: Options Page Updates
 
-**File:** [`browser-extension/src/options.ts`](browser-extension/src/options.ts)
+**File:** [`browser-extension/src/options.ts`](/browser-extension/src/options.ts)
 
 **Add Settings:**
 1. Toggle to enable/disable bookmark capture feature
@@ -284,8 +284,8 @@ interface SelectionData {
 ```
 
 **Files to Modify:**
-- [`browser-extension/src/background.ts`](browser-extension/src/background.ts) - Add context menu handlers
-- [`browser-extension/manifest.json`](browser-extension/manifest.json) - Add contextMenus permission
+- [`browser-extension/src/background.ts`](/browser-extension/src/background.ts) - Add context menu handlers
+- [`browser-extension/manifest.json`](/browser-extension/manifest.json) - Add contextMenus permission
 
 ---
 
@@ -324,10 +324,10 @@ sequenceDiagram
 - `browser-extension/src/content-extractor.ts` - Shared content extraction utilities
 
 ### Modified Files:
-- [`browser-extension/manifest.json`](browser-extension/manifest.json) - Add permissions
-- [`browser-extension/src/background.ts`](browser-extension/src/background.ts) - Add bookmark listener
-- [`browser-extension/src/options.ts`](browser-extension/src/options.ts) - Add feature settings
-- [`browser-extension/options.html`](browser-extension/options.html) - Add UI controls
+- [`browser-extension/manifest.json`](/browser-extension/manifest.json) - Add permissions
+- [`browser-extension/src/background.ts`](/browser-extension/src/background.ts) - Add bookmark listener
+- [`browser-extension/src/options.ts`](/browser-extension/src/options.ts) - Add feature settings
+- [`browser-extension/options.html`](/browser-extension/options.html) - Add UI controls
 
 ## Security Considerations
 

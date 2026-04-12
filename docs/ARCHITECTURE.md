@@ -43,7 +43,7 @@ The platform is composed of:
 ## System Entity Model
 
 For the implemented persisted entities, lifecycle states, and cross-component
-data flows, use [`/docs/ENTITY-MODEL.md`](ENTITY-MODEL.md) as the canonical
+data flows, use [`/docs/ENTITY-MODEL.md`](/docs/ENTITY-MODEL.md) as the canonical
 high-level model. It complements this runtime overview with:
 
 - entity relationships across ingestion and authentication

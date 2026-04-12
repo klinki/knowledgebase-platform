@@ -51,7 +51,7 @@ You can use common Markdown formatting inside table cells.
 | :---    | :---            |
 | **Bold** | `**text**`     |
 | *Italic* | `*text*`       |
-| [Link](https://example.com) | `[text](url)` |
+| [Link](https://example.com) | `[text](/.agents/skills/markdown-documentation/references/url)` |
 | `Code` | `` `code` ``     |
 ```
 
