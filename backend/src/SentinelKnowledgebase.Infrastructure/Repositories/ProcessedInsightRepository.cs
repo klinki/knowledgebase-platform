@@ -99,6 +99,7 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                 .Select(p => new SearchRecord
                 {
                     Id = p.Id,
+                    CaptureId = p.RawCaptureId,
                     Title = p.Title,
                     Summary = p.Summary,
                     SourceUrl = p.RawCapture.SourceUrl,
@@ -133,6 +134,7 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .Select(p => new SearchRecord
             {
                 Id = p.Id,
+                CaptureId = p.RawCaptureId,
                 Title = p.Title,
                 Summary = p.Summary,
                 SourceUrl = p.RawCapture.SourceUrl,

@@ -188,6 +188,7 @@ export class SearchStateService {
   private normalizeResult(result: SearchResult): SearchResult {
     return {
       ...result,
+      captureId: result.captureId,
       summary: result.summary?.trim() || null,
       processedAt: result.processedAt ?? null,
       tags: this.normalizeTags(result.tags),

@@ -86,6 +86,7 @@ public class SearchRequestDto
 public class SearchResultDto
 {
     public Guid Id { get; set; }
+    public Guid CaptureId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Summary { get; set; } = string.Empty;
     public string SourceUrl { get; set; } = string.Empty;

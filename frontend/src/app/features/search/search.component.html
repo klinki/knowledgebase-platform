@@ -190,7 +190,7 @@
 
       <div class="result-list">
         @for (result of searchState.results(); track result.id) {
-          <a class="result-card" [routerLink]="['/captures', result.id]">
+          <a class="result-card" [routerLink]="['/captures', result.captureId]">
             <div class="result-head">
               <div>
                 <h2>{{ result.title }}</h2>

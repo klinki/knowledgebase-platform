@@ -56,6 +56,7 @@ public class SearchService : ISearchService
             Items = results.Items.Select(result => new SearchResultDto
             {
                 Id = result.Id,
+                CaptureId = result.CaptureId,
                 Title = result.Title,
                 Summary = result.Summary,
                 SourceUrl = result.SourceUrl,

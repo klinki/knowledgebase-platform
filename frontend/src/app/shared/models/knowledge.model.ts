@@ -161,6 +161,7 @@ export interface SemanticSearchResult {
 
 export interface SearchResult {
   id: string;
+  captureId: string;
   title: string;
   summary: string | null;
   sourceUrl: string;

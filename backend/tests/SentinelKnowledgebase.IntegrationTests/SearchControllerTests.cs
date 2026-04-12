@@ -565,6 +565,8 @@ public class SearchControllerTests
 
         var matchingInsightId = Guid.NewGuid();
         var excludedInsightId = Guid.NewGuid();
+        var matchingCaptureId = Guid.NewGuid();
+        var excludedCaptureId = Guid.NewGuid();
         const string query = "combined search query";
         var sharedEmbedding = new Vector(CreateDeterministicEmbedding(query));
         var keepTag = $"keep-{Guid.NewGuid():N}";
@@ -589,7 +591,7 @@ public class SearchControllerTests
 
             var matchingCapture = new RawCapture
             {
-                Id = Guid.NewGuid(),
+                Id = matchingCaptureId,
                 OwnerUserId = adminUserId,
                 SourceUrl = $"https://example.com/combined-match/{Guid.NewGuid():N}",
                 ContentType = Domain.Enums.ContentType.Article,
@@ -601,7 +603,7 @@ public class SearchControllerTests
 
             var excludedCapture = new RawCapture
             {
-                Id = Guid.NewGuid(),
+                Id = excludedCaptureId,
                 OwnerUserId = adminUserId,
                 SourceUrl = $"https://example.com/combined-drop/{Guid.NewGuid():N}",
                 ContentType = Domain.Enums.ContentType.Article,
@@ -671,6 +673,7 @@ public class SearchControllerTests
         results.Page.Should().Be(1);
         results.PageSize.Should().Be(10);
         results.Items.Should().ContainSingle(result => result.Id == matchingInsightId);
+        results.Items.Single().CaptureId.Should().Be(matchingCaptureId);
         results.Items.Should().NotContain(result => result.Id == excludedInsightId);
         results.Items.Single().Similarity.Should().NotBeNull();
     }
@@ -682,6 +685,8 @@ public class SearchControllerTests
         var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
         var olderInsightId = Guid.NewGuid();
         var newerInsightId = Guid.NewGuid();
+        var olderCaptureId = Guid.NewGuid();
+        var newerCaptureId = Guid.NewGuid();
         var categoryName = $"Language-{Guid.NewGuid():N}";
         var labelValue = $"English-{Guid.NewGuid():N}";
 
@@ -703,7 +708,7 @@ public class SearchControllerTests
 
             var olderCapture = new RawCapture
             {
-                Id = Guid.NewGuid(),
+                Id = olderCaptureId,
                 OwnerUserId = adminUserId,
                 SourceUrl = $"https://example.com/older/{Guid.NewGuid():N}",
                 ContentType = Domain.Enums.ContentType.Article,
@@ -715,7 +720,7 @@ public class SearchControllerTests
 
             var newerCapture = new RawCapture
             {
-                Id = Guid.NewGuid(),
+                Id = newerCaptureId,
                 OwnerUserId = adminUserId,
                 SourceUrl = $"https://example.com/newer/{Guid.NewGuid():N}",
                 ContentType = Domain.Enums.ContentType.Article,
@@ -779,6 +784,7 @@ public class SearchControllerTests
         results.Should().NotBeNull();
         results!.TotalCount.Should().Be(2);
         results.Items.Select(result => result.Id).Should().ContainInOrder(newerInsightId, olderInsightId);
+        results.Items.Select(result => result.CaptureId).Should().ContainInOrder(newerCaptureId, olderCaptureId);
         results.Items.Should().OnlyContain(result => result.Similarity == null);
     }
 
@@ -853,6 +859,7 @@ public class SearchControllerTests
         results.PageSize.Should().Be(2);
         results.Items.Should().ContainSingle();
         results.Items.Single().Id.Should().Be(orderedInsightIds[2]);
+        results.Items.Single().CaptureId.Should().NotBeEmpty();
     }
 
     private static float[] CreateDeterministicEmbedding(string text)

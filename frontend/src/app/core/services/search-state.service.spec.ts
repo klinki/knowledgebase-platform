@@ -107,7 +107,8 @@ describe('SearchStateService', () => {
     request.flush({
       items: [
         {
-          id: 'result-1',
+          id: 'insight-1',
+          captureId: 'capture-1',
           title: 'Result',
           summary: ' Summary ',
           sourceUrl: 'https://example.com/item',
@@ -126,7 +127,8 @@ describe('SearchStateService', () => {
 
     expect(service.results()).toEqual([
       {
-        id: 'result-1',
+        id: 'insight-1',
+        captureId: 'capture-1',
         title: 'Result',
         summary: 'Summary',
         sourceUrl: 'https://example.com/item',

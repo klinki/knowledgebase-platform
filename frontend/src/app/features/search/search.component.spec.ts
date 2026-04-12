@@ -12,7 +12,8 @@ describe('SearchComponent', () => {
     const searchStateStub = {
       results: signal([
         {
-          id: 'result-1',
+          id: 'insight-1',
+          captureId: 'capture-1',
           title: 'Angular result',
           summary: 'Summary',
           sourceUrl: 'https://example.com/angular',
@@ -93,6 +94,9 @@ describe('SearchComponent', () => {
     expect(compiled.textContent).toContain('Language: English');
     expect(compiled.textContent).toContain('71 total results');
     expect(compiled.textContent).toContain('Page 2 of 4');
+
+    const resultLink = compiled.querySelector('.result-card') as HTMLAnchorElement | null;
+    expect(resultLink?.getAttribute('href')).toContain('/captures/capture-1');
   });
 
   it('disables submit until at least one search criterion is present', async () => {
@@ -163,7 +167,8 @@ describe('SearchComponent', () => {
     const searchStateStub = {
       results: signal([
         {
-          id: 'result-1',
+          id: 'insight-1',
+          captureId: 'capture-1',
           title: 'Angular result',
           summary: 'Summary',
           sourceUrl: 'https://example.com/angular',
