@@ -44,15 +44,28 @@ public class ClustersController : ControllerBase
 
     [HttpGet("list")]
     [ProducesResponseType(typeof(TopicClusterListPageDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetClusterList([FromQuery] TopicClusterListQueryDto query)
+    public async Task<IActionResult> GetClusterList(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12,
+        [FromQuery(Name = "query")] string? searchQuery = null,
+        [FromQuery] string sortField = "memberCount",
+        [FromQuery] string sortDirection = "desc")
     {
         if (!User.TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var page = await _insightClusteringService.GetClusterListPageAsync(userId, query);
-        return Ok(page);
+        var query = new TopicClusterListQueryDto
+        {
+            Page = page,
+            PageSize = pageSize,
+            Query = searchQuery,
+            SortField = sortField,
+            SortDirection = sortDirection
+        };
+        var result = await _insightClusteringService.GetClusterListPageAsync(userId, query);
+        return Ok(result);
     }
 
     [HttpGet("{id:guid}")]

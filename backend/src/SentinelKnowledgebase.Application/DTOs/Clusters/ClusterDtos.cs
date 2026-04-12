@@ -18,6 +18,9 @@ public class TopicClusterListQueryDto
 {
   public int Page { get; set; } = 1;
   public int PageSize { get; set; } = 12;
+  public string? Query { get; set; }
+  public string SortField { get; set; } = "memberCount";
+  public string SortDirection { get; set; } = "desc";
 }
 
 public class TopicClusterListPageDto

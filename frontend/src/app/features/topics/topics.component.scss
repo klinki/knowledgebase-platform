@@ -3,6 +3,52 @@
 .page-header h1 { font-size: 3rem; margin: 0 0 0.5rem; }
 .page-header p { margin: 0; color: #94a3b8; max-width: 48rem; }
 .glass-card { display: grid; gap: 1rem; }
+.controls-card {
+  padding: 1rem 1.25rem;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.topics-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 0.9fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+.search-group,
+.sort-group {
+  display: grid;
+  gap: 0.45rem;
+}
+.search-group label,
+.sort-group label {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+}
+.search-group input,
+.sort-group select {
+  min-height: 2.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  padding: 0.78rem 0.95rem;
+}
+.search-group input::placeholder { color: #64748b; }
+.search-group input:focus,
+.sort-group select:focus {
+  outline: 2px solid rgba(125, 211, 252, 0.22);
+  outline-offset: 1px;
+  border-color: rgba(125, 211, 252, 0.28);
+}
+.sort-group select option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+.control-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
 .overview-card {
   grid-template-columns: minmax(0, 1.8fr) auto;
   align-items: center;
@@ -136,10 +182,24 @@
 }
 .pagination-btn:hover:not(:disabled) { background: rgba(99, 102, 241, 0.2); }
 .pagination-btn:disabled { opacity: 0.45; cursor: default; }
+.search-btn { min-width: 6.5rem; }
+.clear-btn {
+  min-width: 6rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: transparent;
+  color: #cbd5e1;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+}
+.clear-btn:hover:not(:disabled) { border-color: rgba(125, 211, 252, 0.25); color: #e2e8f0; }
+.clear-btn:disabled { opacity: 0.45; cursor: default; }
 .pagination-status { color: #94a3b8; }
 .empty-state { text-align: center; color: #94a3b8; padding: 3rem 1rem; }
 .empty-state.error { color: #fecaca; }
 @media (max-width: 720px) {
   .page-header, .overview-card, .topic-head, .topic-footer { grid-template-columns: 1fr; flex-direction: column; }
+  .topics-controls { grid-template-columns: 1fr; }
+  .control-actions { width: 100%; }
   .overview-metrics { justify-content: flex-start; }
 }

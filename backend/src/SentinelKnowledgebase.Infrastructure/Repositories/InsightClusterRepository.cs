@@ -66,13 +66,21 @@ public class InsightClusterRepository : IInsightClusterRepository
             .AsNoTracking()
             .Where(cluster => cluster.OwnerUserId == ownerUserId);
 
+        var normalizedQuery = options.Query?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalizedQuery))
+        {
+            query = query.Where(cluster =>
+                cluster.Title.ToLower().Contains(normalizedQuery) ||
+                (cluster.Description != null && cluster.Description.ToLower().Contains(normalizedQuery)) ||
+                cluster.KeywordsJson.ToLower().Contains(normalizedQuery));
+        }
+
         var totalCount = await query.CountAsync();
         var page = Math.Max(1, options.Page);
         var pageSize = Math.Clamp(options.PageSize, 1, 100);
 
-        var items = await query
-            .OrderByDescending(cluster => cluster.MemberCount)
-            .ThenByDescending(cluster => cluster.UpdatedAt)
+        var sortedQuery = ApplySorting(query, options);
+        var items = await sortedQuery
             .Include(cluster => cluster.Memberships.OrderBy(membership => membership.Rank).Take(3))
                 .ThenInclude(membership => membership.ProcessedInsight)
                     .ThenInclude(insight => insight.RawCapture)
@@ -84,6 +92,38 @@ public class InsightClusterRepository : IInsightClusterRepository
         {
             Items = items,
             TotalCount = totalCount
+        };
+    }
+
+    private static IQueryable<InsightCluster> ApplySorting(IQueryable<InsightCluster> query, TopicClusterQueryOptions options)
+    {
+        var sortField = options.SortField?.Trim() ?? "memberCount";
+        var sortDirection = options.SortDirection?.Trim().ToLowerInvariant() ?? "desc";
+        var ascending = sortDirection == "asc";
+
+        return sortField switch
+        {
+            "updatedAt" => ascending
+                ? query.OrderBy(cluster => cluster.UpdatedAt)
+                    .ThenByDescending(cluster => cluster.MemberCount)
+                    .ThenBy(cluster => cluster.Title)
+                : query.OrderByDescending(cluster => cluster.UpdatedAt)
+                    .ThenByDescending(cluster => cluster.MemberCount)
+                    .ThenBy(cluster => cluster.Title),
+            "title" => ascending
+                ? query.OrderBy(cluster => cluster.Title)
+                    .ThenByDescending(cluster => cluster.MemberCount)
+                    .ThenByDescending(cluster => cluster.UpdatedAt)
+                : query.OrderByDescending(cluster => cluster.Title)
+                    .ThenByDescending(cluster => cluster.MemberCount)
+                    .ThenByDescending(cluster => cluster.UpdatedAt),
+            _ => ascending
+                ? query.OrderBy(cluster => cluster.MemberCount)
+                    .ThenByDescending(cluster => cluster.UpdatedAt)
+                    .ThenBy(cluster => cluster.Title)
+                : query.OrderByDescending(cluster => cluster.MemberCount)
+                    .ThenByDescending(cluster => cluster.UpdatedAt)
+                    .ThenBy(cluster => cluster.Title)
         };
     }
 

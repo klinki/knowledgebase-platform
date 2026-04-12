@@ -61,11 +61,12 @@ public interface IProcessedInsightRepository
     Task<ProcessedInsight> AddAsync(ProcessedInsight processedInsight);
     Task<ProcessedInsight?> GetByIdAsync(Guid id);
     Task<IEnumerable<ProcessedInsight>> GetAllAsync();
-    Task<IEnumerable<SearchRecord>> SearchAsync(
+    Task<SearchQueryResult> SearchAsync(
         Guid ownerUserId,
         float[]? queryEmbedding,
         double threshold,
-        int limit,
+        int page,
+        int pageSize,
         IReadOnlyCollection<string> tags,
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
@@ -88,6 +89,12 @@ public class SearchRecord
     public double? Similarity { get; set; }
     public List<string> Tags { get; set; } = new();
     public List<LabelRecord> Labels { get; set; } = new();
+}
+
+public class SearchQueryResult
+{
+    public List<SearchRecord> Items { get; set; } = new();
+    public int TotalCount { get; set; }
 }
 
 public class SemanticSearchRecord
@@ -202,6 +209,9 @@ public class TopicClusterQueryOptions
 {
     public int Page { get; set; }
     public int PageSize { get; set; }
+    public string? Query { get; set; }
+    public string SortField { get; set; } = "memberCount";
+    public string SortDirection { get; set; } = "desc";
 }
 
 public class TopicClusterQueryResult

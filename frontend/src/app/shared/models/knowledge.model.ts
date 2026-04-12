@@ -41,6 +41,17 @@ export interface TopicClusterSummary {
   suggestedLabel: LabelAssignment;
 }
 
+export type TopicClusterSortField = 'memberCount' | 'updatedAt' | 'title';
+export type TopicClusterSortDirection = 'asc' | 'desc';
+
+export interface TopicClusterListCriteria {
+  query: string;
+  sortField: TopicClusterSortField;
+  sortDirection: TopicClusterSortDirection;
+  page: number;
+  pageSize: number;
+}
+
 export interface TopicClusterListPage {
   items: TopicClusterSummary[];
   totalCount: number;
@@ -157,6 +168,13 @@ export interface SearchResult {
   tags: string[];
   labels: LabelAssignment[];
   similarity: number | null;
+}
+
+export interface SearchResultPage {
+  items: SearchResult[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface CaptureListItem {

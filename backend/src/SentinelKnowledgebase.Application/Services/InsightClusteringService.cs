@@ -17,6 +17,8 @@ public class InsightClusteringService : IInsightClusteringService
     private const int SummarySampleSize = 5;
     private const double SimilarityThreshold = 0.72d;
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> OwnerLocks = new();
+    private const string DefaultSortField = "memberCount";
+    private const string DefaultSortDirection = "desc";
     private static readonly HashSet<string> StopWords =
     [
         "about", "after", "before", "between", "could", "from", "have", "into", "just", "like",
@@ -136,10 +138,16 @@ public class InsightClusteringService : IInsightClusteringService
     {
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var normalizedQuery = string.IsNullOrWhiteSpace(query.Query) ? null : query.Query.Trim();
+        var sortField = NormalizeSortField(query.SortField);
+        var sortDirection = NormalizeSortDirection(query.SortDirection);
         var result = await _unitOfWork.InsightClusters.GetPagedAsync(ownerUserId, new TopicClusterQueryOptions
         {
             Page = page,
-            PageSize = pageSize
+            PageSize = pageSize,
+            Query = normalizedQuery,
+            SortField = sortField,
+            SortDirection = sortDirection
         });
 
         return new TopicClusterListPageDto
@@ -148,6 +156,27 @@ public class InsightClusteringService : IInsightClusteringService
             TotalCount = result.TotalCount,
             Page = page,
             PageSize = pageSize
+        };
+    }
+
+    private static string NormalizeSortField(string? sortField)
+    {
+        return sortField?.Trim() switch
+        {
+            "memberCount" => "memberCount",
+            "updatedAt" => "updatedAt",
+            "title" => "title",
+            _ => DefaultSortField
+        };
+    }
+
+    private static string NormalizeSortDirection(string? sortDirection)
+    {
+        return sortDirection?.Trim().ToLowerInvariant() switch
+        {
+            "asc" => "asc",
+            "desc" => "desc",
+            _ => DefaultSortDirection
         };
     }
 

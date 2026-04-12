@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { convertToParamMap } from '@angular/router';
 
 import { TopicsStateService } from './topics-state.service';
 
@@ -80,9 +81,21 @@ describe('TopicsStateService', () => {
   });
 
   it('loads a paginated topics list', async () => {
-    const loadPromise = service.loadTopicsPage(2, 6);
+    const loadPromise = service.loadTopicsPage({
+      query: '  infra  ',
+      sortField: 'title',
+      sortDirection: 'asc',
+      page: 2,
+      pageSize: 50
+    });
 
-    const request = http.expectOne('http://localhost:5000/api/v1/clusters/list?page=2&pageSize=6');
+    const request = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/clusters/list' &&
+      req.params.get('page') === '2' &&
+      req.params.get('pageSize') === '12' &&
+      req.params.get('query') === 'infra' &&
+      req.params.get('sortField') === 'title' &&
+      req.params.get('sortDirection') === 'asc');
     expect(request.request.method).toBe('GET');
     request.flush({
       items: [
@@ -107,11 +120,18 @@ describe('TopicsStateService', () => {
       ],
       totalCount: 14,
       page: 2,
-      pageSize: 6
+      pageSize: 12
     });
 
     await loadPromise;
 
+    expect(service.currentCriteria()).toEqual({
+      query: 'infra',
+      sortField: 'title',
+      sortDirection: 'asc',
+      page: 2,
+      pageSize: 12
+    });
     expect(service.topicsPage()).toEqual({
       items: [
         {
@@ -135,8 +155,58 @@ describe('TopicsStateService', () => {
       ],
       totalCount: 14,
       page: 2,
-      pageSize: 6
+      pageSize: 12
     });
+  });
+
+  it('parses URL query params into normalized topic list criteria', () => {
+    const criteria = service.parseQueryParams(convertToParamMap({
+      q: '  infra  ',
+      sortField: 'updatedAt',
+      sortDirection: 'asc',
+      page: '3'
+    }));
+
+    expect(criteria).toEqual({
+      query: 'infra',
+      sortField: 'updatedAt',
+      sortDirection: 'asc',
+      page: 3,
+      pageSize: 12
+    });
+  });
+
+  it('builds canonical query params and omits defaults', () => {
+    expect(service.buildQueryParams(service.createDefaultCriteria())).toEqual({
+      q: null,
+      sortField: null,
+      sortDirection: null,
+      page: null
+    });
+
+    expect(service.buildQueryParams({
+      query: '  infra  ',
+      sortField: 'title',
+      sortDirection: 'asc',
+      page: 2,
+      pageSize: 12
+    })).toEqual({
+      q: 'infra',
+      sortField: 'title',
+      sortDirection: 'asc',
+      page: '2'
+    });
+  });
+
+  it('falls back to default criteria when URL params are invalid', () => {
+    const criteria = service.parseQueryParams(convertToParamMap({
+      q: '  ',
+      sortField: 'unsupported',
+      sortDirection: 'sideways',
+      page: '-7'
+    }));
+
+    expect(criteria).toEqual(service.createDefaultCriteria());
   });
 
   it('sets notFound for missing topics', async () => {

@@ -110,13 +110,140 @@ public class ClustersControllerTests
         page.Items[0].Title.Should().Be("Medium Topic");
     }
 
-    private async Task<Guid> SeedClusterAsync(Guid ownerUserId, string title, int memberCount = 3)
+    [Fact]
+    public async Task GetClusterList_ShouldSearchByTitle_WhenQueryMatchesTitle()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var titleToken = $"signal-{Guid.NewGuid():N}";
+
+        await SeedClusterAsync(ownerUserId, $"Signal Routing {titleToken}");
+        await SeedClusterAsync(ownerUserId, "Storage Ops");
+
+        var response = await client.GetAsync($"/api/v1/clusters/list?query={titleToken}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.Items.Should().Contain(cluster => cluster.Title == $"Signal Routing {titleToken}");
+        page.Items.Should().NotContain(cluster => cluster.Title == "Storage Ops");
+    }
+
+    [Fact]
+    public async Task GetClusterList_ShouldSearchByDescription_WhenQueryMatchesDescription()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var descriptionToken = $"edge-{Guid.NewGuid():N}";
+
+        await SeedClusterAsync(ownerUserId, "Compute", description: $"Latency control plane for {descriptionToken}");
+        await SeedClusterAsync(ownerUserId, "Storage", description: "Backups and cold storage workflows");
+
+        var response = await client.GetAsync($"/api/v1/clusters/list?query={descriptionToken}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.Items.Should().Contain(cluster => cluster.Title == "Compute");
+        page.Items.Should().NotContain(cluster => cluster.Title == "Storage");
+    }
+
+    [Fact]
+    public async Task GetClusterList_ShouldSearchByKeywords_AndRemainOwnerScoped()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+
+        var otherMember = await _fixture.CreateMemberClientAsync();
+        var otherUserId = await _fixture.GetUserIdByEmailAsync(otherMember.Email);
+
+        await SeedClusterAsync(ownerUserId, "Pipeline", keywords: ["orchestration", "workflows", "timers"]);
+        await SeedClusterAsync(otherUserId, "Foreign Pipeline", keywords: ["orchestration", "private", "other"]);
+
+        var response = await client.GetAsync("/api/v1/clusters/list?query=orchestration");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.TotalCount.Should().Be(1);
+        page.Items.Should().ContainSingle();
+        page.Items[0].Title.Should().Be("Pipeline");
+    }
+
+    [Fact]
+    public async Task GetClusterList_ShouldSortByMemberCountAscending_WhenRequested()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+
+        await SeedClusterAsync(ownerUserId, "Large Topic", memberCount: 5);
+        await SeedClusterAsync(ownerUserId, "Medium Topic", memberCount: 4);
+        await SeedClusterAsync(ownerUserId, "Small Topic", memberCount: 3);
+
+        var response = await client.GetAsync("/api/v1/clusters/list?sortField=memberCount&sortDirection=asc&pageSize=10");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.Items.Select(item => item.Title).Should().ContainInOrder("Small Topic", "Medium Topic", "Large Topic");
+    }
+
+    [Fact]
+    public async Task GetClusterList_ShouldSortByUpdatedAt_WhenRequested()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var now = DateTime.UtcNow;
+
+        await SeedClusterAsync(ownerUserId, "Older Topic", updatedAt: now.AddHours(-3));
+        await SeedClusterAsync(ownerUserId, "Newest Topic", updatedAt: now.AddHours(-1));
+        await SeedClusterAsync(ownerUserId, "Middle Topic", updatedAt: now.AddHours(-2));
+
+        var response = await client.GetAsync("/api/v1/clusters/list?sortField=updatedAt&sortDirection=desc&pageSize=10");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.Items.Select(item => item.Title).Should().ContainInOrder("Newest Topic", "Middle Topic", "Older Topic");
+    }
+
+    [Fact]
+    public async Task GetClusterList_ShouldSortByTitle_WhenRequested()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+
+        await SeedClusterAsync(ownerUserId, "Zulu Topic");
+        await SeedClusterAsync(ownerUserId, "Alpha Topic");
+        await SeedClusterAsync(ownerUserId, "Bravo Topic");
+
+        var response = await client.GetAsync("/api/v1/clusters/list?sortField=title&sortDirection=asc&pageSize=10");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<TopicClusterListPageDto>(ResponseJsonOptions);
+        page.Should().NotBeNull();
+        page!.Items.Select(item => item.Title).Should().ContainInOrder("Alpha Topic", "Bravo Topic", "Zulu Topic");
+    }
+
+    private async Task<Guid> SeedClusterAsync(
+        Guid ownerUserId,
+        string title,
+        int memberCount = 3,
+        string? description = null,
+        IReadOnlyList<string>? keywords = null,
+        DateTime? updatedAt = null)
     {
         var clusterId = Guid.NewGuid();
 
         await _fixture.ExecuteDbContextAsync(async dbContext =>
         {
-            var now = DateTime.UtcNow;
+            var now = updatedAt ?? DateTime.UtcNow;
             var insightIds = new List<Guid>();
 
             for (var index = 0; index < memberCount; index++)
@@ -155,8 +282,8 @@ public class ClustersControllerTests
                 Id = clusterId,
                 OwnerUserId = ownerUserId,
                 Title = title,
-                Description = $"{title} description",
-                KeywordsJson = JsonSerializer.Serialize(new[] { "cluster", "topic", "semantic" }),
+                Description = description ?? $"{title} description",
+                KeywordsJson = JsonSerializer.Serialize(keywords ?? new[] { "cluster", "topic", "semantic" }),
                 MemberCount = insightIds.Count,
                 RepresentativeProcessedInsightId = insightIds[0],
                 LastComputedAt = now,

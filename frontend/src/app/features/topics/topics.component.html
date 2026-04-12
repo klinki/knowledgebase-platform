@@ -7,6 +7,48 @@
     <a routerLink="/dashboard" class="secondary-link">Back to dashboard</a>
   </header>
 
+  <section class="glass-card controls-card">
+    <form class="topics-controls" (ngSubmit)="submitSearch()">
+      <div class="search-group">
+        <label for="topics-search">Search topics</label>
+        <input
+          id="topics-search"
+          type="text"
+          name="topicsSearch"
+          [(ngModel)]="searchQuery"
+          placeholder="Search titles, descriptions, and keywords"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="sort-group">
+        <label for="topics-sort">Sort by</label>
+        <select
+          id="topics-sort"
+          name="topicsSort"
+          [ngModel]="selectedSort"
+          (ngModelChange)="onSortChange($event)"
+        >
+          @for (option of sortOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="control-actions">
+        <button type="submit" class="pagination-btn search-btn" [disabled]="topicsState.loading()">Search</button>
+        <button
+          type="button"
+          class="clear-btn"
+          (click)="clearCriteria()"
+          [disabled]="topicsState.loading() || !hasActiveCriteria()"
+        >
+          Clear
+        </button>
+      </div>
+    </form>
+  </section>
+
   @if (topicsState.error()) {
     <section class="glass-card empty-state error">
       <p>{{ topicsState.error() }}</p>
@@ -17,15 +59,20 @@
     </section>
   } @else if (topics().length === 0) {
     <section class="glass-card empty-state">
-      <h2>No topics yet</h2>
-      <p>Topics will appear here once clustering has produced results.</p>
+      @if (hasActiveSearch()) {
+        <h2>No matching topics</h2>
+        <p>No topics matched the current search. Try a broader term or clear the search.</p>
+      } @else {
+        <h2>No topics yet</h2>
+        <p>Topics will appear here once clustering has produced results.</p>
+      }
     </section>
   } @else {
     <section class="glass-card overview-card">
       <div class="overview-copy">
         <span class="eyebrow">Cluster Explorer</span>
         <h2>{{ totalCount() }} Topics</h2>
-        <p>Sorted by cluster size so the densest themes surface first.</p>
+        <p>{{ overviewDescription() }}</p>
       </div>
       <div class="overview-metrics">
         <span class="metric-chip">Page {{ page() }} of {{ totalPages() }}</span>
