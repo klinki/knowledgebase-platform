@@ -152,7 +152,10 @@ public class SearchRequestValidator : AbstractValidator<DTOs.Search.SearchReques
             .Must(DTOs.Search.SearchMatchModes.IsValid)
             .WithMessage("Label match mode must be any or all.");
 
-        RuleFor(x => x.Limit)
+        RuleFor(x => x.Page)
+            .GreaterThan(0);
+
+        RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .LessThanOrEqualTo(100);
 

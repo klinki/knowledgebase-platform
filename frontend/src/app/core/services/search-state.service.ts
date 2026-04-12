@@ -1,12 +1,18 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { LabelAssignment, SearchResult } from '../../shared/models/knowledge.model';
+import { LabelAssignment, SearchResult, SearchResultPage } from '../../shared/models/knowledge.model';
 
 export type SearchMatchMode = 'any' | 'all';
+export const SEARCH_PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+
+interface SearchPaginationState {
+  page: number;
+  pageSize: number;
+}
 
 export interface SearchCriteria {
   query: string;
@@ -14,7 +20,8 @@ export interface SearchCriteria {
   tagMatchMode: SearchMatchMode;
   labels: LabelAssignment[];
   labelMatchMode: SearchMatchMode;
-  limit: number;
+  page: number;
+  pageSize: number;
   threshold: number;
 }
 
@@ -24,13 +31,20 @@ export interface SearchCriteria {
 export class SearchStateService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiBaseUrl}/v1/search`;
+  private totalCountState = signal(0);
+  private paginationState = signal<SearchPaginationState>({ page: 1, pageSize: 20 });
 
   results = signal<SearchResult[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
+  totalCount = computed(() => this.totalCountState());
+  totalPages = computed(() => Math.max(1, Math.ceil(this.totalCountState() / this.paginationState().pageSize)));
+  currentPagination = computed(() => this.paginationState());
 
   clear(): void {
     this.results.set([]);
+    this.totalCountState.set(0);
+    this.paginationState.set({ page: 1, pageSize: 20 });
     this.error.set(null);
     this.loading.set(false);
   }
@@ -42,7 +56,8 @@ export class SearchStateService {
       tagMatchMode: 'any',
       labels: [],
       labelMatchMode: 'all',
-      limit: 20,
+      page: 1,
+      pageSize: 20,
       threshold: 0.3
     };
   }
@@ -61,6 +76,8 @@ export class SearchStateService {
       .filter((label): label is LabelAssignment => label !== null);
     criteria.tagMatchMode = this.normalizeMatchMode(paramMap.get('tagMode'), 'any');
     criteria.labelMatchMode = this.normalizeMatchMode(paramMap.get('labelMode'), 'all');
+    criteria.page = this.parsePositiveInt(paramMap.get('page'), 1);
+    criteria.pageSize = this.normalizePageSize(this.parsePositiveInt(paramMap.get('pageSize'), 20));
     return criteria;
   }
 
@@ -73,7 +90,9 @@ export class SearchStateService {
         ? normalized.labels.map(label => `${label.category}::${label.value}`)
         : null,
       tagMode: normalized.tagMatchMode !== 'any' ? normalized.tagMatchMode : null,
-      labelMode: normalized.labelMatchMode !== 'all' ? normalized.labelMatchMode : null
+      labelMode: normalized.labelMatchMode !== 'all' ? normalized.labelMatchMode : null,
+      page: normalized.page > 1 ? String(normalized.page) : null,
+      pageSize: normalized.pageSize !== 20 ? String(normalized.pageSize) : null
     };
   }
 
@@ -94,23 +113,31 @@ export class SearchStateService {
 
     this.loading.set(true);
     this.error.set(null);
+    this.paginationState.set({ page: normalized.page, pageSize: normalized.pageSize });
 
     try {
       const results = await firstValueFrom(
-        this.http.post<SearchResult[]>(this.apiUrl, {
+        this.http.post<SearchResultPage>(this.apiUrl, {
           query: normalized.query || null,
           tags: normalized.tags,
           tagMatchMode: normalized.tagMatchMode,
           labels: normalized.labels,
           labelMatchMode: normalized.labelMatchMode,
-          limit: normalized.limit,
+          page: normalized.page,
+          pageSize: normalized.pageSize,
           threshold: normalized.threshold
         })
       );
 
-      this.results.set(results.map(result => this.normalizeResult(result)));
+      this.results.set(results.items.map(result => this.normalizeResult(result)));
+      this.totalCountState.set(results.totalCount);
+      this.paginationState.set({
+        page: results.page,
+        pageSize: this.normalizePageSize(results.pageSize)
+      });
     } catch {
       this.results.set([]);
+      this.totalCountState.set(0);
       this.error.set('Search failed. Try again in a moment.');
     } finally {
       this.loading.set(false);
@@ -134,7 +161,8 @@ export class SearchStateService {
             item.value.toLowerCase() === label.value.toLowerCase()) === index),
       tagMatchMode: this.normalizeMatchMode(criteria.tagMatchMode, 'any'),
       labelMatchMode: this.normalizeMatchMode(criteria.labelMatchMode, 'all'),
-      limit: criteria.limit > 0 ? criteria.limit : 20,
+      page: criteria.page > 0 ? Math.floor(criteria.page) : 1,
+      pageSize: this.normalizePageSize(criteria.pageSize),
       threshold: criteria.threshold >= 0 ? criteria.threshold : 0.3
     };
   }
@@ -182,6 +210,19 @@ export class SearchStateService {
     }
 
     return fallback;
+  }
+
+  private normalizePageSize(value: number): number {
+    return SEARCH_PAGE_SIZE_OPTIONS.includes(value as 20 | 50 | 100) ? value : 20;
+  }
+
+  private parsePositiveInt(value: string | null, fallback: number): number {
+    if (!value) {
+      return fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   }
 
   private parseLabelParam(value: string): LabelAssignment | null {

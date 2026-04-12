@@ -1,12 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { SearchCriteria, SearchMatchMode, SearchStateService } from '../../core/services/search-state.service';
+import {
+  SEARCH_PAGE_SIZE_OPTIONS,
+  SearchCriteria,
+  SearchMatchMode,
+  SearchStateService
+} from '../../core/services/search-state.service';
 import { TagsStateService } from '../../core/services/tags-state.service';
 import { LabelsStateService } from '../../core/services/labels-state.service';
-import { LabelAssignment } from '../../shared/models/knowledge.model';
 
 interface LabelRow {
   id: string;
@@ -24,6 +28,7 @@ interface LabelRow {
 export class SearchComponent implements OnInit {
   private static rowSeed = 0;
 
+  readonly pageSizeOptions = SEARCH_PAGE_SIZE_OPTIONS;
   searchState = inject(SearchStateService);
   tagsState = inject(TagsStateService);
   labelsState = inject(LabelsStateService);
@@ -37,6 +42,40 @@ export class SearchComponent implements OnInit {
   tagMatchMode: SearchMatchMode = 'any';
   labelMatchMode: SearchMatchMode = 'all';
   labelRows: LabelRow[] = [SearchComponent.createLabelRow()];
+  currentPagination = computed(() => this.searchState.currentPagination());
+  totalCount = computed(() => this.searchState.totalCount());
+  visiblePages = computed(() => {
+    const total = this.searchState.totalPages();
+    const current = this.currentPagination().page;
+    const pages: number[] = [];
+
+    if (total <= 7) {
+      for (let page = 1; page <= total; page += 1) {
+        pages.push(page);
+      }
+
+      return pages;
+    }
+
+    pages.push(1);
+
+    if (current > 3) {
+      pages.push(-1);
+    }
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+
+    if (current < total - 2) {
+      pages.push(-1);
+    }
+
+    pages.push(total);
+    return pages;
+  });
 
   async ngOnInit(): Promise<void> {
     await Promise.all([
@@ -132,7 +171,7 @@ export class SearchComponent implements OnInit {
   }
 
   async submitSearch(): Promise<void> {
-    const criteria = this.buildCriteria();
+    const criteria = this.buildCriteria({ page: 1 });
     if (!this.searchState.hasCriteria(criteria)) {
       return;
     }
@@ -152,6 +191,22 @@ export class SearchComponent implements OnInit {
     await this.searchState.syncUrl(this.router, this.route, this.buildCriteria());
   }
 
+  async onPageSizeChange(size: number): Promise<void> {
+    const criteria = this.buildCriteria({ page: 1, pageSize: size });
+    await this.searchState.syncUrl(this.router, this.route, criteria);
+    await this.searchState.search(criteria);
+  }
+
+  async goToPage(page: number): Promise<void> {
+    if (page < 1 || page > this.searchState.totalPages() || page === this.currentPagination().page) {
+      return;
+    }
+
+    const criteria = this.buildCriteria({ page });
+    await this.searchState.syncUrl(this.router, this.route, criteria);
+    await this.searchState.search(criteria);
+  }
+
   private applyCriteria(criteria: SearchCriteria): void {
     this.searchQuery = criteria.query;
     this.selectedTags = [...criteria.tags];
@@ -162,7 +217,9 @@ export class SearchComponent implements OnInit {
       : [SearchComponent.createLabelRow()];
   }
 
-  private buildCriteria(): SearchCriteria {
+  private buildCriteria(pagination: Partial<Pick<SearchCriteria, 'page' | 'pageSize'>> = {}): SearchCriteria {
+    const currentPagination = this.currentPagination();
+
     return {
       query: this.searchQuery,
       tags: this.selectedTags,
@@ -172,7 +229,8 @@ export class SearchComponent implements OnInit {
         value: row.value
       })),
       labelMatchMode: this.labelMatchMode,
-      limit: 20,
+      page: pagination.page ?? currentPagination.page,
+      pageSize: pagination.pageSize ?? currentPagination.pageSize,
       threshold: 0.3
     };
   }

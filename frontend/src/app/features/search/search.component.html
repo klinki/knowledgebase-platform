@@ -10,7 +10,7 @@
 
     <div class="hero-stats">
       <div class="hero-stat">
-        <span class="stat-value">{{ searchState.results().length }}</span>
+        <span class="stat-value">{{ totalCount() }}</span>
         <span class="stat-label">Results</span>
       </div>
       <div class="hero-stat">
@@ -151,7 +151,7 @@
           Clear
         </button>
         <span class="results-count">
-          {{ searchState.results().length }} result{{ searchState.results().length === 1 ? '' : 's' }}
+          {{ totalCount() }} result{{ totalCount() === 1 ? '' : 's' }}
         </span>
       </div>
     </form>
@@ -167,6 +167,27 @@
         <p>Searching captures...</p>
       </div>
     } @else if (searchState.results().length > 0) {
+      <div class="results-toolbar">
+        <div class="results-summary">
+          <span>{{ totalCount() }} total result{{ totalCount() === 1 ? '' : 's' }}</span>
+          <span>Page {{ currentPagination().page }} of {{ searchState.totalPages() }}</span>
+        </div>
+
+        <div class="page-size-group">
+          <label for="search-page-size">Show</label>
+          <select
+            id="search-page-size"
+            [ngModel]="currentPagination().pageSize"
+            (ngModelChange)="onPageSizeChange($event)"
+            [disabled]="searchState.loading()"
+          >
+            @for (size of pageSizeOptions; track size) {
+              <option [ngValue]="size">{{ size }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
       <div class="result-list">
         @for (result of searchState.results(); track result.id) {
           <a class="result-card" [routerLink]="['/captures', result.id]">
@@ -207,6 +228,54 @@
           </a>
         }
       </div>
+
+      @if (searchState.totalPages() > 1) {
+        <div class="pagination-bar">
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === 1 || searchState.loading()"
+            (click)="goToPage(1)"
+            aria-label="First page"
+          >⟨⟨</button>
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === 1 || searchState.loading()"
+            (click)="goToPage(currentPagination().page - 1)"
+            aria-label="Previous page"
+          >⟨</button>
+
+          @for (page of visiblePages(); track page) {
+            @if (page === -1) {
+              <span class="page-ellipsis">…</span>
+            } @else {
+              <button
+                type="button"
+                class="page-btn"
+                [class.active]="page === currentPagination().page"
+                [disabled]="searchState.loading()"
+                (click)="goToPage(page)"
+              >{{ page }}</button>
+            }
+          }
+
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === searchState.totalPages() || searchState.loading()"
+            (click)="goToPage(currentPagination().page + 1)"
+            aria-label="Next page"
+          >⟩</button>
+          <button
+            type="button"
+            class="page-btn"
+            [disabled]="currentPagination().page === searchState.totalPages() || searchState.loading()"
+            (click)="goToPage(searchState.totalPages())"
+            aria-label="Last page"
+          >⟩⟩</button>
+        </div>
+      }
     } @else if (canSubmit()) {
       <div class="empty-state">
         <p>No results matched the current search criteria.</p>

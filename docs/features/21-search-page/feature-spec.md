@@ -46,9 +46,16 @@
   - `tagMatchMode: 'any' | 'all'`
   - `labels: LabelAssignmentDto[]`
   - `labelMatchMode: 'any' | 'all'`
-  - `limit: number` default `20`
+  - `page: number` default `1`
+  - `pageSize: number` default `20`
   - `threshold: number` default `0.3`
 - New response DTO:
+  - `SearchResultPageDto`
+  - `items: SearchResultDto[]`
+  - `totalCount: number`
+  - `page: number`
+  - `pageSize: number`
+- Paged item DTO:
   - `SearchResultDto`
   - `id`
   - `title`
@@ -62,6 +69,7 @@
   - When `query` is present, semantic matching is required and results are filtered further by tags and labels if supplied.
   - When `query` is absent, tags/labels-only searches are allowed.
   - Sort by `similarity desc` when `query` is present; otherwise sort by `processedAt desc`.
+  - Apply paging after filtering and sorting.
   - Return `400` when no usable criteria are provided.
 - URL state:
   - `q=<text>`
@@ -69,6 +77,8 @@
   - repeated `label=<encodedCategory>::<encodedValue>`
   - `tagMode=any|all`
   - `labelMode=any|all`
+  - `page=<number>`
+  - `pageSize=<number>`
 
 ## Implementation Notes
 
@@ -82,8 +92,11 @@
 - Frontend route spec includes `/search` in the authenticated shell.
 - Search page unit tests cover:
   - URL hydration on initial load
+  - URL hydration for `page` and `pageSize`
   - submit disabled with no criteria
   - query-param updates after submit and clear
+  - page-size changes reset back to page `1`
+  - pagination controls keep the current criteria and update the page
   - correct request payload for text-only, tags-only, labels-only, and mixed searches
   - result rendering with and without similarity
   - empty and error states
@@ -94,6 +107,7 @@
   - labels-only search with `any` and `all`
   - mixed criteria intersection behavior
   - sort order with and without text query
+  - total-count and page-slice behavior
   - `400` on empty request
 
 ## Assumptions and Defaults
@@ -101,5 +115,6 @@
 - Feature slug is `21-search-page`.
 - `/search` is authenticated and lives inside the existing shell.
 - The dedicated page is the primary search entrypoint, but the Labels page keeps its current exact-pair search for now.
-- No result editing, bulk actions, saved searches, pagination controls, or advanced ranking controls are included in v1.
+- Pagination is included with page-size options `20`, `50`, and `100`.
+- No result editing, bulk actions, saved searches, or advanced ranking controls are included in v1.
 - The page searches existing indexed knowledge only; this feature does not add new ingestion or indexing behavior.

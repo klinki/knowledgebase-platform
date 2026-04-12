@@ -21,7 +21,7 @@ public class SearchController : ControllerBase
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(IEnumerable<SearchResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(SearchResultPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Search([FromBody] SearchRequestDto request)
     {

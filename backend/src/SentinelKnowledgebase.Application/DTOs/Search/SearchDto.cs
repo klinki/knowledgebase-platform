@@ -78,7 +78,8 @@ public class SearchRequestDto
     public string TagMatchMode { get; set; } = SearchMatchModes.Any;
     public List<LabelAssignmentDto> Labels { get; set; } = new();
     public string LabelMatchMode { get; set; } = SearchMatchModes.All;
-    public int Limit { get; set; } = 20;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
     public double Threshold { get; set; } = 0.3;
 }
 
@@ -92,4 +93,12 @@ public class SearchResultDto
     public List<string> Tags { get; set; } = new();
     public List<LabelAssignmentDto> Labels { get; set; } = new();
     public double? Similarity { get; set; }
+}
+
+public class SearchResultPageDto
+{
+    public List<SearchResultDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
 }

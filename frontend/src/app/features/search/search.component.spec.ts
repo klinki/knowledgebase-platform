@@ -33,12 +33,16 @@ describe('SearchComponent', () => {
         tagMatchMode: 'any',
         labels: [{ category: 'Language', value: 'English' }],
         labelMatchMode: 'all',
-        limit: 20,
+        page: 2,
+        pageSize: 50,
         threshold: 0.3
       }),
       buildQueryParams: vi.fn(),
       syncUrl: vi.fn().mockResolvedValue(undefined),
-      search: vi.fn().mockResolvedValue(undefined)
+      search: vi.fn().mockResolvedValue(undefined),
+      totalCount: signal(71),
+      totalPages: vi.fn().mockReturnValue(4),
+      currentPagination: signal({ page: 2, pageSize: 50 })
     };
 
     const tagsStateStub = {
@@ -87,6 +91,8 @@ describe('SearchComponent', () => {
     expect(compiled.textContent).toContain('Search the knowledgebase');
     expect(compiled.textContent).toContain('Angular result');
     expect(compiled.textContent).toContain('Language: English');
+    expect(compiled.textContent).toContain('71 total results');
+    expect(compiled.textContent).toContain('Page 2 of 4');
   });
 
   it('disables submit until at least one search criterion is present', async () => {
@@ -104,12 +110,16 @@ describe('SearchComponent', () => {
         tagMatchMode: 'any',
         labels: [],
         labelMatchMode: 'all',
-        limit: 20,
+        page: 1,
+        pageSize: 20,
         threshold: 0.3
       }),
       buildQueryParams: vi.fn(),
       syncUrl: vi.fn().mockResolvedValue(undefined),
-      search: vi.fn().mockResolvedValue(undefined)
+      search: vi.fn().mockResolvedValue(undefined),
+      totalCount: signal(0),
+      totalPages: vi.fn().mockReturnValue(1),
+      currentPagination: signal({ page: 1, pageSize: 20 })
     };
 
     const tagsStateStub = {
@@ -147,5 +157,112 @@ describe('SearchComponent', () => {
     const submitButton = (fixture.nativeElement as HTMLElement).querySelector('button[type="submit"]') as HTMLButtonElement | null;
     expect(submitButton).not.toBeNull();
     expect(submitButton?.disabled).toBe(true);
+  });
+
+  it('resets to page 1 and keeps filters when page size changes', async () => {
+    const searchStateStub = {
+      results: signal([
+        {
+          id: 'result-1',
+          title: 'Angular result',
+          summary: 'Summary',
+          sourceUrl: 'https://example.com/angular',
+          processedAt: '2026-04-09T09:00:00Z',
+          tags: ['frontend'],
+          labels: [{ category: 'Language', value: 'English' }],
+          similarity: 0.88
+        }
+      ]),
+      loading: signal(false),
+      error: signal<string | null>(null),
+      clear: vi.fn(),
+      createEmptyCriteria: vi.fn(),
+      hasCriteria: vi.fn().mockReturnValue(true),
+      parseQueryParams: vi.fn().mockReturnValue({
+        query: 'angular',
+        tags: ['frontend'],
+        tagMatchMode: 'any',
+        labels: [{ category: 'Language', value: 'English' }],
+        labelMatchMode: 'all',
+        page: 2,
+        pageSize: 50,
+        threshold: 0.3
+      }),
+      buildQueryParams: vi.fn(),
+      syncUrl: vi.fn().mockResolvedValue(undefined),
+      search: vi.fn().mockResolvedValue(undefined),
+      totalCount: signal(71),
+      totalPages: vi.fn().mockReturnValue(4),
+      currentPagination: signal({ page: 2, pageSize: 50 })
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [SearchComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({ q: 'angular', page: '2', pageSize: '50' })
+            }
+          }
+        },
+        { provide: SearchStateService, useValue: searchStateStub },
+        {
+          provide: TagsStateService,
+          useValue: {
+            tags: signal([{ id: 'tag-1', name: 'frontend', count: 1, lastUsedAt: null }]),
+            loadTags: vi.fn().mockResolvedValue(undefined)
+          }
+        },
+        {
+          provide: LabelsStateService,
+          useValue: {
+            categories: signal([
+              {
+                id: 'category-1',
+                name: 'Language',
+                count: 1,
+                lastUsedAt: null,
+                values: [{ id: 'value-1', value: 'English', count: 1, lastUsedAt: null }]
+              }
+            ]),
+            loadLabels: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SearchComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const component = fixture.componentInstance;
+    component.searchQuery = 'angular';
+    component.selectedTags = ['frontend'];
+    component.labelRows = [{ id: 'label-row-1', category: 'Language', value: 'English' }];
+
+    await component.onPageSizeChange(100);
+
+    expect(searchStateStub.syncUrl).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        query: 'angular',
+        tags: ['frontend'],
+        labels: [{ category: 'Language', value: 'English' }],
+        page: 1,
+        pageSize: 100
+      })
+    );
+    expect(searchStateStub.search).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'angular',
+        tags: ['frontend'],
+        page: 1,
+        pageSize: 100
+      })
+    );
   });
 });

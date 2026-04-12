@@ -7,7 +7,8 @@ namespace SentinelKnowledgebase.Application.Services;
 
 public class SearchService : ISearchService
 {
-    private const int DefaultLimit = 20;
+    private const int DefaultPage = 1;
+    private const int DefaultPageSize = 20;
     private const double DefaultThreshold = 0.3;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
@@ -18,7 +19,7 @@ public class SearchService : ISearchService
         _contentProcessor = contentProcessor;
     }
 
-    public async Task<IEnumerable<SearchResultDto>> SearchAsync(Guid ownerUserId, SearchRequestDto request)
+    public async Task<SearchResultPageDto> SearchAsync(Guid ownerUserId, SearchRequestDto request)
     {
         var normalizedQuery = NormalizeQuery(request.Query);
         var normalizedTags = NormalizeTags(request.Tags);
@@ -29,7 +30,8 @@ public class SearchService : ISearchService
             throw new ArgumentException("At least one search criterion is required.", nameof(request));
         }
 
-        var limit = request.Limit > 0 ? request.Limit : DefaultLimit;
+        var page = request.Page > 0 ? request.Page : DefaultPage;
+        var pageSize = request.PageSize > 0 ? request.PageSize : DefaultPageSize;
         var threshold = request.Threshold >= 0 ? request.Threshold : DefaultThreshold;
         float[]? queryEmbedding = null;
 
@@ -42,23 +44,30 @@ public class SearchService : ISearchService
             ownerUserId,
             queryEmbedding,
             threshold,
-            limit,
+            page,
+            pageSize,
             normalizedTags,
             SearchMatchModes.IsAll(request.TagMatchMode),
             normalizedLabels,
             SearchMatchModes.IsAll(request.LabelMatchMode));
 
-        return results.Select(result => new SearchResultDto
+        return new SearchResultPageDto
         {
-            Id = result.Id,
-            Title = result.Title,
-            Summary = result.Summary,
-            SourceUrl = result.SourceUrl,
-            ProcessedAt = result.ProcessedAt,
-            Tags = result.Tags,
-            Labels = MapLabels(result.Labels),
-            Similarity = result.Similarity
-        });
+            Items = results.Items.Select(result => new SearchResultDto
+            {
+                Id = result.Id,
+                Title = result.Title,
+                Summary = result.Summary,
+                SourceUrl = result.SourceUrl,
+                ProcessedAt = result.ProcessedAt,
+                Tags = result.Tags,
+                Labels = MapLabels(result.Labels),
+                Similarity = result.Similarity
+            }).ToList(),
+            TotalCount = results.TotalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
     
     public async Task<IEnumerable<SemanticSearchResultDto>> SemanticSearchAsync(Guid ownerUserId, SemanticSearchRequestDto request)

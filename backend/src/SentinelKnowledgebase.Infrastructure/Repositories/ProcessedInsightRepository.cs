@@ -66,16 +66,18 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<SearchRecord>> SearchAsync(
+    public async Task<SearchQueryResult> SearchAsync(
         Guid ownerUserId,
         float[]? queryEmbedding,
         double threshold,
-        int limit,
+        int page,
+        int pageSize,
         IReadOnlyCollection<string> tags,
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
         bool matchAllLabels)
     {
+        var skip = (page - 1) * pageSize;
         var query = ApplyTagAndLabelFilters(
             _context.ProcessedInsights
                 .AsNoTracking()
@@ -88,9 +90,12 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         if (queryEmbedding is not null)
         {
             var queryVector = new Vector(queryEmbedding);
-
-            return await query
+            var filteredQuery = query
                 .Where(p => p.EmbeddingVector != null)
+                .Where(p => 1 - p.EmbeddingVector!.Vector.CosineDistance(queryVector) >= threshold);
+            var totalCount = await filteredQuery.CountAsync();
+
+            var items = await filteredQuery
                 .Select(p => new SearchRecord
                 {
                     Id = p.Id,
@@ -107,16 +112,24 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                         {
                             Category = a.LabelCategory.Name,
                             Value = a.LabelValue.Value
-                        })
-                        .ToList()
+                    })
+                    .ToList()
                 })
-                .Where(result => result.Similarity >= threshold)
                 .OrderByDescending(result => result.Similarity)
-                .Take(limit)
+                .ThenBy(result => result.Id)
+                .Skip(skip)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return new SearchQueryResult
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
         }
 
-        return await query
+        var totalStructuredCount = await query.CountAsync();
+        var structuredItems = await query
             .Select(p => new SearchRecord
             {
                 Id = p.Id,
@@ -137,8 +150,16 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                     .ToList()
             })
             .OrderByDescending(result => result.ProcessedAt)
-            .Take(limit)
+            .ThenBy(result => result.Id)
+            .Skip(skip)
+            .Take(pageSize)
             .ToListAsync();
+
+        return new SearchQueryResult
+        {
+            Items = structuredItems,
+            TotalCount = totalStructuredCount
+        };
     }
 
     public async Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold)

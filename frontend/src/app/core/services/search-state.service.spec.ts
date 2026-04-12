@@ -32,7 +32,9 @@ describe('SearchStateService', () => {
       tag: ['frontend', 'angular'],
       label: ['Language::English', 'Source::Docs'],
       tagMode: 'all',
-      labelMode: 'any'
+      labelMode: 'any',
+      page: '3',
+      pageSize: '50'
     }));
 
     expect(criteria).toEqual({
@@ -44,7 +46,8 @@ describe('SearchStateService', () => {
         { category: 'Source', value: 'Docs' }
       ],
       labelMatchMode: 'any',
-      limit: 20,
+      page: 3,
+      pageSize: 50,
       threshold: 0.3
     });
   });
@@ -59,7 +62,8 @@ describe('SearchStateService', () => {
         { category: ' Language ', value: ' English ' }
       ],
       labelMatchMode: 'all',
-      limit: 20,
+      page: 2,
+      pageSize: 50,
       threshold: 0.3
     };
 
@@ -68,7 +72,9 @@ describe('SearchStateService', () => {
       tag: ['frontend', 'angular'],
       label: ['Language::English'],
       tagMode: 'all',
-      labelMode: null
+      labelMode: null,
+      page: '2',
+      pageSize: '50'
     });
   });
 
@@ -79,7 +85,8 @@ describe('SearchStateService', () => {
       tagMatchMode: 'all',
       labels: [{ category: 'Language', value: 'English' }],
       labelMatchMode: 'any',
-      limit: 20,
+      page: 2,
+      pageSize: 50,
       threshold: 0.3
     };
 
@@ -93,21 +100,27 @@ describe('SearchStateService', () => {
       tagMatchMode: 'all',
       labels: [{ category: 'Language', value: 'English' }],
       labelMatchMode: 'any',
-      limit: 20,
+      page: 2,
+      pageSize: 50,
       threshold: 0.3
     });
-    request.flush([
-      {
-        id: 'result-1',
-        title: 'Result',
-        summary: ' Summary ',
-        sourceUrl: 'https://example.com/item',
-        processedAt: '2026-04-09T09:00:00Z',
-        similarity: 0.92,
-        tags: ['frontend'],
-        labels: [{ category: 'Language', value: 'English' }]
-      }
-    ]);
+    request.flush({
+      items: [
+        {
+          id: 'result-1',
+          title: 'Result',
+          summary: ' Summary ',
+          sourceUrl: 'https://example.com/item',
+          processedAt: '2026-04-09T09:00:00Z',
+          similarity: 0.92,
+          tags: ['frontend'],
+          labels: [{ category: 'Language', value: 'English' }]
+        }
+      ],
+      totalCount: 71,
+      page: 2,
+      pageSize: 50
+    });
 
     await searchPromise;
 
@@ -123,5 +136,8 @@ describe('SearchStateService', () => {
         labels: [{ category: 'Language', value: 'English' }]
       }
     ]);
+    expect(service.totalCount()).toBe(71);
+    expect(service.currentPagination()).toEqual({ page: 2, pageSize: 50 });
+    expect(service.totalPages()).toBe(2);
   });
 });

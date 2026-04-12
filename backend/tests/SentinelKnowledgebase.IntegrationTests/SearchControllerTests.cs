@@ -105,6 +105,38 @@ public class SearchControllerTests
 
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task Search_WithInvalidPage_ShouldReturn400_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var request = new SearchRequestDto
+        {
+            Query = "search",
+            Page = 0
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Search_WithInvalidPageSize_ShouldReturn400_WhenAuthenticated()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+
+        var request = new SearchRequestDto
+        {
+            Query = "search",
+            PageSize = 101
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
+    }
     
     [Fact]
     public async Task SemanticSearch_WithEmptyQuery_ShouldReturn400_WhenAuthenticated()
@@ -625,18 +657,22 @@ public class SearchControllerTests
             Query = query,
             Tags = [keepTag],
             TagMatchMode = SearchMatchModes.All,
-            Limit = 10,
+            Page = 1,
+            PageSize = 10,
             Threshold = 0.5
         };
 
         var response = await client.PostAsJsonAsync("/api/v1/search", request);
 
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        var results = await response.Content.ReadFromJsonAsync<List<SearchResultDto>>();
+        var results = await response.Content.ReadFromJsonAsync<SearchResultPageDto>();
         results.Should().NotBeNull();
-        results!.Should().ContainSingle(result => result.Id == matchingInsightId);
-        results.Should().NotContain(result => result.Id == excludedInsightId);
-        results.Single().Similarity.Should().NotBeNull();
+        results!.TotalCount.Should().Be(1);
+        results.Page.Should().Be(1);
+        results.PageSize.Should().Be(10);
+        results.Items.Should().ContainSingle(result => result.Id == matchingInsightId);
+        results.Items.Should().NotContain(result => result.Id == excludedInsightId);
+        results.Items.Single().Similarity.Should().NotBeNull();
     }
 
     [Fact]
@@ -739,10 +775,84 @@ public class SearchControllerTests
         var response = await client.PostAsJsonAsync("/api/v1/search", request);
 
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        var results = await response.Content.ReadFromJsonAsync<List<SearchResultDto>>();
+        var results = await response.Content.ReadFromJsonAsync<SearchResultPageDto>();
         results.Should().NotBeNull();
-        results!.Select(result => result.Id).Should().ContainInOrder(newerInsightId, olderInsightId);
-        results.Should().OnlyContain(result => result.Similarity == null);
+        results!.TotalCount.Should().Be(2);
+        results.Items.Select(result => result.Id).Should().ContainInOrder(newerInsightId, olderInsightId);
+        results.Items.Should().OnlyContain(result => result.Similarity == null);
+    }
+
+    [Fact]
+    public async Task Search_ShouldReturnPagedSemanticResults_WhenPageAndPageSizeAreProvided()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        const string query = "paged semantic search";
+        var embedding = new Vector(CreateDeterministicEmbedding(query));
+        Guid[] orderedInsightIds =
+        [
+            Guid.Parse("00000000-0000-0000-0000-000000000011"),
+            Guid.Parse("00000000-0000-0000-0000-000000000022"),
+            Guid.Parse("00000000-0000-0000-0000-000000000033")
+        ];
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            foreach (var insightId in orderedInsightIds)
+            {
+                var capture = new RawCapture
+                {
+                    Id = Guid.NewGuid(),
+                    OwnerUserId = adminUserId,
+                    SourceUrl = $"https://example.com/paged-search/{insightId:N}",
+                    ContentType = Domain.Enums.ContentType.Article,
+                    RawContent = $"Semantic search content {insightId:N}.",
+                    Status = Domain.Enums.CaptureStatus.Completed,
+                    CreatedAt = DateTime.UtcNow,
+                    ProcessedAt = DateTime.UtcNow
+                };
+
+                var insight = new ProcessedInsight
+                {
+                    Id = insightId,
+                    OwnerUserId = adminUserId,
+                    RawCaptureId = capture.Id,
+                    Title = $"Paged Insight {insightId:N}",
+                    Summary = "Summary",
+                    ProcessedAt = DateTime.UtcNow
+                };
+
+                dbContext.RawCaptures.Add(capture);
+                dbContext.ProcessedInsights.Add(insight);
+                dbContext.EmbeddingVectors.Add(new EmbeddingVector
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessedInsightId = insightId,
+                    Vector = embedding
+                });
+            }
+
+            await Task.CompletedTask;
+        });
+
+        var request = new SearchRequestDto
+        {
+            Query = query,
+            Page = 2,
+            PageSize = 2,
+            Threshold = 0.5
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<SearchResultPageDto>();
+        results.Should().NotBeNull();
+        results!.TotalCount.Should().Be(3);
+        results.Page.Should().Be(2);
+        results.PageSize.Should().Be(2);
+        results.Items.Should().ContainSingle();
+        results.Items.Single().Id.Should().Be(orderedInsightIds[2]);
     }
 
     private static float[] CreateDeterministicEmbedding(string text)

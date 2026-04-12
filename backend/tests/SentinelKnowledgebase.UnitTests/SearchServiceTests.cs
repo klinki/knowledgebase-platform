@@ -202,7 +202,8 @@ public class SearchServiceTests
                 new LabelAssignmentDto { Category = " language ", Value = " English " }
             ],
             LabelMatchMode = AnyMatch,
-            Limit = 15,
+            Page = 2,
+            PageSize = 15,
             Threshold = 0.42
         };
 
@@ -213,7 +214,8 @@ public class SearchServiceTests
                 ownerUserId,
                 queryEmbedding,
                 request.Threshold,
-                request.Limit,
+                request.Page,
+                request.PageSize,
                 Arg.Is<IReadOnlyCollection<string>>(tags => tags.Count == 1 && tags.Single() == "alpha"),
                 true,
                 Arg.Is<IReadOnlyCollection<LabelRecord>>(labels =>
@@ -221,25 +223,32 @@ public class SearchServiceTests
                     labels.Single().Category == "Language" &&
                     labels.Single().Value == "English"),
                 false)
-            .Returns(new List<SearchRecord>
+            .Returns(new SearchQueryResult
             {
-                new()
+                TotalCount = 31,
+                Items =
                 {
-                    Id = Guid.NewGuid(),
-                    Title = "Combined Result",
-                    Summary = "Summary",
-                    SourceUrl = "https://example.com/combined",
-                    ProcessedAt = DateTime.UtcNow,
-                    Similarity = 0.97,
-                    Tags = ["alpha"],
-                    Labels = [new LabelRecord { Category = "Language", Value = "English" }]
+                    new SearchRecord
+                    {
+                        Id = Guid.NewGuid(),
+                        Title = "Combined Result",
+                        Summary = "Summary",
+                        SourceUrl = "https://example.com/combined",
+                        ProcessedAt = DateTime.UtcNow,
+                        Similarity = 0.97,
+                        Tags = ["alpha"],
+                        Labels = [new LabelRecord { Category = "Language", Value = "English" }]
+                    }
                 }
             });
 
         var result = await _service.SearchAsync(ownerUserId, request);
 
-        result.Should().ContainSingle();
-        result.First().Similarity.Should().Be(0.97);
+        result.Items.Should().ContainSingle();
+        result.Items.First().Similarity.Should().Be(0.97);
+        result.TotalCount.Should().Be(31);
+        result.Page.Should().Be(2);
+        result.PageSize.Should().Be(15);
         await _contentProcessor.Received(1).GenerateEmbeddingAsync("language search");
     }
 
@@ -257,16 +266,17 @@ public class SearchServiceTests
                 ownerUserId,
                 null,
                 request.Threshold,
-                request.Limit,
+                request.Page,
+                request.PageSize,
                 Arg.Any<IReadOnlyCollection<string>>(),
                 false,
                 Arg.Any<IReadOnlyCollection<LabelRecord>>(),
                 true)
-            .Returns(Enumerable.Empty<SearchRecord>());
+            .Returns(new SearchQueryResult());
 
         var result = await _service.SearchAsync(ownerUserId, request);
 
-        result.Should().BeEmpty();
+        result.Items.Should().BeEmpty();
         await _contentProcessor.DidNotReceive().GenerateEmbeddingAsync(Arg.Any<string>());
     }
 

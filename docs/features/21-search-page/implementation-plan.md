@@ -37,13 +37,14 @@
   - supports `any` and `all` matching separately for tags and labels
   - returns `similarity` when semantic search is used, otherwise `null`
   - orders by `similarity desc` for semantic searches, else `processedAt desc`
-  - limits to `20` results by default
+  - returns paged results with `page`, `pageSize`, and `totalCount`
 - Implement request normalization in [SearchService.cs](C:/ai-workspace/knowledgebase-platform/backend/src/SentinelKnowledgebase.Application/Services/SearchService.cs):
   - trim query
   - deduplicate tags case-insensitively
   - deduplicate label pairs case-insensitively
   - reject empty requests with `400`
   - generate embeddings only when `query` is present
+  - normalize default `page=1` and `pageSize=20`
 
 ## Frontend Changes
 
@@ -61,6 +62,7 @@
   - builds the new request payload
   - calls `POST /v1/search`
   - exposes results/loading/error state
+  - exposes pagination and total-count state
   - parses URL query params into page state
   - writes page state back to URL on submit and clear
 - Update [knowledge.model.ts](C:/ai-workspace/knowledgebase-platform/frontend/src/app/shared/models/knowledge.model.ts) with a shared search result model that includes `processedAt` and nullable `similarity`.
@@ -76,11 +78,15 @@
   - repeated `label=<category>::<value>`
   - `tagMode=any|all`
   - `labelMode=any|all`
+  - `page=<number>`
+  - `pageSize=<number>`
 - On page load:
   - if valid criteria exist in the URL, hydrate the form and execute the search automatically
   - otherwise render the empty pre-search state
 - Submit button is disabled until at least one criterion is present.
 - Clear removes all criteria, clears results, and removes search query params.
+- Page and page-size changes keep current filters in the URL and trigger a fresh search.
+- Omit `page` and `pageSize` from the URL when they are at defaults (`1` and `20`).
 - Result cards navigate to `/captures/:id`.
 - Similarity is shown only when the backend returns it.
 
@@ -88,13 +94,13 @@
 
 - Frontend:
   - route spec covers `/search`
-  - search page tests cover URL hydration, submit payloads, clear behavior, loading/error/empty states, and result rendering
+  - search page tests cover URL hydration, submit payloads, page changes, page-size changes, clear behavior, loading/error/empty states, and result rendering
   - dashboard tests confirm search UI removal without regressing overview/admin behavior
   - `npm run build` and relevant Angular tests in `frontend`
 - Backend:
   - extend unit tests in `SearchServiceTests`
   - extend integration tests in `SearchControllerTests`
-  - cover text-only, tags-only, labels-only, mixed criteria, `any`/`all` semantics, empty-request validation, and sort behavior
+  - cover text-only, tags-only, labels-only, mixed criteria, `any`/`all` semantics, empty-request validation, sort behavior, and paged responses
   - run targeted backend tests for search plus backend build
 
 ## Assumptions and Defaults
@@ -104,4 +110,4 @@
 - Combined search is implemented as a new backend API, not by merging separate frontend calls.
 - The dashboard becomes overview-only.
 - The Labels page keeps its existing exact search as a secondary surface.
-- Saved searches, pagination UI, bulk actions, and ranking controls remain out of scope for v1.
+- Saved searches, bulk actions, and ranking controls remain out of scope for v1.
