@@ -23,6 +23,7 @@
     - `tagMatchMode` toggle: `any` or `all` (default `any`)
     - `labelMatchMode` toggle: `any` or `all` (default `all`)
     - explicit submit action; do not auto-run while typing
+    - advanced tag and label filters collapse behind a toggle while the semantic query stays visible
   - Disable submit until at least one criterion is present.
   - Hydrate form state from URL query params on load and execute the search automatically when valid params exist.
   - Persist form state back to the URL after submit and when clearing filters.

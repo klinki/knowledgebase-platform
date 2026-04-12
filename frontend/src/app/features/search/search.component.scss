@@ -78,9 +78,42 @@ h1 {
   gap: 1.5rem;
 }
 
+.advanced-filters {
+  display: grid;
+  gap: 1.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  animation: fadeIn 0.25s ease-out;
+}
+
 .field-block {
   display: grid;
   gap: 0.75rem;
+}
+
+.query-block {
+  gap: 0.9rem;
+}
+
+.query-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.query-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.query-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .field-head {
@@ -101,6 +134,40 @@ label {
   color: #e2e8f0;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid rgba(129, 140, 248, 0.22);
+  background: rgba(99, 102, 241, 0.08);
+  color: #c7d2fe;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.filter-toggle:hover {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(129, 140, 248, 0.34);
+  transform: translateY(-1px);
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 input,
@@ -264,6 +331,14 @@ input::placeholder {
 .results-count {
   color: #94a3b8;
   font-size: 0.9rem;
+}
+
+.compact-hint {
+  margin: 0;
+}
+
+.compact-clear-btn {
+  align-self: stretch;
 }
 
 .message {
@@ -444,12 +519,15 @@ input::placeholder {
 @media (max-width: 720px) {
   .hero-stats,
   .label-row,
-  .tag-entry {
+  .tag-entry,
+  .query-entry {
     grid-template-columns: 1fr;
   }
 
+  .query-head,
   .field-head,
   .field-actions,
+  .query-actions,
   .search-actions,
   .result-head,
   .results-toolbar {

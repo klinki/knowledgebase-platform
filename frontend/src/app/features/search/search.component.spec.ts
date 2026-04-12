@@ -87,6 +87,7 @@ describe('SearchComponent', () => {
     const fixture = TestBed.createComponent(SearchComponent);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Search the knowledgebase');
@@ -94,6 +95,7 @@ describe('SearchComponent', () => {
     expect(compiled.textContent).toContain('Language: English');
     expect(compiled.textContent).toContain('71 total results');
     expect(compiled.textContent).toContain('Page 2 of 4');
+    expect(compiled.textContent).toContain('Hide filters');
 
     const resultLink = compiled.querySelector('.result-card') as HTMLAnchorElement | null;
     expect(resultLink?.getAttribute('href')).toContain('/captures/capture-1');
@@ -157,10 +159,78 @@ describe('SearchComponent', () => {
     const fixture = TestBed.createComponent(SearchComponent);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     const submitButton = (fixture.nativeElement as HTMLElement).querySelector('button[type="submit"]') as HTMLButtonElement | null;
     expect(submitButton).not.toBeNull();
     expect(submitButton?.disabled).toBe(true);
+  });
+
+  it('keeps advanced filters collapsed when only semantic query is present', async () => {
+    const searchStateStub = {
+      results: signal([]),
+      loading: signal(false),
+      error: signal<string | null>(null),
+      clear: vi.fn(),
+      createEmptyCriteria: vi.fn(),
+      hasCriteria: vi.fn().mockReturnValue(true),
+      parseQueryParams: vi.fn().mockReturnValue({
+        query: 'angular',
+        tags: [],
+        tagMatchMode: 'any',
+        labels: [],
+        labelMatchMode: 'all',
+        page: 1,
+        pageSize: 20,
+        threshold: 0.3
+      }),
+      buildQueryParams: vi.fn(),
+      syncUrl: vi.fn().mockResolvedValue(undefined),
+      search: vi.fn().mockResolvedValue(undefined),
+      totalCount: signal(0),
+      totalPages: vi.fn().mockReturnValue(1),
+      currentPagination: signal({ page: 1, pageSize: 20 })
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [SearchComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({ q: 'angular' })
+            }
+          }
+        },
+        { provide: SearchStateService, useValue: searchStateStub },
+        {
+          provide: TagsStateService,
+          useValue: {
+            tags: signal([]),
+            loadTags: vi.fn().mockResolvedValue(undefined)
+          }
+        },
+        {
+          provide: LabelsStateService,
+          useValue: {
+            categories: signal([]),
+            loadLabels: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SearchComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Show filters');
+    expect(compiled.textContent).not.toContain('Hide filters');
+    expect(compiled.querySelector('#search-tag-input')).toBeNull();
   });
 
   it('resets to page 1 and keeps filters when page size changes', async () => {
@@ -242,6 +312,7 @@ describe('SearchComponent', () => {
     const fixture = TestBed.createComponent(SearchComponent);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     const component = fixture.componentInstance;
     component.searchQuery = 'angular';

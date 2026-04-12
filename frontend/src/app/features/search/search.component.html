@@ -26,134 +26,172 @@
 
   <section class="glass-card search-card">
     <form class="search-form" (ngSubmit)="submitSearch()">
-      <div class="field-block">
-        <label for="search-query">Semantic query</label>
-        <input
-          id="search-query"
-          type="text"
-          name="searchQuery"
-          [(ngModel)]="searchQuery"
-          placeholder="Find concepts, summaries, and related captures"
-          autocomplete="off"
-        >
-      </div>
-
-      <div class="field-block">
-        <div class="field-head">
-          <label for="search-tag-input">Tags</label>
-          <select
-            name="tagMatchMode"
-            [(ngModel)]="tagMatchMode"
+      <div class="field-block query-block">
+        <div class="query-head">
+          <label for="search-query">Semantic query</label>
+          <button
+            type="button"
+            class="filter-toggle"
+            (click)="toggleAdvancedFilters()"
+            [attr.aria-expanded]="advancedFiltersOpen"
+            aria-controls="search-advanced-filters"
           >
-            <option value="any">Match any tag</option>
-            <option value="all">Match all tags</option>
-          </select>
+            @if (advancedFiltersOpen) {
+              Hide filters
+            } @else {
+              Show filters
+            }
+            @if (activeAdvancedFilterCount() > 0) {
+              <span class="filter-count">{{ activeAdvancedFilterCount() }}</span>
+            }
+          </button>
         </div>
 
-        <div class="tag-entry">
+        <div class="query-entry">
           <input
-            id="search-tag-input"
+            id="search-query"
             type="text"
-            name="tagInput"
-            [(ngModel)]="tagInput"
-            (keydown)="onTagInputKeydown($event)"
-            placeholder="Add an exact tag filter"
-            list="search-tag-suggestions"
+            name="searchQuery"
+            [(ngModel)]="searchQuery"
+            placeholder="Find concepts, summaries, and related captures"
             autocomplete="off"
           >
-          <button type="button" class="secondary-btn" (click)="addTagFromInput()">Add tag</button>
+          <div class="query-actions">
+            <button type="submit" class="premium-btn" [disabled]="searchState.loading() || !canSubmit()">
+              @if (searchState.loading()) {
+                Searching...
+              } @else {
+                Search
+              }
+            </button>
+            <button
+              type="button"
+              class="ghost-btn compact-clear-btn"
+              (click)="clearSearch()"
+              [disabled]="searchState.loading() && searchState.results().length === 0"
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
-        <datalist id="search-tag-suggestions">
-          @for (tag of suggestedTags(); track tag) {
-            <option [value]="tag"></option>
-          }
-        </datalist>
-
-        @if (selectedTags.length > 0) {
-          <div class="chip-group">
-            @for (tag of selectedTags; track tag) {
-              <button type="button" class="chip removable" (click)="removeTag(tag)">
-                {{ tag }} <span>✕</span>
-              </button>
-            }
-          </div>
-        } @else {
-          <p class="hint">Leave blank to search without tag filters.</p>
+        @if (!advancedFiltersOpen) {
+          <p class="hint compact-hint">
+            Semantic query stays visible. Open filters for exact tags and label pairs.
+          </p>
         }
       </div>
 
-      <div class="field-block">
-        <div class="field-head">
-          <label>Labels</label>
-          <div class="field-actions">
-            <select
-              name="labelMatchMode"
-              [(ngModel)]="labelMatchMode"
-            >
-              <option value="all">Match all labels</option>
-              <option value="any">Match any label</option>
-            </select>
-            <button type="button" class="secondary-btn" (click)="addLabelRow()">Add pair</button>
+      @if (advancedFiltersOpen) {
+        <div id="search-advanced-filters" class="advanced-filters">
+          <div class="field-block">
+            <div class="field-head">
+              <label for="search-tag-input">Tags</label>
+              <select
+                name="tagMatchMode"
+                [(ngModel)]="tagMatchMode"
+              >
+                <option value="any">Match any tag</option>
+                <option value="all">Match all tags</option>
+              </select>
+            </div>
+
+            <div class="tag-entry">
+              <input
+                id="search-tag-input"
+                type="text"
+                name="tagInput"
+                [(ngModel)]="tagInput"
+                (keydown)="onTagInputKeydown($event)"
+                placeholder="Add an exact tag filter"
+                list="search-tag-suggestions"
+                autocomplete="off"
+              >
+              <button type="button" class="secondary-btn" (click)="addTagFromInput()">Add tag</button>
+            </div>
+
+            <datalist id="search-tag-suggestions">
+              @for (tag of suggestedTags(); track tag) {
+                <option [value]="tag"></option>
+              }
+            </datalist>
+
+            @if (selectedTags.length > 0) {
+              <div class="chip-group">
+                @for (tag of selectedTags; track tag) {
+                  <button type="button" class="chip removable" (click)="removeTag(tag)">
+                    {{ tag }} <span>✕</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="hint">Leave blank to search without tag filters.</p>
+            }
+          </div>
+
+          <div class="field-block">
+            <div class="field-head">
+              <label>Labels</label>
+              <div class="field-actions">
+                <select
+                  name="labelMatchMode"
+                  [(ngModel)]="labelMatchMode"
+                >
+                  <option value="all">Match all labels</option>
+                  <option value="any">Match any label</option>
+                </select>
+                <button type="button" class="secondary-btn" (click)="addLabelRow()">Add pair</button>
+              </div>
+            </div>
+
+            <div class="label-rows">
+              @for (row of labelRows; track row.id) {
+                <div class="label-row">
+                  <input
+                    type="text"
+                    [name]="'label-category-' + row.id"
+                    [(ngModel)]="row.category"
+                    list="search-label-category-suggestions"
+                    placeholder="Category"
+                    autocomplete="off"
+                  >
+                  <input
+                    type="text"
+                    [name]="'label-value-' + row.id"
+                    [(ngModel)]="row.value"
+                    [attr.list]="'search-label-value-suggestions-' + row.id"
+                    placeholder="Value"
+                    autocomplete="off"
+                  >
+                  <button type="button" class="icon-btn" (click)="removeLabelRow(row.id)" [disabled]="labelRows.length === 1">
+                    ✕
+                  </button>
+
+                  <datalist [id]="'search-label-value-suggestions-' + row.id">
+                    @for (value of labelValueSuggestions(row); track value) {
+                      <option [value]="value"></option>
+                    }
+                  </datalist>
+                </div>
+              }
+            </div>
+
+            <datalist id="search-label-category-suggestions">
+              @for (category of labelCategorySuggestions(); track category) {
+                <option [value]="category"></option>
+              }
+            </datalist>
+
+            <p class="hint">Use exact category-value pairs such as Language: English or Source: Twitter.</p>
+          </div>
+
+          <div class="search-actions">
+            <span class="results-count">
+              {{ totalCount() }} result{{ totalCount() === 1 ? '' : 's' }}
+            </span>
           </div>
         </div>
-
-        <div class="label-rows">
-          @for (row of labelRows; track row.id) {
-            <div class="label-row">
-              <input
-                type="text"
-                [name]="'label-category-' + row.id"
-                [(ngModel)]="row.category"
-                list="search-label-category-suggestions"
-                placeholder="Category"
-                autocomplete="off"
-              >
-              <input
-                type="text"
-                [name]="'label-value-' + row.id"
-                [(ngModel)]="row.value"
-                [attr.list]="'search-label-value-suggestions-' + row.id"
-                placeholder="Value"
-                autocomplete="off"
-              >
-              <button type="button" class="icon-btn" (click)="removeLabelRow(row.id)" [disabled]="labelRows.length === 1">
-                ✕
-              </button>
-
-              <datalist [id]="'search-label-value-suggestions-' + row.id">
-                @for (value of labelValueSuggestions(row); track value) {
-                  <option [value]="value"></option>
-                }
-              </datalist>
-            </div>
-          }
-        </div>
-
-        <datalist id="search-label-category-suggestions">
-          @for (category of labelCategorySuggestions(); track category) {
-            <option [value]="category"></option>
-          }
-        </datalist>
-
-        <p class="hint">Use exact category-value pairs such as Language: English or Source: Twitter.</p>
-      </div>
-
-      <div class="search-actions">
-        <button type="submit" class="premium-btn" [disabled]="searchState.loading() || !canSubmit()">
-          @if (searchState.loading()) {
-            Searching...
-          } @else {
-            Search
-          }
-        </button>
-        <button type="button" class="ghost-btn" (click)="clearSearch()" [disabled]="searchState.loading() && searchState.results().length === 0">
-          Clear
-        </button>
-        <span class="results-count">
-          {{ totalCount() }} result{{ totalCount() === 1 ? '' : 's' }}
-        </span>
-      </div>
+      }
     </form>
 
     @if (searchState.error()) {

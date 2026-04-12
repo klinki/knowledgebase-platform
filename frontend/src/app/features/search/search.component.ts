@@ -42,8 +42,10 @@ export class SearchComponent implements OnInit {
   tagMatchMode: SearchMatchMode = 'any';
   labelMatchMode: SearchMatchMode = 'all';
   labelRows: LabelRow[] = [SearchComponent.createLabelRow()];
+  advancedFiltersOpen = false;
   currentPagination = computed(() => this.searchState.currentPagination());
   totalCount = computed(() => this.searchState.totalCount());
+  activeAdvancedFilterCount = computed(() => this.selectedTags.length + this.countActiveLabelRows());
   visiblePages = computed(() => {
     const total = this.searchState.totalPages();
     const current = this.currentPagination().page;
@@ -78,13 +80,13 @@ export class SearchComponent implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
+    const criteria = this.searchState.parseQueryParams(this.route.snapshot.queryParamMap);
+    this.applyCriteria(criteria);
+
     await Promise.all([
       this.tagsState.loadTags(),
       this.labelsState.loadLabels()
     ]);
-
-    const criteria = this.searchState.parseQueryParams(this.route.snapshot.queryParamMap);
-    this.applyCriteria(criteria);
 
     if (this.searchState.hasCriteria(criteria)) {
       await this.searchState.search(criteria);
@@ -96,7 +98,11 @@ export class SearchComponent implements OnInit {
   }
 
   activeLabelCount(): number {
-    return this.buildCriteria().labels.length;
+    return this.countActiveLabelRows();
+  }
+
+  toggleAdvancedFilters(): void {
+    this.advancedFiltersOpen = !this.advancedFiltersOpen;
   }
 
   addTagFromInput(): void {
@@ -187,6 +193,7 @@ export class SearchComponent implements OnInit {
     this.tagMatchMode = 'any';
     this.labelMatchMode = 'all';
     this.labelRows = [SearchComponent.createLabelRow()];
+    this.advancedFiltersOpen = false;
     this.searchState.clear();
     await this.searchState.syncUrl(this.router, this.route, this.buildCriteria());
   }
@@ -215,6 +222,11 @@ export class SearchComponent implements OnInit {
     this.labelRows = criteria.labels.length > 0
       ? criteria.labels.map(label => SearchComponent.createLabelRow(label.category, label.value))
       : [SearchComponent.createLabelRow()];
+    this.advancedFiltersOpen = criteria.tags.length > 0 || criteria.labels.length > 0;
+  }
+
+  private countActiveLabelRows(): number {
+    return this.labelRows.filter(row => row.category.trim().length > 0 && row.value.trim().length > 0).length;
   }
 
   private buildCriteria(pagination: Partial<Pick<SearchCriteria, 'page' | 'pageSize'>> = {}): SearchCriteria {
