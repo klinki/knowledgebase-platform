@@ -125,6 +125,62 @@ Final important content.
         result.Summary.Should().Be("Test summary");
     }
 
+    [Fact]
+    public async Task ExtractInsightsAsync_ShouldRequestStrictJsonSchemaResponseFormat()
+    {
+        var handler = new RecordingHttpMessageHandler(CreateChatResponse("""
+            {"title":"Test title","summary":"Test summary","keyInsights":["One"],"actionItems":["Act"],"sourceTitle":"Source","author":"Author"}
+            """));
+        var processor = CreateProcessor(
+            overrides: new Dictionary<string, string?>
+            {
+                { "OpenAI:ApiKey", "test-key" }
+            },
+            httpClient: new HttpClient(handler));
+
+        await processor.ExtractInsightsAsync("Article content", ContentType.Article);
+
+        var payload = await ReadRequestPayloadAsync(handler.LastRequestMessage);
+        payload.GetProperty("response_format").GetProperty("type").GetString().Should().Be("json_schema");
+        var schema = payload.GetProperty("response_format").GetProperty("json_schema");
+        schema.GetProperty("name").GetString().Should().Be("content_insights");
+        schema.GetProperty("strict").GetBoolean().Should().BeTrue();
+        var properties = schema.GetProperty("schema").GetProperty("properties");
+        properties.TryGetProperty("title", out _).Should().BeTrue();
+        properties.TryGetProperty("summary", out _).Should().BeTrue();
+        properties.TryGetProperty("keyInsights", out _).Should().BeTrue();
+        properties.TryGetProperty("actionItems", out _).Should().BeTrue();
+        properties.TryGetProperty("sourceTitle", out _).Should().BeTrue();
+        properties.TryGetProperty("author", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GenerateClusterMetadataAsync_ShouldRequestStrictJsonSchemaResponseFormat()
+    {
+        var handler = new RecordingHttpMessageHandler(CreateChatResponse("""
+            {"title":"AI Infrastructure","description":"Serving and deployment notes.","keywords":["ai","infra","serving"]}
+            """));
+        var processor = CreateProcessor(
+            overrides: new Dictionary<string, string?>
+            {
+                { "OpenAI:ApiKey", "test-key" }
+            },
+            httpClient: new HttpClient(handler));
+
+        var result = await processor.GenerateClusterMetadataAsync(["One summary", "Another summary"]);
+
+        result.Title.Should().Be("AI Infrastructure");
+        var payload = await ReadRequestPayloadAsync(handler.LastRequestMessage);
+        payload.GetProperty("response_format").GetProperty("type").GetString().Should().Be("json_schema");
+        var schema = payload.GetProperty("response_format").GetProperty("json_schema");
+        schema.GetProperty("name").GetString().Should().Be("cluster_metadata");
+        schema.GetProperty("strict").GetBoolean().Should().BeTrue();
+        var properties = schema.GetProperty("schema").GetProperty("properties");
+        properties.TryGetProperty("title", out _).Should().BeTrue();
+        properties.TryGetProperty("description", out _).Should().BeTrue();
+        properties.TryGetProperty("keywords", out _).Should().BeTrue();
+    }
+
     private static ContentProcessor CreateProcessor(
         IDictionary<string, string?>? overrides = null,
         HttpClient? httpClient = null)

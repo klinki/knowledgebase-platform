@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -155,15 +156,16 @@ Respond with valid JSON only.";
         _httpClient.DefaultRequestHeaders.Authorization = 
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
         
-        var requestBody = new
+        var requestBody = new ChatCompletionRequest
         {
-            model = model,
-            messages = new[]
-            {
-                new { role = "system", content = "You are a helpful content analysis assistant. Always respond with valid JSON." },
-                new { role = "user", content = prompt }
-            },
-            temperature = 0.3
+            Model = model,
+            Messages =
+            [
+                new ChatMessageRequest("system", "You are a helpful content analysis assistant. Always respond with valid JSON."),
+                new ChatMessageRequest("user", prompt)
+            ],
+            Temperature = 0.3,
+            ResponseFormat = CreateContentInsightsResponseFormat()
         };
         
         var chatCompletionsUrl = _configuration["OpenAI:ChatCompletionsUrl"] ?? "https://api.openai.com/v1/chat/completions";
@@ -213,15 +215,16 @@ Respond with valid JSON only.";
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", apiKey);
 
-        var requestBody = new
+        var requestBody = new ChatCompletionRequest
         {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = "You name semantic knowledge clusters. Always respond with valid JSON." },
-                new { role = "user", content = prompt }
-            },
-            temperature = 0.2
+            Model = model,
+            Messages =
+            [
+                new ChatMessageRequest("system", "You name semantic knowledge clusters. Always respond with valid JSON."),
+                new ChatMessageRequest("user", prompt)
+            ],
+            Temperature = 0.2,
+            ResponseFormat = CreateClusterMetadataResponseFormat()
         };
 
         var chatCompletionsUrl = _configuration["OpenAI:ChatCompletionsUrl"] ?? "https://api.openai.com/v1/chat/completions";
@@ -351,6 +354,63 @@ Respond with valid JSON only.";
         return withoutOpeningFence.Trim();
     }
 
+    private static ResponseFormatRequest CreateContentInsightsResponseFormat()
+    {
+        return new ResponseFormatRequest(
+            "json_schema",
+            new JsonSchemaRequest(
+                "content_insights",
+                true,
+                new Dictionary<string, object?>
+                {
+                    ["type"] = "object",
+                    ["properties"] = new Dictionary<string, object?>
+                    {
+                        ["title"] = new Dictionary<string, object?> { ["type"] = "string" },
+                        ["summary"] = new Dictionary<string, object?> { ["type"] = "string" },
+                        ["keyInsights"] = new Dictionary<string, object?>
+                        {
+                            ["type"] = "array",
+                            ["items"] = new Dictionary<string, object?> { ["type"] = "string" }
+                        },
+                        ["actionItems"] = new Dictionary<string, object?>
+                        {
+                            ["type"] = "array",
+                            ["items"] = new Dictionary<string, object?> { ["type"] = "string" }
+                        },
+                        ["sourceTitle"] = new Dictionary<string, object?> { ["type"] = new object[] { "string", "null" } },
+                        ["author"] = new Dictionary<string, object?> { ["type"] = new object[] { "string", "null" } }
+                    },
+                    ["required"] = new[] { "title", "summary", "keyInsights", "actionItems", "sourceTitle", "author" },
+                    ["additionalProperties"] = false
+                }));
+    }
+
+    private static ResponseFormatRequest CreateClusterMetadataResponseFormat()
+    {
+        return new ResponseFormatRequest(
+            "json_schema",
+            new JsonSchemaRequest(
+                "cluster_metadata",
+                true,
+                new Dictionary<string, object?>
+                {
+                    ["type"] = "object",
+                    ["properties"] = new Dictionary<string, object?>
+                    {
+                        ["title"] = new Dictionary<string, object?> { ["type"] = "string" },
+                        ["description"] = new Dictionary<string, object?> { ["type"] = new object[] { "string", "null" } },
+                        ["keywords"] = new Dictionary<string, object?>
+                        {
+                            ["type"] = "array",
+                            ["items"] = new Dictionary<string, object?> { ["type"] = "string" }
+                        }
+                    },
+                    ["required"] = new[] { "title", "description", "keywords" },
+                    ["additionalProperties"] = false
+                }));
+    }
+
     private static string GenerateClusterPrompt(IReadOnlyCollection<string> summaries)
     {
         var joinedSummaries = string.Join("\n---\n", summaries);
@@ -409,4 +469,32 @@ Respond with valid JSON only.";
     {
         public string? content { get; set; }
     }
+
+    private sealed class ChatCompletionRequest
+    {
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [JsonPropertyName("messages")]
+        public List<ChatMessageRequest> Messages { get; set; } = [];
+
+        [JsonPropertyName("temperature")]
+        public double Temperature { get; set; }
+
+        [JsonPropertyName("response_format")]
+        public ResponseFormatRequest ResponseFormat { get; set; } = null!;
+    }
+
+    private sealed record ChatMessageRequest(
+        [property: JsonPropertyName("role")] string Role,
+        [property: JsonPropertyName("content")] string Content);
+
+    private sealed record ResponseFormatRequest(
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("json_schema")] JsonSchemaRequest JsonSchema);
+
+    private sealed record JsonSchemaRequest(
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("strict")] bool Strict,
+        [property: JsonPropertyName("schema")] Dictionary<string, object?> Schema);
 }
