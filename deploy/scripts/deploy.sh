@@ -13,6 +13,7 @@ LITELLM_COMPOSE_FILE="${LITELLM_COMPOSE_FILE:-${DEPLOY_DIR}/docker-compose.litel
 ENV_FILE="${ENV_FILE:-${DEPLOY_DIR}/.env.production}"
 LITELLM_ENV_FILE="${LITELLM_ENV_FILE:-${DEPLOY_DIR}/.env.litellm}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
+START_CLUSTERING_WORKER="${START_CLUSTERING_WORKER:-true}"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   echo "Missing env file: ${ENV_FILE}"
@@ -91,7 +92,13 @@ IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_F
 echo "Starting updated stack..."
 # Do not use --remove-orphans here: auxiliary compose stacks such as LiteLLM
 # may share the host and must not be deleted during a Sentinel application rollout.
-IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d api worker web
+app_services=(api worker-ingest web)
+if [[ "${START_CLUSTERING_WORKER}" == "true" ]]; then
+  app_services+=(worker-clustering)
+fi
+
+echo "Starting services: ${app_services[*]}"
+IMAGE_TAG="${IMAGE_TAG}" docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d "${app_services[@]}"
 docker compose --env-file "${LITELLM_ENV_FILE}" -f "${LITELLM_COMPOSE_FILE}" up -d litellm
 
 echo "Deployment finished for tag ${IMAGE_TAG}."

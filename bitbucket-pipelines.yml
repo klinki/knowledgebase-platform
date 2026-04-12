@@ -41,8 +41,8 @@ pipelines:
                 COMMAND: >
                   cd $DEPLOY_PATH &&
                   git fetch --all --prune &&
-                  git checkout main &&
-                  git pull --ff-only &&
+                  git checkout --detach $BITBUCKET_COMMIT &&
+                  chmod +x ./deploy/scripts/deploy.sh &&
                   IMAGE_TAG=$BITBUCKET_COMMIT ./deploy/scripts/deploy.sh
     master:
       - step:
@@ -75,6 +75,6 @@ pipelines:
                 COMMAND: >
                   cd $DEPLOY_PATH &&
                   git fetch --all --prune &&
-                  git checkout master &&
-                  git pull --ff-only &&
+                  git checkout --detach $BITBUCKET_COMMIT &&
+                  chmod +x ./deploy/scripts/deploy.sh &&
                   IMAGE_TAG=$BITBUCKET_COMMIT ./deploy/scripts/deploy.sh
