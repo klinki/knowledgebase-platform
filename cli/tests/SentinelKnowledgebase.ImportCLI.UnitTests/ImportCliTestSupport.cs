@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
-namespace SentinelKnowledgebase.UnitTests;
+namespace SentinelKnowledgebase.ImportCLI.UnitTests;
 
 internal sealed class TempDirectoryScope : IDisposable
 {
@@ -63,34 +63,6 @@ internal sealed class TestImportReporter : SentinelKnowledgebase.ImportCLI.IImpo
     public void WriteError(string message)
     {
         ErrorMessages.Add(message);
-    }
-}
-
-internal sealed record HttpRequestLog(string Method, string Path, string? Body, string? Authorization);
-
-internal sealed class DelegateHttpMessageHandler : HttpMessageHandler
-{
-    private readonly Func<HttpRequestMessage, HttpRequestLog, HttpResponseMessage> _responseFactory;
-
-    public DelegateHttpMessageHandler(Func<HttpRequestMessage, HttpRequestLog, HttpResponseMessage> responseFactory)
-    {
-        _responseFactory = responseFactory;
-    }
-
-    public List<HttpRequestLog> Logs { get; } = [];
-
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        var body = request.Content == null
-            ? null
-            : await request.Content.ReadAsStringAsync(cancellationToken);
-        var log = new HttpRequestLog(
-            request.Method.Method,
-            request.RequestUri?.AbsolutePath ?? string.Empty,
-            body,
-            request.Headers.Authorization?.Parameter);
-        Logs.Add(log);
-        return _responseFactory(request, log);
     }
 }
 
@@ -164,14 +136,6 @@ window.__THAR_CONFIG = {
                 JsonSerializer.Serialize(payload, JsonOptions),
                 Encoding.UTF8,
                 "application/json")
-        };
-    }
-
-    public static HttpResponseMessage TextResponse(HttpStatusCode statusCode, string payload)
-    {
-        return new HttpResponseMessage(statusCode)
-        {
-            Content = new StringContent(payload, Encoding.UTF8, "text/plain")
         };
     }
 }

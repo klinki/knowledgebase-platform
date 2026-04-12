@@ -8,7 +8,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using Xunit;
 
-namespace SentinelKnowledgebase.UnitTests;
+namespace SentinelKnowledgebase.ImportCLI.UnitTests;
 
 public class TwitterArchiveImportTests
 {

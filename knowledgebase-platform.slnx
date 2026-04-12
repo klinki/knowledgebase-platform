@@ -4,11 +4,17 @@
     <Project Path="backend/src/SentinelKnowledgebase.Api/SentinelKnowledgebase.Api.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Application/SentinelKnowledgebase.Application.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Domain/SentinelKnowledgebase.Domain.csproj" />
-    <Project Path="backend/src/SentinelKnowledgebase.ImportCLI/SentinelKnowledgebase.ImportCLI.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Infrastructure/SentinelKnowledgebase.Infrastructure.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.ServerCLI/SentinelKnowledgebase.ServerCLI.csproj" />
     <Project Path="backend/src/SentinelKnowledgebase.Worker/SentinelKnowledgebase.Worker.csproj" />
+  </Folder>
+  <Folder Name="/cli/src/">
+    <Project Path="cli/src/SentinelKnowledgebase.ImportCLI/SentinelKnowledgebase.ImportCLI.csproj" />
+  </Folder>
+  <Folder Name="/cli/tests/">
+    <Project Path="cli/tests/SentinelKnowledgebase.ImportCLI.UnitTests/SentinelKnowledgebase.ImportCLI.UnitTests.csproj" />
+    <Project Path="cli/tests/SentinelKnowledgebase.ImportCLI.IntegrationTests/SentinelKnowledgebase.ImportCLI.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/backend/tests/">
     <Project Path="backend/tests/SentinelKnowledgebase.IntegrationTests/SentinelKnowledgebase.IntegrationTests.csproj" />

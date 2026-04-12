@@ -7,7 +7,7 @@ using System.Net;
 using System.Text.Json;
 using Xunit;
 
-namespace SentinelKnowledgebase.UnitTests;
+namespace SentinelKnowledgebase.ImportCLI.IntegrationTests;
 
 public class ImportCliHttpFlowTests
 {

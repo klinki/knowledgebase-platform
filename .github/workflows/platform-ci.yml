@@ -5,9 +5,11 @@ on:
     branches: [master, main]
     paths:
       - "backend/**"
+      - "cli/**"
       - "frontend/**"
       - "deploy/**"
       - ".github/workflows/**"
+      - "knowledgebase-platform.slnx"
       - "bitbucket-pipelines.yml"
       - "build.ps1"
       - "README.md"
@@ -15,9 +17,11 @@ on:
     branches: [master, main]
     paths:
       - "backend/**"
+      - "cli/**"
       - "frontend/**"
       - "deploy/**"
       - ".github/workflows/**"
+      - "knowledgebase-platform.slnx"
       - "bitbucket-pipelines.yml"
       - "build.ps1"
       - "README.md"
@@ -40,8 +44,8 @@ jobs:
         with:
           global-json-file: backend/global.json
 
-      - name: Run backend tests
-        run: dotnet test backend/SentinelKnowledgebase.slnx
+      - name: Run backend and CLI tests
+        run: dotnet test knowledgebase-platform.slnx
 
       - name: Build migrations project
         run: dotnet build backend/src/SentinelKnowledgebase.Migrations/SentinelKnowledgebase.Migrations.csproj -c Release --nologo
