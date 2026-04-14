@@ -254,6 +254,11 @@ export interface AssistantChatSession {
 export interface AssistantChatResultSetItem {
   captureId: string;
   sourceUrl: string;
+  contentType: string | null;
+  status: string | null;
+  similarity: number | null;
+  matchReason: string | null;
+  previewText: string | null;
   skipCode: string | null;
   skipReason: string | null;
   createdAt: string;

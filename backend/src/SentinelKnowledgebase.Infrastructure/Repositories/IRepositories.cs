@@ -11,6 +11,7 @@ public interface IRawCaptureRepository
     Task<IReadOnlyList<RawCapture>> GetByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
     Task<IReadOnlyList<RawCapture>> GetByIdsWithGraphAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
     Task<IReadOnlyList<CaptureMetadataRecord>> GetCompletedTweetsWithMetadataAsync(Guid ownerUserId, int take);
+    Task<CaptureSearchQueryResult> SearchCapturesAsync(Guid ownerUserId, CaptureSearchQueryOptions options);
     Task<IReadOnlyList<RawCapture>> GetFailedAsync(Guid ownerUserId, ContentType? contentType = null);
     Task<CaptureListQueryResult> GetPagedListAsync(Guid ownerUserId, CaptureListQueryOptions options);
     Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId);
@@ -59,6 +60,47 @@ public class CaptureMetadataRecord
     public string? Metadata { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
+}
+
+public class CaptureSearchQueryOptions
+{
+    public string? Query { get; set; }
+    public float[]? QueryEmbedding { get; set; }
+    public double Threshold { get; set; } = 0.3;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public int MaxResultSetSize { get; set; } = 5000;
+    public ContentType? ContentType { get; set; }
+    public CaptureStatus? Status { get; set; }
+    public DateTime? DateFrom { get; set; }
+    public DateTime? DateTo { get; set; }
+    public IReadOnlyCollection<string> Tags { get; set; } = [];
+    public bool MatchAllTags { get; set; }
+    public IReadOnlyCollection<LabelRecord> Labels { get; set; } = [];
+    public bool MatchAllLabels { get; set; }
+}
+
+public class CaptureSearchQueryResult
+{
+    public List<Guid> CaptureIds { get; set; } = new();
+    public List<CaptureSearchRecord> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}
+
+public class CaptureSearchRecord
+{
+    public Guid CaptureId { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
+    public string RawContent { get; set; } = string.Empty;
+    public string? Metadata { get; set; }
+    public ContentType ContentType { get; set; }
+    public CaptureStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public double? Similarity { get; set; }
+    public bool MatchedByText { get; set; }
+    public bool MatchedBySemantic { get; set; }
 }
 
 public interface IAssistantChatRepository

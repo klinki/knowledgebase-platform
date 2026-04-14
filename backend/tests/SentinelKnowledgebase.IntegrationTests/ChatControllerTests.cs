@@ -3,7 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Assistant;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
 using Xunit;
@@ -142,6 +145,131 @@ public class ChatControllerTests
                 .Select(capture => capture.Id)
                 .ToHashSet();
             foreignRemaining.Should().Contain(foreignDeleted);
+
+            await Task.CompletedTask;
+        });
+    }
+
+    [Fact]
+    public async Task ChatFlow_ShouldSearchCapturesWithHybridMatching_AndKeepDeleteConfirmationSafety()
+    {
+        using var ownerClient = await _fixture.CreateAuthenticatedClientAsync();
+
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var semanticMatchCaptureId = Guid.NewGuid();
+        var textMatchCaptureId = Guid.NewGuid();
+        var ignoredCaptureId = Guid.NewGuid();
+        var processedInsightId = Guid.NewGuid();
+        var embeddingId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        const string query = "outage investigation";
+
+        float[] embedding;
+        using (var scope = _fixture.CreateScope())
+        {
+            var contentProcessor = scope.ServiceProvider.GetRequiredService<IContentProcessor>();
+            embedding = await contentProcessor.GenerateEmbeddingAsync(query);
+        }
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.RawCaptures.AddRange(
+                new RawCapture
+                {
+                    Id = semanticMatchCaptureId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/semantic",
+                    ContentType = ContentType.Article,
+                    RawContent = "Unrelated body text",
+                    Status = CaptureStatus.Completed,
+                    CreatedAt = now.AddMinutes(-5),
+                    ProcessedAt = now.AddMinutes(-4)
+                },
+                new RawCapture
+                {
+                    Id = textMatchCaptureId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/text",
+                    ContentType = ContentType.Tweet,
+                    RawContent = "The outage investigation timeline is attached.",
+                    Status = CaptureStatus.Failed,
+                    CreatedAt = now.AddMinutes(-3)
+                },
+                new RawCapture
+                {
+                    Id = ignoredCaptureId,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://example.com/ignored",
+                    ContentType = ContentType.Note,
+                    RawContent = "This should not match the query.",
+                    Status = CaptureStatus.Pending,
+                    CreatedAt = now.AddMinutes(-1)
+                });
+
+            dbContext.ProcessedInsights.Add(new ProcessedInsight
+            {
+                Id = processedInsightId,
+                OwnerUserId = ownerUserId,
+                RawCaptureId = semanticMatchCaptureId,
+                Title = "Outage investigation summary",
+                Summary = "Root cause analysis in progress.",
+                ProcessedAt = now.AddMinutes(-4)
+            });
+
+            dbContext.EmbeddingVectors.Add(new EmbeddingVector
+            {
+                Id = embeddingId,
+                ProcessedInsightId = processedInsightId,
+                Vector = new Vector(embedding),
+                CreatedAt = now.AddMinutes(-4)
+            });
+
+            await Task.CompletedTask;
+        });
+
+        var searchResponse = await ownerClient.PostAsJsonAsync(
+            "/api/v1/chat/session/messages",
+            new AssistantChatMessageSendRequestDto { Message = $"Search captures for {query}" });
+        searchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var searchPayload = await searchResponse.Content.ReadFromJsonAsync<AssistantChatMessageSendResponseDto>(ResponseJsonOptions);
+        searchPayload.Should().NotBeNull();
+        searchPayload!.AssistantMessage.ResultSet.Should().NotBeNull();
+        searchPayload.AssistantMessage.ResultSet!.QueryType.Should().Be("search_captures");
+        searchPayload.AssistantMessage.ResultSet.TotalCount.Should().Be(2);
+
+        var previewIds = searchPayload.AssistantMessage.ResultSet.PreviewItems
+            .Select(item => item.CaptureId)
+            .ToHashSet();
+        previewIds.Should().Contain(semanticMatchCaptureId);
+        previewIds.Should().Contain(textMatchCaptureId);
+
+        var deleteProposalResponse = await ownerClient.PostAsJsonAsync(
+            "/api/v1/chat/session/messages",
+            new AssistantChatMessageSendRequestDto { Message = "Now delete all these tweets" });
+        deleteProposalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var deleteProposal = await deleteProposalResponse.Content.ReadFromJsonAsync<AssistantChatMessageSendResponseDto>(ResponseJsonOptions);
+        deleteProposal.Should().NotBeNull();
+        deleteProposal!.AssistantMessage.Action.Should().NotBeNull();
+        deleteProposal.AssistantMessage.Action!.Status.Should().Be(AssistantChatActionStatus.PendingConfirmation);
+        deleteProposal.AssistantMessage.Action.CaptureCount.Should().Be(2);
+
+        var confirmResponse = await ownerClient.PostAsync(
+            $"/api/v1/chat/actions/{deleteProposal.AssistantMessage.Action.Id}/confirm",
+            null);
+        confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var remainingCaptureIds = dbContext.RawCaptures
+                .Where(capture => capture.OwnerUserId == ownerUserId)
+                .Select(capture => capture.Id)
+                .ToHashSet();
+
+            remainingCaptureIds.Should().Contain(ignoredCaptureId);
+            remainingCaptureIds.Should().NotContain(semanticMatchCaptureId);
+            remainingCaptureIds.Should().NotContain(textMatchCaptureId);
 
             await Task.CompletedTask;
         });

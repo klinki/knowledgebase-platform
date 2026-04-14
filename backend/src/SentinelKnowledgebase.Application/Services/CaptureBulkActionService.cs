@@ -1,8 +1,10 @@
 using System.Text.Json;
+using SentinelKnowledgebase.Application.DTOs.Search;
 using Microsoft.Extensions.Logging;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Infrastructure.Repositories;
 
 namespace SentinelKnowledgebase.Application.Services;
@@ -17,12 +19,92 @@ public class CaptureBulkActionService : ICaptureBulkActionService
     };
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IContentProcessor _contentProcessor;
     private readonly ILogger<CaptureBulkActionService> _logger;
 
-    public CaptureBulkActionService(IUnitOfWork unitOfWork, ILogger<CaptureBulkActionService> logger)
+    public CaptureBulkActionService(
+        IUnitOfWork unitOfWork,
+        IContentProcessor contentProcessor,
+        ILogger<CaptureBulkActionService> logger)
     {
         _unitOfWork = unitOfWork;
+        _contentProcessor = contentProcessor;
         _logger = logger;
+    }
+
+    public async Task<CaptureBulkQueryResult> SearchCapturesAsync(
+        Guid ownerUserId,
+        CaptureSearchCriteria criteria,
+        int maxResultSetSize,
+        int previewSize)
+    {
+        var normalizedQuery = NormalizeQuery(criteria.Query);
+        var normalizedTags = NormalizeTags(criteria.Tags).ToList();
+        var normalizedLabels = NormalizeLabels(criteria.Labels)
+            .Select(label => new LabelRecord
+            {
+                Category = label.Category,
+                Value = label.Value
+            })
+            .ToList();
+
+        if (!HasAtLeastOneSearchCriterion(
+                normalizedQuery,
+                normalizedTags,
+                normalizedLabels,
+                criteria.ContentType,
+                criteria.Status,
+                criteria.DateFrom,
+                criteria.DateTo))
+        {
+            throw new ArgumentException("At least one search criterion is required.", nameof(criteria));
+        }
+
+        var page = criteria.Page > 0 ? criteria.Page : 1;
+        var pageSize = Math.Clamp(criteria.PageSize > 0 ? criteria.PageSize : 20, 1, 100);
+        var threshold = Math.Clamp(criteria.Threshold, 0, 1);
+        float[]? queryEmbedding = null;
+
+        if (normalizedQuery is not null)
+        {
+            queryEmbedding = await _contentProcessor.GenerateEmbeddingAsync(normalizedQuery);
+        }
+
+        var result = await _unitOfWork.RawCaptures.SearchCapturesAsync(ownerUserId, new CaptureSearchQueryOptions
+        {
+            Query = normalizedQuery,
+            QueryEmbedding = queryEmbedding,
+            Threshold = threshold,
+            Page = page,
+            PageSize = pageSize,
+            MaxResultSetSize = Math.Clamp(maxResultSetSize, 1, 5000),
+            ContentType = criteria.ContentType,
+            Status = criteria.Status,
+            DateFrom = criteria.DateFrom,
+            DateTo = criteria.DateTo,
+            Tags = normalizedTags,
+            MatchAllTags = SearchMatchModes.IsAll(criteria.TagMatchMode),
+            Labels = normalizedLabels,
+            MatchAllLabels = SearchMatchModes.IsAll(criteria.LabelMatchMode)
+        });
+
+        var normalizedPreviewSize = Math.Clamp(previewSize, 1, 100);
+        return new CaptureBulkQueryResult
+        {
+            CaptureIds = result.CaptureIds,
+            PreviewItems = result.Items
+                .Take(normalizedPreviewSize)
+                .Select(MapSearchPreviewItem)
+                .ToList(),
+            TotalCount = result.TotalCount,
+            Summary = BuildSearchSummary(
+                result.TotalCount,
+                result.Items.Count,
+                result.Page,
+                result.PageSize,
+                result.CaptureIds.Count,
+                normalizedQuery)
+        };
     }
 
     public async Task<CaptureBulkQueryResult> FindDeletedTweetsFromUnavailableAccountsAsync(
@@ -346,6 +428,109 @@ public class CaptureBulkActionService : ICaptureBulkActionService
             MatchedCount = matchedCount,
             MutatedCount = mutatedCount
         };
+    }
+
+    private static CaptureBulkPreviewItem MapSearchPreviewItem(CaptureSearchRecord record)
+    {
+        _ = TryExtractSkipMetadata(record.Metadata, out var skipCode, out var skipReason);
+
+        return new CaptureBulkPreviewItem
+        {
+            CaptureId = record.CaptureId,
+            SourceUrl = record.SourceUrl,
+            ContentType = record.ContentType.ToString(),
+            Status = record.Status.ToString(),
+            Similarity = record.Similarity,
+            MatchReason = ResolveMatchReason(record),
+            PreviewText = BuildPreviewText(record.RawContent),
+            SkipCode = skipCode,
+            SkipReason = skipReason,
+            CreatedAt = record.CreatedAt
+        };
+    }
+
+    private static string? ResolveMatchReason(CaptureSearchRecord record)
+    {
+        if (record.MatchedBySemantic && record.MatchedByText)
+        {
+            return "semantic+text";
+        }
+
+        if (record.MatchedBySemantic)
+        {
+            return "semantic";
+        }
+
+        if (record.MatchedByText)
+        {
+            return "text";
+        }
+
+        return null;
+    }
+
+    private static string BuildSearchSummary(
+        int totalCount,
+        int pageCount,
+        int page,
+        int pageSize,
+        int snapshotCount,
+        string? query)
+    {
+        var totalPart = totalCount == 1 ? "Found 1 capture." : $"Found {totalCount} captures.";
+        var pagePart = pageCount == 1
+            ? $"Showing 1 result on page {page} (page size {pageSize})."
+            : $"Showing {pageCount} results on page {page} (page size {pageSize}).";
+
+        var queryPart = string.IsNullOrWhiteSpace(query)
+            ? string.Empty
+            : $" Query: \"{query}\".";
+
+        if (totalCount > snapshotCount)
+        {
+            return $"{totalPart} {pagePart} Stored the first {snapshotCount} IDs for safe follow-up actions.{queryPart}";
+        }
+
+        return $"{totalPart} {pagePart}{queryPart}";
+    }
+
+    private static string BuildPreviewText(string rawContent)
+    {
+        var normalized = rawContent.Trim();
+        if (normalized.Length <= 180)
+        {
+            return normalized;
+        }
+
+        return normalized[..177] + "...";
+    }
+
+    private static string? NormalizeQuery(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return null;
+        }
+
+        return query.Trim();
+    }
+
+    private static bool HasAtLeastOneSearchCriterion(
+        string? query,
+        IReadOnlyCollection<string> tags,
+        IReadOnlyCollection<LabelRecord> labels,
+        ContentType? contentType,
+        CaptureStatus? status,
+        DateTime? dateFrom,
+        DateTime? dateTo)
+    {
+        return query is not null
+               || tags.Count > 0
+               || labels.Count > 0
+               || contentType.HasValue
+               || status.HasValue
+               || dateFrom.HasValue
+               || dateTo.HasValue;
     }
 
     private static bool UpsertRawCaptureLabel(RawCapture capture, LabelCategory category, LabelValue value)

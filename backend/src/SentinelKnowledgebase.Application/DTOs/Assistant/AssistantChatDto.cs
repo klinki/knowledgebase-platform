@@ -44,6 +44,11 @@ public class AssistantChatResultSetItemDto
 {
     public Guid CaptureId { get; set; }
     public string SourceUrl { get; set; } = string.Empty;
+    public string? ContentType { get; set; }
+    public string? Status { get; set; }
+    public double? Similarity { get; set; }
+    public string? MatchReason { get; set; }
+    public string? PreviewText { get; set; }
     public string? SkipCode { get; set; }
     public string? SkipReason { get; set; }
     public DateTime CreatedAt { get; set; }

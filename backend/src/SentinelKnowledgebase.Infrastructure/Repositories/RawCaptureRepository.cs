@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
+using Pgvector.EntityFrameworkCore;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Infrastructure.Data;
@@ -124,6 +126,111 @@ public class RawCaptureRepository : IRawCaptureRepository
                 ProcessedAt = capture.ProcessedAt
             })
             .ToListAsync();
+    }
+
+    public async Task<CaptureSearchQueryResult> SearchCapturesAsync(Guid ownerUserId, CaptureSearchQueryOptions options)
+    {
+        var page = options.Page > 0 ? options.Page : 1;
+        var pageSize = Math.Clamp(options.PageSize > 0 ? options.PageSize : 20, 1, 100);
+        var maxResultSetSize = Math.Clamp(options.MaxResultSetSize, 1, 5000);
+        var threshold = Math.Clamp(options.Threshold, 0, 1);
+        var hasQuery = !string.IsNullOrWhiteSpace(options.Query);
+
+        var filteredQuery = ApplyCaptureSearchFilters(
+            _context.RawCaptures
+                .AsNoTracking()
+                .Where(capture => capture.OwnerUserId == ownerUserId),
+            options);
+
+        IOrderedQueryable<CaptureSearchRecord> orderedQuery;
+        if (hasQuery)
+        {
+            var normalizedQuery = options.Query!.Trim();
+            var pattern = $"%{normalizedQuery}%";
+            var queryVector = options.QueryEmbedding is { Length: > 0 } ? new Vector(options.QueryEmbedding) : null;
+
+            filteredQuery = filteredQuery.Where(capture =>
+                EF.Functions.ILike(capture.RawContent, pattern) ||
+                EF.Functions.ILike(capture.SourceUrl, pattern) ||
+                (capture.Metadata != null && EF.Functions.ILike(capture.Metadata, pattern)) ||
+                (queryVector != null &&
+                 capture.Status == CaptureStatus.Completed &&
+                 capture.ProcessedInsight != null &&
+                 capture.ProcessedInsight.EmbeddingVector != null &&
+                 1 - capture.ProcessedInsight.EmbeddingVector.Vector.CosineDistance(queryVector) >= threshold));
+
+            var rankedQuery = filteredQuery
+                .Select(capture => new CaptureSearchRecord
+                {
+                    CaptureId = capture.Id,
+                    SourceUrl = capture.SourceUrl,
+                    RawContent = capture.RawContent,
+                    Metadata = capture.Metadata,
+                    ContentType = capture.ContentType,
+                    Status = capture.Status,
+                    CreatedAt = capture.CreatedAt,
+                    Similarity = queryVector != null &&
+                                 capture.Status == CaptureStatus.Completed &&
+                                 capture.ProcessedInsight != null &&
+                                 capture.ProcessedInsight.EmbeddingVector != null
+                        ? 1 - capture.ProcessedInsight.EmbeddingVector.Vector.CosineDistance(queryVector)
+                        : null,
+                    MatchedByText = EF.Functions.ILike(capture.RawContent, pattern) ||
+                                    EF.Functions.ILike(capture.SourceUrl, pattern) ||
+                                    (capture.Metadata != null && EF.Functions.ILike(capture.Metadata, pattern)),
+                    MatchedBySemantic = queryVector != null &&
+                                        capture.Status == CaptureStatus.Completed &&
+                                        capture.ProcessedInsight != null &&
+                                        capture.ProcessedInsight.EmbeddingVector != null &&
+                                        1 - capture.ProcessedInsight.EmbeddingVector.Vector.CosineDistance(queryVector) >= threshold
+                });
+
+            orderedQuery = rankedQuery
+                .OrderByDescending(record => record.Similarity ?? -1d)
+                .ThenByDescending(record => record.MatchedByText)
+                .ThenByDescending(record => record.CreatedAt)
+                .ThenBy(record => record.CaptureId);
+        }
+        else
+        {
+            var unrankedQuery = filteredQuery
+                .Select(capture => new CaptureSearchRecord
+                {
+                    CaptureId = capture.Id,
+                    SourceUrl = capture.SourceUrl,
+                    RawContent = capture.RawContent,
+                    Metadata = capture.Metadata,
+                    ContentType = capture.ContentType,
+                    Status = capture.Status,
+                    CreatedAt = capture.CreatedAt,
+                    Similarity = null,
+                    MatchedByText = false,
+                    MatchedBySemantic = false
+                });
+
+            orderedQuery = unrankedQuery
+                .OrderByDescending(record => record.CreatedAt)
+                .ThenBy(record => record.CaptureId);
+        }
+
+        var totalCount = await orderedQuery.CountAsync();
+        var captureIds = await orderedQuery
+            .Select(record => record.CaptureId)
+            .Take(maxResultSetSize)
+            .ToListAsync();
+        var items = await orderedQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new CaptureSearchQueryResult
+        {
+            CaptureIds = captureIds,
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IReadOnlyList<RawCapture>> GetFailedAsync(Guid ownerUserId, ContentType? contentType = null)
@@ -308,5 +415,86 @@ public class RawCaptureRepository : IRawCaptureRepository
                 ? query.OrderByDescending(capture => capture.CreatedAt)
                 : query.OrderBy(capture => capture.CreatedAt)
         };
+    }
+
+    private static IQueryable<RawCapture> ApplyCaptureSearchFilters(
+        IQueryable<RawCapture> query,
+        CaptureSearchQueryOptions options)
+    {
+        if (options.ContentType.HasValue)
+        {
+            query = query.Where(capture => capture.ContentType == options.ContentType.Value);
+        }
+
+        if (options.Status.HasValue)
+        {
+            query = query.Where(capture => capture.Status == options.Status.Value);
+        }
+
+        if (options.DateFrom.HasValue)
+        {
+            query = query.Where(capture => capture.CreatedAt >= options.DateFrom.Value);
+        }
+
+        if (options.DateTo.HasValue)
+        {
+            query = query.Where(capture => capture.CreatedAt <= options.DateTo.Value);
+        }
+
+        var normalizedTags = options.Tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedTags.Count > 0)
+        {
+            query = query.Where(capture => capture.Tags.Any(tag => normalizedTags.Contains(tag.Name)));
+
+            if (options.MatchAllTags)
+            {
+                query = query.Where(capture =>
+                    capture.Tags
+                        .Where(tag => normalizedTags.Contains(tag.Name))
+                        .Select(tag => tag.Name)
+                        .Distinct()
+                        .Count() == normalizedTags.Count);
+            }
+        }
+
+        var normalizedLabels = options.Labels
+            .Where(label =>
+                !string.IsNullOrWhiteSpace(label.Category) &&
+                !string.IsNullOrWhiteSpace(label.Value))
+            .Select(label => new LabelRecord
+            {
+                Category = label.Category.Trim(),
+                Value = label.Value.Trim()
+            })
+            .GroupBy(label => $"{label.Category}\u001f{label.Value}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (normalizedLabels.Count > 0)
+        {
+            var normalizedKeys = normalizedLabels
+                .Select(label => $"{label.Category}\u001f{label.Value}")
+                .ToList();
+
+            query = query.Where(capture => capture.LabelAssignments.Any(assignment =>
+                normalizedKeys.Contains(assignment.LabelCategory.Name + "\u001f" + assignment.LabelValue.Value)));
+
+            if (options.MatchAllLabels)
+            {
+                query = query.Where(capture =>
+                    capture.LabelAssignments
+                        .Where(assignment => normalizedKeys.Contains(assignment.LabelCategory.Name + "\u001f" + assignment.LabelValue.Value))
+                        .Select(assignment => assignment.LabelCategory.Name + "\u001f" + assignment.LabelValue.Value)
+                        .Distinct()
+                        .Count() == normalizedKeys.Count);
+            }
+        }
+
+        return query;
     }
 }

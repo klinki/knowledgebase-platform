@@ -1,9 +1,17 @@
 using SentinelKnowledgebase.Application.DTOs.Labels;
+using SentinelKnowledgebase.Application.DTOs.Search;
+using SentinelKnowledgebase.Domain.Enums;
 
 namespace SentinelKnowledgebase.Application.Services.Interfaces;
 
 public interface ICaptureBulkActionService
 {
+    Task<CaptureBulkQueryResult> SearchCapturesAsync(
+        Guid ownerUserId,
+        CaptureSearchCriteria criteria,
+        int maxResultSetSize,
+        int previewSize);
+
     Task<CaptureBulkQueryResult> FindDeletedTweetsFromUnavailableAccountsAsync(
         Guid ownerUserId,
         int maxResultSetSize,
@@ -32,6 +40,22 @@ public interface ICaptureBulkActionService
     Task<int> DeleteCapturesAsync(Guid ownerUserId, IReadOnlyCollection<Guid> captureIds);
 }
 
+public class CaptureSearchCriteria
+{
+    public string? Query { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public string TagMatchMode { get; set; } = SearchMatchModes.Any;
+    public List<LabelAssignmentDto> Labels { get; set; } = new();
+    public string LabelMatchMode { get; set; } = SearchMatchModes.All;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public double Threshold { get; set; } = 0.3;
+    public ContentType? ContentType { get; set; }
+    public CaptureStatus? Status { get; set; }
+    public DateTime? DateFrom { get; set; }
+    public DateTime? DateTo { get; set; }
+}
+
 public class CaptureBulkQueryResult
 {
     public List<Guid> CaptureIds { get; set; } = new();
@@ -44,6 +68,11 @@ public class CaptureBulkPreviewItem
 {
     public Guid CaptureId { get; set; }
     public string SourceUrl { get; set; } = string.Empty;
+    public string? ContentType { get; set; }
+    public string? Status { get; set; }
+    public double? Similarity { get; set; }
+    public string? MatchReason { get; set; }
+    public string? PreviewText { get; set; }
     public string? SkipCode { get; set; }
     public string? SkipReason { get; set; }
     public DateTime CreatedAt { get; set; }

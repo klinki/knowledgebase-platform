@@ -1,65 +1,48 @@
-### LLM Capture Assistant v1 (Dedicated Chat Page, Safe Bulk Actions)
+## LLM Capture Assistant v1.1 — Generic `search_captures` Tool
 
-#### Summary
-- Deliver a new authenticated `/assistant` page with a persisted per-user chat.
-- Implement backend LLM tool orchestration for capture operations: search, add/remove tags, add/remove labels, and delete.
-- Use deterministic “deleted Twitter account” detection via tweet skip codes: `twitter_suspended_account`, `twitter_account_limited`, `twitter_post_unavailable`.
-- Enforce destructive safety: delete can target only the current chat result set and always requires explicit second-step confirmation.
-- Defer MCP exposure to phase 2.
+### Summary
+- Update the existing assistant feature plan to include generic capture search v1.1.
+- Implement a new assistant tool `search_captures` with hybrid query behavior and structured filters.
+- Keep existing destructive safeguards unchanged: delete remains confirmation-based and scoped to the active result set.
 
-#### Key Changes
-- Backend chat API and orchestration:
-  - Add `ChatController` with endpoints to load chat history, send message, and confirm/cancel pending actions.
-  - Add `AssistantChatService` that runs a tool-calling loop with a strict tool allowlist.
-  - Add result-set tracking so follow-ups like “Now delete all these tweets” resolve to the latest assistant result set only.
-- Backend capture operations:
-  - Add query/mutation service layer for bulk capture actions (by owner-scoped capture IDs).
-  - Add bulk tag/label mutation behavior with explicit add/remove semantics.
-  - Add bulk delete execution by ID list (owner-scoped), invoked only after confirmation.
-  - Keep raw and processed representations aligned: tag/label mutations update both `RawCapture` and `ProcessedInsight` when present.
-- Persistence:
-  - Add DB entities/tables for:
-  - Chat session/history (user-scoped persisted messages)
-  - Stored result sets (capture ID snapshots + summary metadata)
-  - Pending destructive actions (status, scope, count, confirmation lifecycle)
-- Frontend:
-  - Add `/assistant` route + shell nav entry.
-  - Build assistant page with:
-  - Message thread
-  - Result set rendering (count + sample rows + action context)
-  - Pending-action confirmation card (confirm/cancel) for delete
-  - Persisted reload of prior conversation/actions.
+### Key Changes
+- Assistant orchestration:
+  - Extend tool allowlist with `search_captures`.
+  - Extend planner/tool-call parsing to accept arguments:
+    - `query`, `tags`, `tagMatchMode`, `labels`, `labelMatchMode`, `page`, `pageSize`, `threshold`, `contentType`, `status`, `dateFrom`, `dateTo`.
+  - Persist each `search_captures` response as a new result set snapshot and set it as current.
+- Backend search capability:
+  - Add a new capture-level search contract/service used by assistant tooling.
+  - Implement hybrid search:
+    - Semantic scoring path for completed captures with processed insights.
+    - Text-match path over raw capture content/source fields so non-completed captures can match.
+  - Apply all filters in one pipeline:
+    - `contentType`, `status`, tags/labels with any/all modes, and inclusive `createdAt` date range.
+  - Return deterministic pagination + total count + preview payload suitable for result-set persistence.
+- Data/DTO/interface additions:
+  - Add search DTO/type(s) for capture-search criteria and result records for assistant use.
+  - Extend repository/query layer with methods needed for filtered capture search and optional semantic/text blend.
+  - Keep chat public API shape unchanged; capability is delivered through existing chat endpoints.
+- Frontend assistant page:
+  - No route/layout changes needed.
+  - Ensure result rendering handles mixed-status search results cleanly (completed/failed/pending) and keeps action context intact.
 
-#### Public API / Interface Additions
-- New API endpoints (v1):
-  - `GET /api/v1/chat/session` (or active-session equivalent)
-  - `GET /api/v1/chat/session/messages`
-  - `POST /api/v1/chat/session/messages` (user message -> assistant response + optional pending action/result set metadata)
-  - `POST /api/v1/chat/actions/{actionId}/confirm`
-  - `POST /api/v1/chat/actions/{actionId}/cancel`
-- Application interfaces to add/extend:
-  - Assistant orchestration service contract
-  - Capture bulk query/mutation contract (query by filters/skip codes, bulk tag/label add-remove, bulk delete by IDs)
-
-#### Test Plan
+### Test Plan
 - Backend unit tests:
-  - Deleted-account query returns only tweet captures with selected skip codes.
-  - Tag/label add/remove mutates owner-scoped captures and syncs processed insights.
-  - Delete proposal requires confirmation and cannot execute outside current result-set scope.
+  - `search_captures` applies tags/labels modes and `contentType`/`status`/date filters correctly.
+  - Hybrid query returns completed semantic matches plus non-completed text matches.
+  - Date range uses `createdAt` inclusively (`dateFrom <= createdAt <= dateTo`).
 - Backend integration tests:
-  - End-to-end chat flow:
-  - “Find me all tweets from deleted accounts” returns expected captures.
-  - “Now delete all these tweets” creates pending action (no deletion yet).
-  - Confirm endpoint performs deletion and reports exact deleted count.
-  - Owner isolation is enforced for all tool actions.
+  - Chat flow: generic search command returns expected mixed-status captures.
+  - Follow-up “delete all these” still creates pending action only.
+  - Confirm deletes exactly current result-set IDs and remains owner-scoped.
 - Frontend tests:
-  - Route/nav includes `/assistant`.
-  - Chat page loads persisted history.
-  - Pending delete shows two-step confirmation UI and only executes after confirm.
-  - Result set context is preserved between sequential commands.
+  - Assistant view renders generic result sets and preserves active context between sequential commands.
+  - Existing pending delete confirmation flow still blocks execution until confirm.
 
-#### Assumptions / Defaults
-- v1 uses one active persisted chat session per user (no multi-thread session UX yet).
-- Assistant result-set execution is capped (store all IDs up to safe limit; show preview subset in UI).
-- “Deleted accounts” is intentionally mapped to the selected skip-code set, not heuristic LLM interpretation.
-- MCP support is explicitly postponed to phase 2 and will wrap these same backend tools/APIs.
+### Assumptions and Defaults
+- Query mode: hybrid semantic + text.
+- Date filter field: `createdAt` only (v1.1).
+- At least one criterion is required (query, tags, labels, contentType, status, or date range).
+- Pagination defaults and limits follow existing assistant/result-set safety caps.
+- MCP remains deferred to phase 2 and will wrap the same backend tooling.

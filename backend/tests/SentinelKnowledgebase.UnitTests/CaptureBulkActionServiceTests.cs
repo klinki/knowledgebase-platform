@@ -3,7 +3,9 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Labels;
 using SentinelKnowledgebase.Application.Services;
+using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
 using SentinelKnowledgebase.Infrastructure.Repositories;
 using Xunit;
 
@@ -17,6 +19,7 @@ public class CaptureBulkActionServiceTests
     private readonly ILabelCategoryRepository _labelCategoryRepository;
     private readonly ILabelValueRepository _labelValueRepository;
     private readonly IProcessedInsightRepository _processedInsightRepository;
+    private readonly IContentProcessor _contentProcessor;
     private readonly CaptureBulkActionService _service;
 
     public CaptureBulkActionServiceTests()
@@ -27,6 +30,7 @@ public class CaptureBulkActionServiceTests
         _labelCategoryRepository = Substitute.For<ILabelCategoryRepository>();
         _labelValueRepository = Substitute.For<ILabelValueRepository>();
         _processedInsightRepository = Substitute.For<IProcessedInsightRepository>();
+        _contentProcessor = Substitute.For<IContentProcessor>();
 
         _unitOfWork.RawCaptures.Returns(_rawCaptureRepository);
         _unitOfWork.Tags.Returns(_tagRepository);
@@ -34,9 +38,11 @@ public class CaptureBulkActionServiceTests
         _unitOfWork.LabelValues.Returns(_labelValueRepository);
         _unitOfWork.ProcessedInsights.Returns(_processedInsightRepository);
         _unitOfWork.SaveChangesAsync().Returns(1);
+        _contentProcessor.GenerateEmbeddingAsync(Arg.Any<string>())
+            .Returns(callInfo => Task.FromResult(new[] { 0.42f }));
 
         var logger = Substitute.For<ILogger<CaptureBulkActionService>>();
-        _service = new CaptureBulkActionService(_unitOfWork, logger);
+        _service = new CaptureBulkActionService(_unitOfWork, _contentProcessor, logger);
     }
 
     [Fact]
@@ -192,5 +198,88 @@ public class CaptureBulkActionServiceTests
         capture.LabelAssignments.Should().BeEmpty();
         capture.ProcessedInsight!.LabelAssignments.Should().BeEmpty();
         await _unitOfWork.Received(1).SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task SearchCapturesAsync_ShouldRequireAtLeastOneCriterion()
+    {
+        var ownerUserId = Guid.NewGuid();
+
+        var act = async () => await _service.SearchCapturesAsync(ownerUserId, new CaptureSearchCriteria(), 5000, 20);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task SearchCapturesAsync_ShouldApplyHybridCriteriaAndMapPreview()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var captureId = Guid.NewGuid();
+        CaptureSearchQueryOptions? observedOptions = null;
+
+        _rawCaptureRepository.SearchCapturesAsync(
+                ownerUserId,
+                Arg.Do<CaptureSearchQueryOptions>(options => observedOptions = options))
+            .Returns(new CaptureSearchQueryResult
+            {
+                CaptureIds = [captureId],
+                TotalCount = 1,
+                Page = 2,
+                PageSize = 10,
+                Items =
+                [
+                    new CaptureSearchRecord
+                    {
+                        CaptureId = captureId,
+                        SourceUrl = "https://example.com/capture",
+                        RawContent = "Critical outage details in this capture body",
+                        Metadata = """{"processingSkipCode":"twitter_post_unavailable","processingSkipReason":"Unavailable"}""",
+                        ContentType = ContentType.Article,
+                        Status = CaptureStatus.Failed,
+                        CreatedAt = DateTime.UtcNow,
+                        Similarity = 0.87,
+                        MatchedByText = true,
+                        MatchedBySemantic = true
+                    }
+                ]
+            });
+
+        var result = await _service.SearchCapturesAsync(
+            ownerUserId,
+            new CaptureSearchCriteria
+            {
+                Query = "critical outage",
+                Tags = ["incident", "ops"],
+                TagMatchMode = "all",
+                Labels = [new LabelAssignmentDto { Category = "Team", Value = "SRE" }],
+                LabelMatchMode = "any",
+                Page = 2,
+                PageSize = 10,
+                Threshold = 0.55,
+                ContentType = ContentType.Article,
+                Status = CaptureStatus.Failed,
+                DateFrom = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                DateTo = new DateTime(2026, 4, 14, 23, 59, 59, DateTimeKind.Utc)
+            },
+            maxResultSetSize: 5000,
+            previewSize: 10);
+
+        observedOptions.Should().NotBeNull();
+        observedOptions!.Query.Should().Be("critical outage");
+        observedOptions.MatchAllTags.Should().BeTrue();
+        observedOptions.MatchAllLabels.Should().BeFalse();
+        observedOptions.ContentType.Should().Be(ContentType.Article);
+        observedOptions.Status.Should().Be(CaptureStatus.Failed);
+        observedOptions.Page.Should().Be(2);
+        observedOptions.PageSize.Should().Be(10);
+        observedOptions.DateFrom.Should().NotBeNull();
+        observedOptions.DateTo.Should().NotBeNull();
+
+        result.TotalCount.Should().Be(1);
+        result.CaptureIds.Should().ContainSingle().Which.Should().Be(captureId);
+        result.PreviewItems.Should().ContainSingle();
+        result.PreviewItems[0].MatchReason.Should().Be("semantic+text");
+        result.PreviewItems[0].SkipCode.Should().Be("twitter_post_unavailable");
+        await _contentProcessor.Received(1).GenerateEmbeddingAsync("critical outage");
     }
 }

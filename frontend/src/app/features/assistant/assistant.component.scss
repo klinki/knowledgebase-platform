@@ -129,7 +129,13 @@
     padding-left: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.6rem;
+  }
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   a {
@@ -137,10 +143,34 @@
     text-decoration: none;
   }
 
-  .skip-code {
-    margin-left: 0.5rem;
+  .preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .meta-chip {
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 0.08rem 0.45rem;
+    font-size: 0.72rem;
     color: #cbd5e1;
-    font-size: 0.8rem;
+  }
+
+  .meta-chip.status {
+    border-color: rgba(56, 189, 248, 0.45);
+    color: #bae6fd;
+  }
+
+  .preview-text {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+
+  .skip-code {
+    color: #fcd34d;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   }
 }

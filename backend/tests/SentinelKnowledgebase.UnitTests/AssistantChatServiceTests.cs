@@ -122,4 +122,58 @@ public class AssistantChatServiceTests
         action.Status.Should().Be(AssistantChatActionStatus.Cancelled);
         await _captureBulkActionService.DidNotReceive().DeleteCapturesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>());
     }
+
+    [Fact]
+    public async Task SendMessageAsync_GenericSearch_ShouldCreateSearchResultSetSnapshot()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var captureId = Guid.NewGuid();
+        var session = new AssistantChatSession
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId
+        };
+
+        _assistantChatRepository.GetOrCreateSessionAsync(ownerUserId).Returns(session);
+        _assistantChatRepository.GetMessagesAsync(ownerUserId).Returns([]);
+        _captureBulkActionService.SearchCapturesAsync(
+                ownerUserId,
+                Arg.Any<CaptureSearchCriteria>(),
+                Arg.Any<int>(),
+                Arg.Any<int>())
+            .Returns(new CaptureBulkQueryResult
+            {
+                CaptureIds = [captureId],
+                TotalCount = 1,
+                Summary = "Found 1 capture. Showing 1 result on page 1 (page size 20).",
+                PreviewItems =
+                [
+                    new CaptureBulkPreviewItem
+                    {
+                        CaptureId = captureId,
+                        SourceUrl = "https://example.com/capture",
+                        ContentType = "Tweet",
+                        Status = "Failed",
+                        MatchReason = "text",
+                        CreatedAt = DateTime.UtcNow
+                    }
+                ]
+            });
+
+        var response = await _service.SendMessageAsync(ownerUserId, new AssistantChatMessageSendRequestDto
+        {
+            Message = "Find failed captures about outage"
+        });
+
+        response.AssistantMessage.Content.Should().Contain("Found 1 capture");
+        await _captureBulkActionService.Received(1).SearchCapturesAsync(
+            ownerUserId,
+            Arg.Is<CaptureSearchCriteria>(criteria =>
+                criteria.Query == "Find failed captures about outage" &&
+                criteria.Status == CaptureStatus.Failed),
+            Arg.Any<int>(),
+            Arg.Any<int>());
+        await _assistantChatRepository.Received(1).AddResultSetAsync(
+            Arg.Is<AssistantChatResultSet>(resultSet => resultSet.QueryType == "search_captures" && resultSet.TotalCount == 1));
+    }
 }

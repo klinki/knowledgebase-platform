@@ -40,9 +40,57 @@ describe('AssistantComponent', () => {
 
     expect(state.confirmAction).toHaveBeenCalledWith(pendingActionId);
   });
+
+  it('renders generic search preview metadata for mixed-status results', async () => {
+    const state = createAssistantStateStub({
+      messages: [
+        {
+          id: 'msg-1',
+          role: 'Assistant',
+          content: 'Found 2 captures.',
+          createdAt: '2026-04-14T10:00:00Z',
+          action: null,
+          resultSet: {
+            id: 'result-set-1',
+            queryType: 'search_captures',
+            summary: 'Found 2 captures.',
+            totalCount: 2,
+            createdAt: '2026-04-14T10:00:00Z',
+            previewItems: [
+              {
+                captureId: 'capture-1',
+                sourceUrl: 'https://example.com/1',
+                contentType: 'Tweet',
+                status: 'Failed',
+                similarity: null,
+                matchReason: 'text',
+                previewText: 'Failure details',
+                skipCode: null,
+                skipReason: null,
+                createdAt: '2026-04-14T09:00:00Z'
+              }
+            ]
+          }
+        }
+      ]
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [AssistantComponent],
+      providers: [{ provide: AssistantChatStateService, useValue: state }]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AssistantComponent);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Tweet');
+    expect(compiled.textContent).toContain('Failed');
+    expect(compiled.textContent).toContain('Failure details');
+  });
 });
 
-function createAssistantStateStub(options?: { pendingActionId?: string }) {
+function createAssistantStateStub(options?: { pendingActionId?: string; messages?: unknown[] }) {
   const pendingAction = options?.pendingActionId
     ? {
         id: options.pendingActionId,
@@ -67,7 +115,7 @@ function createAssistantStateStub(options?: { pendingActionId?: string }) {
     sending: signal(false),
     acting: signal(false),
     error: signal<string | null>(null),
-    messages: signal([]),
+    messages: signal(options?.messages ?? []),
     pendingDeleteAction: signal(pendingAction)
   };
 }

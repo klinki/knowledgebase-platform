@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SentinelKnowledgebase.Application.DTOs.Assistant;
 using SentinelKnowledgebase.Application.DTOs.Labels;
+using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Domain.Enums;
@@ -18,6 +20,7 @@ public partial class AssistantChatService : IAssistantChatService
 {
     private const int MaxResultSetSize = 5000;
     private const int PreviewSize = 20;
+    private const string SearchCapturesTool = "search_captures";
     private const string FindDeletedTweetsTool = "find_deleted_tweets";
     private const string DeleteCurrentResultSetTool = "delete_current_result_set";
     private const string AddTagsToCurrentResultSetTool = "add_tags_to_current_result_set";
@@ -27,6 +30,7 @@ public partial class AssistantChatService : IAssistantChatService
 
     private static readonly HashSet<string> ToolAllowlist = new(StringComparer.Ordinal)
     {
+        SearchCapturesTool,
         FindDeletedTweetsTool,
         DeleteCurrentResultSetTool,
         AddTagsToCurrentResultSetTool,
@@ -257,6 +261,7 @@ public partial class AssistantChatService : IAssistantChatService
     {
         return toolCall.Name switch
         {
+            SearchCapturesTool => await ExecuteSearchCapturesAsync(ownerUserId, session, toolCall),
             FindDeletedTweetsTool => await ExecuteFindDeletedTweetsAsync(ownerUserId, session),
             DeleteCurrentResultSetTool => await ExecuteDeleteCurrentResultSetAsync(ownerUserId, session),
             AddTagsToCurrentResultSetTool => await ExecuteAddTagsAsync(ownerUserId, session, toolCall),
@@ -264,6 +269,74 @@ public partial class AssistantChatService : IAssistantChatService
             AddLabelsToCurrentResultSetTool => await ExecuteAddLabelsAsync(ownerUserId, session, toolCall),
             RemoveLabelsFromCurrentResultSetTool => await ExecuteRemoveLabelsAsync(ownerUserId, session, toolCall),
             _ => null
+        };
+    }
+
+    private async Task<ToolExecutionOutcome> ExecuteSearchCapturesAsync(
+        Guid ownerUserId,
+        AssistantChatSession session,
+        PlannedToolCall toolCall)
+    {
+        var criteria = new CaptureSearchCriteria
+        {
+            Query = toolCall.Query,
+            Tags = toolCall.Tags,
+            TagMatchMode = toolCall.TagMatchMode,
+            Labels = toolCall.Labels,
+            LabelMatchMode = toolCall.LabelMatchMode,
+            Page = toolCall.Page ?? 1,
+            PageSize = toolCall.PageSize ?? PreviewSize,
+            Threshold = toolCall.Threshold ?? 0.3,
+            ContentType = toolCall.ContentType,
+            Status = toolCall.Status,
+            DateFrom = toolCall.DateFrom,
+            DateTo = toolCall.DateTo
+        };
+
+        if (!HasAtLeastOneSearchCriterion(criteria))
+        {
+            return new ToolExecutionOutcome
+            {
+                AssistantContent = "Provide at least one search criterion: query, tags, labels, content type, status, or date range."
+            };
+        }
+
+        if (criteria.DateFrom.HasValue && criteria.DateTo.HasValue && criteria.DateFrom > criteria.DateTo)
+        {
+            return new ToolExecutionOutcome
+            {
+                AssistantContent = "Invalid date range: dateFrom must be earlier than or equal to dateTo."
+            };
+        }
+
+        var previewSize = Math.Clamp(criteria.PageSize, 1, 100);
+        var result = await _captureBulkActionService.SearchCapturesAsync(
+            ownerUserId,
+            criteria,
+            MaxResultSetSize,
+            previewSize);
+
+        var resultSet = new AssistantChatResultSet
+        {
+            Id = Guid.NewGuid(),
+            SessionId = session.Id,
+            OwnerUserId = ownerUserId,
+            QueryType = "search_captures",
+            Summary = result.Summary,
+            CaptureIdsJson = JsonSerializer.Serialize(result.CaptureIds),
+            PreviewJson = JsonSerializer.Serialize(result.PreviewItems),
+            TotalCount = result.TotalCount,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var content = result.TotalCount == 0
+            ? "I found no captures for the current search criteria."
+            : result.Summary;
+
+        return new ToolExecutionOutcome
+        {
+            AssistantContent = content,
+            ResultSet = resultSet
         };
     }
 
@@ -530,6 +603,7 @@ public partial class AssistantChatService : IAssistantChatService
 
             var systemPrompt = $"""
 You are an assistant for capture management. Plan only from this tool allowlist:
+- {SearchCapturesTool}
 - {FindDeletedTweetsTool}
 - {DeleteCurrentResultSetTool}
 - {AddTagsToCurrentResultSetTool}
@@ -538,6 +612,10 @@ You are an assistant for capture management. Plan only from this tool allowlist:
 - {RemoveLabelsFromCurrentResultSetTool}
 
 Rules:
+- Use {SearchCapturesTool} for generic capture lookup. Arguments can include:
+  query, tags, tagMatchMode(any|all), labels(array of category/value pairs), labelMatchMode(any|all),
+  page, pageSize, threshold, contentType(Tweet|Article|Code|Note|Other),
+  status(Pending|Processing|Completed|Failed), dateFrom, dateTo.
 - Delete must only target the active result set and should be proposed, not executed.
 - For deleted twitter accounts, always use deterministic skip-code matching.
 - Output JSON object with fields:
@@ -674,6 +752,18 @@ Rules:
             return plan;
         }
 
+        if (LooksLikeSearchIntent(lower))
+        {
+            plan.ToolCalls.Add(BuildFallbackSearchToolCall(message, lower));
+            return plan;
+        }
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            plan.ToolCalls.Add(BuildFallbackSearchToolCall(message, lower));
+            return plan;
+        }
+
         return plan;
     }
 
@@ -746,6 +836,11 @@ Rules:
             {
                 CaptureId = item.CaptureId,
                 SourceUrl = item.SourceUrl,
+                ContentType = item.ContentType,
+                Status = item.Status,
+                Similarity = item.Similarity,
+                MatchReason = item.MatchReason,
+                PreviewText = item.PreviewText,
                 SkipCode = item.SkipCode,
                 SkipReason = item.SkipReason,
                 CreatedAt = item.CreatedAt
@@ -792,6 +887,92 @@ Rules:
             .ToList();
     }
 
+    private static bool HasAtLeastOneSearchCriterion(CaptureSearchCriteria criteria)
+    {
+        return !string.IsNullOrWhiteSpace(criteria.Query)
+               || criteria.Tags.Count > 0
+               || criteria.Labels.Count > 0
+               || criteria.ContentType.HasValue
+               || criteria.Status.HasValue
+               || criteria.DateFrom.HasValue
+               || criteria.DateTo.HasValue;
+    }
+
+    private static bool LooksLikeSearchIntent(string lowerMessage)
+    {
+        return lowerMessage.Contains("find ")
+               || lowerMessage.StartsWith("find", StringComparison.Ordinal)
+               || lowerMessage.Contains("search")
+               || lowerMessage.Contains("show ")
+               || lowerMessage.Contains("list ");
+    }
+
+    private static PlannedToolCall BuildFallbackSearchToolCall(string message, string lowerMessage)
+    {
+        return new PlannedToolCall
+        {
+            Name = SearchCapturesTool,
+            Query = message.Trim(),
+            ContentType = InferContentType(lowerMessage),
+            Status = InferStatus(lowerMessage)
+        };
+    }
+
+    private static ContentType? InferContentType(string lowerMessage)
+    {
+        if (lowerMessage.Contains("tweet"))
+        {
+            return ContentType.Tweet;
+        }
+
+        if (lowerMessage.Contains("article"))
+        {
+            return ContentType.Article;
+        }
+
+        if (lowerMessage.Contains("code"))
+        {
+            return ContentType.Code;
+        }
+
+        if (lowerMessage.Contains("note"))
+        {
+            return ContentType.Note;
+        }
+
+        if (lowerMessage.Contains("other"))
+        {
+            return ContentType.Other;
+        }
+
+        return null;
+    }
+
+    private static CaptureStatus? InferStatus(string lowerMessage)
+    {
+        if (lowerMessage.Contains("completed"))
+        {
+            return CaptureStatus.Completed;
+        }
+
+        if (lowerMessage.Contains("failed"))
+        {
+            return CaptureStatus.Failed;
+        }
+
+        if (lowerMessage.Contains("pending"))
+        {
+            return CaptureStatus.Pending;
+        }
+
+        if (lowerMessage.Contains("processing"))
+        {
+            return CaptureStatus.Processing;
+        }
+
+        return null;
+    }
+
     [GeneratedRegex(@"(?i)add\s+tags?\s+(?<tags>.+)$")]
     private static partial Regex AddTagRegex();
 
@@ -813,8 +994,18 @@ Rules:
     private sealed class PlannedToolCall
     {
         public string Name { get; set; } = string.Empty;
+        public string? Query { get; set; }
         public List<string> Tags { get; set; } = new();
+        public string TagMatchMode { get; set; } = SearchMatchModes.Any;
         public List<LabelAssignmentDto> Labels { get; set; } = new();
+        public string LabelMatchMode { get; set; } = SearchMatchModes.All;
+        public int? Page { get; set; }
+        public int? PageSize { get; set; }
+        public double? Threshold { get; set; }
+        public ContentType? ContentType { get; set; }
+        public CaptureStatus? Status { get; set; }
+        public DateTime? DateFrom { get; set; }
+        public DateTime? DateTo { get; set; }
 
         public static PlannedToolCall From(string name, JsonElement? arguments)
         {
@@ -824,35 +1015,171 @@ Rules:
                 return call;
             }
 
-            if (json.TryGetProperty("tags", out var tagsElement) && tagsElement.ValueKind == JsonValueKind.Array)
-            {
-                call.Tags = tagsElement.EnumerateArray()
-                    .Where(item => item.ValueKind == JsonValueKind.String)
-                    .Select(item => item.GetString()!.Trim())
-                    .Where(item => item.Length > 0)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-
-            if (json.TryGetProperty("labels", out var labelsElement) && labelsElement.ValueKind == JsonValueKind.Array)
-            {
-                call.Labels = labelsElement.EnumerateArray()
-                    .Where(item => item.ValueKind == JsonValueKind.Object)
-                    .Select(item =>
-                    {
-                        item.TryGetProperty("category", out var categoryElement);
-                        item.TryGetProperty("value", out var valueElement);
-                        return new LabelAssignmentDto
-                        {
-                            Category = categoryElement.ValueKind == JsonValueKind.String ? categoryElement.GetString() ?? string.Empty : string.Empty,
-                            Value = valueElement.ValueKind == JsonValueKind.String ? valueElement.GetString() ?? string.Empty : string.Empty
-                        };
-                    })
-                    .Where(label => !string.IsNullOrWhiteSpace(label.Category) && !string.IsNullOrWhiteSpace(label.Value))
-                    .ToList();
-            }
+            call.Query = ReadString(json, "query");
+            call.Tags = ReadStringArray(json, "tags");
+            call.TagMatchMode = ParseMatchMode(ReadString(json, "tagMatchMode"), SearchMatchModes.Any);
+            call.Labels = ReadLabels(json, "labels");
+            call.LabelMatchMode = ParseMatchMode(ReadString(json, "labelMatchMode"), SearchMatchModes.All);
+            call.Page = ReadInt(json, "page");
+            call.PageSize = ReadInt(json, "pageSize");
+            call.Threshold = ReadDouble(json, "threshold");
+            call.ContentType = ReadEnum<ContentType>(json, "contentType");
+            call.Status = ReadEnum<CaptureStatus>(json, "status");
+            call.DateFrom = ReadDateTime(json, "dateFrom", endOfDay: false);
+            call.DateTo = ReadDateTime(json, "dateTo", endOfDay: true);
 
             return call;
+        }
+
+        private static string? ReadString(JsonElement json, string propertyName)
+        {
+            if (!json.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            var normalized = value.GetString()?.Trim();
+            return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+        }
+
+        private static List<string> ReadStringArray(JsonElement json, string propertyName)
+        {
+            if (!json.TryGetProperty(propertyName, out var values) || values.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            return values.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.String)
+                .Select(item => item.GetString()!.Trim())
+                .Where(item => item.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static List<LabelAssignmentDto> ReadLabels(JsonElement json, string propertyName)
+        {
+            if (!json.TryGetProperty(propertyName, out var values) || values.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            return values.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.Object)
+                .Select(item =>
+                {
+                    item.TryGetProperty("category", out var categoryElement);
+                    item.TryGetProperty("value", out var valueElement);
+                    return new LabelAssignmentDto
+                    {
+                        Category = categoryElement.ValueKind == JsonValueKind.String ? categoryElement.GetString() ?? string.Empty : string.Empty,
+                        Value = valueElement.ValueKind == JsonValueKind.String ? valueElement.GetString() ?? string.Empty : string.Empty
+                    };
+                })
+                .Where(label => !string.IsNullOrWhiteSpace(label.Category) && !string.IsNullOrWhiteSpace(label.Value))
+                .ToList();
+        }
+
+        private static string ParseMatchMode(string? value, string fallback)
+        {
+            return SearchMatchModes.IsValid(value) ? value!.ToLowerInvariant() : fallback;
+        }
+
+        private static int? ReadInt(JsonElement json, string propertyName)
+        {
+            if (!json.TryGetProperty(propertyName, out var value))
+            {
+                return null;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+            {
+                return number;
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+            {
+                return number;
+            }
+
+            return null;
+        }
+
+        private static double? ReadDouble(JsonElement json, string propertyName)
+        {
+            if (!json.TryGetProperty(propertyName, out var value))
+            {
+                return null;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number))
+            {
+                return number;
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                double.TryParse(value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number))
+            {
+                return number;
+            }
+
+            return null;
+        }
+
+        private static TEnum? ReadEnum<TEnum>(JsonElement json, string propertyName)
+            where TEnum : struct, Enum
+        {
+            if (!json.TryGetProperty(propertyName, out var value))
+            {
+                return null;
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                Enum.TryParse<TEnum>(value.GetString(), true, out var enumValue))
+            {
+                return enumValue;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number &&
+                value.TryGetInt32(out var intValue) &&
+                Enum.IsDefined(typeof(TEnum), intValue))
+            {
+                return (TEnum)Enum.ToObject(typeof(TEnum), intValue);
+            }
+
+            return null;
+        }
+
+        private static DateTime? ReadDateTime(JsonElement json, string propertyName, bool endOfDay)
+        {
+            if (!json.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            var raw = value.GetString();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return null;
+            }
+
+            if (DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOnly))
+            {
+                var time = endOfDay ? TimeOnly.MaxValue : TimeOnly.MinValue;
+                return DateTime.SpecifyKind(dateOnly.ToDateTime(time), DateTimeKind.Utc);
+            }
+
+            if (DateTimeOffset.TryParse(
+                    raw,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var dateTimeOffset))
+            {
+                return dateTimeOffset.UtcDateTime;
+            }
+
+            return null;
         }
     }
 
