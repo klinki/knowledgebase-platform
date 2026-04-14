@@ -24,6 +24,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<InsightCluster> InsightClusters { get; set; }
     public DbSet<InsightClusterMembership> InsightClusterMemberships { get; set; }
     public DbSet<CaptureProcessingControl> CaptureProcessingControls { get; set; }
+    public DbSet<AssistantChatSession> AssistantChatSessions { get; set; }
+    public DbSet<AssistantChatMessage> AssistantChatMessages { get; set; }
+    public DbSet<AssistantChatResultSet> AssistantChatResultSets { get; set; }
+    public DbSet<AssistantChatPendingAction> AssistantChatPendingActions { get; set; }
     public DbSet<UserInvitation> UserInvitations { get; set; }
     public DbSet<DeviceAuthorization> DeviceAuthorizations { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -234,6 +238,74 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 ChangedAt = null,
                 ChangedByUserId = null
             });
+        });
+
+        modelBuilder.Entity<AssistantChatSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.OwnerUserId).IsUnique();
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AssistantChatMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.SessionId, e.CreatedAt });
+
+            entity.HasOne(e => e.Session)
+                .WithMany(session => session.Messages)
+                .HasForeignKey(e => e.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AssistantChatResultSet>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.QueryType).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.CaptureIdsJson).IsRequired();
+            entity.Property(e => e.PreviewJson).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.SessionId, e.CreatedAt });
+            entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAt });
+
+            entity.HasOne(e => e.Session)
+                .WithMany(session => session.ResultSets)
+                .HasForeignKey(e => e.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AssistantChatPendingAction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CaptureIdsJson).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.SessionId, e.CreatedAt });
+            entity.HasIndex(e => new { e.OwnerUserId, e.Status });
+
+            entity.HasOne(e => e.Session)
+                .WithMany(session => session.PendingActions)
+                .HasForeignKey(e => e.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ApplicationUser>(entity =>

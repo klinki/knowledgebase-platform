@@ -13,6 +13,7 @@ public interface IUnitOfWork : IDisposable
     ILabelValueRepository LabelValues { get; }
     IEmbeddingVectorRepository EmbeddingVectors { get; }
     IInsightClusterRepository InsightClusters { get; }
+    IAssistantChatRepository AssistantChat { get; }
     Task<int> SaveChangesAsync();
 }
 
@@ -28,6 +29,7 @@ public class UnitOfWork : IUnitOfWork
     public ILabelValueRepository LabelValues { get; }
     public IEmbeddingVectorRepository EmbeddingVectors { get; }
     public IInsightClusterRepository InsightClusters { get; }
+    public IAssistantChatRepository AssistantChat { get; }
     
     public UnitOfWork(ApplicationDbContext context)
     {
@@ -40,6 +42,7 @@ public class UnitOfWork : IUnitOfWork
         LabelValues = new LabelValueRepository(_context);
         EmbeddingVectors = new EmbeddingVectorRepository(_context);
         InsightClusters = new InsightClusterRepository(_context);
+        AssistantChat = new AssistantChatRepository(_context);
     }
     
     public async Task<int> SaveChangesAsync()

@@ -1,0 +1,125 @@
+using AwesomeAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+using SentinelKnowledgebase.Application.DTOs.Assistant;
+using SentinelKnowledgebase.Application.Services;
+using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Domain.Entities;
+using SentinelKnowledgebase.Domain.Enums;
+using SentinelKnowledgebase.Infrastructure.Repositories;
+using Xunit;
+
+namespace SentinelKnowledgebase.UnitTests;
+
+public class AssistantChatServiceTests
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAssistantChatRepository _assistantChatRepository;
+    private readonly ICaptureBulkActionService _captureBulkActionService;
+    private readonly AssistantChatService _service;
+
+    public AssistantChatServiceTests()
+    {
+        _unitOfWork = Substitute.For<IUnitOfWork>();
+        _assistantChatRepository = Substitute.For<IAssistantChatRepository>();
+        _captureBulkActionService = Substitute.For<ICaptureBulkActionService>();
+
+        _unitOfWork.AssistantChat.Returns(_assistantChatRepository);
+        _unitOfWork.SaveChangesAsync().Returns(1);
+
+        _assistantChatRepository.GetResultSetsByIdsAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns(new Dictionary<Guid, AssistantChatResultSet>());
+        _assistantChatRepository.GetPendingActionsByIdsAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>())
+            .Returns(new Dictionary<Guid, AssistantChatPendingAction>());
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        _service = new AssistantChatService(
+            _unitOfWork,
+            _captureBulkActionService,
+            configuration,
+            new HttpClient(),
+            Substitute.For<ILogger<AssistantChatService>>());
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_DeleteProposal_ShouldCreatePendingActionWithoutDeletion()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var resultSetId = Guid.NewGuid();
+        var captureA = Guid.NewGuid();
+        var captureB = Guid.NewGuid();
+        var session = new AssistantChatSession
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            LastResultSetId = resultSetId
+        };
+        var resultSet = new AssistantChatResultSet
+        {
+            Id = resultSetId,
+            SessionId = session.Id,
+            OwnerUserId = ownerUserId,
+            QueryType = "deleted_twitter_accounts",
+            Summary = "Found 2",
+            CaptureIdsJson = System.Text.Json.JsonSerializer.Serialize(new[] { captureA, captureB }),
+            PreviewJson = "[]",
+            TotalCount = 2
+        };
+
+        _assistantChatRepository.GetOrCreateSessionAsync(ownerUserId).Returns(session);
+        _assistantChatRepository.GetMessagesAsync(ownerUserId).Returns([]);
+        _assistantChatRepository.GetResultSetByIdAsync(ownerUserId, resultSetId).Returns(resultSet);
+        _assistantChatRepository.GetLatestPendingActionAsync(ownerUserId).Returns((AssistantChatPendingAction?)null);
+
+        var response = await _service.SendMessageAsync(ownerUserId, new AssistantChatMessageSendRequestDto
+        {
+            Message = "Now delete all these tweets"
+        });
+
+        response.AssistantMessage.Content.Should().Contain("prepared deletion");
+        await _assistantChatRepository.Received(1).AddPendingActionAsync(
+            Arg.Is<AssistantChatPendingAction>(action =>
+                action.Status == AssistantChatActionStatus.PendingConfirmation &&
+                action.ActionType == AssistantChatActionType.DeleteCaptures &&
+                action.CaptureCount == 2 &&
+                action.TargetResultSetId == resultSetId));
+        await _captureBulkActionService.DidNotReceive().DeleteCapturesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>());
+    }
+
+    [Fact]
+    public async Task ConfirmActionAsync_ShouldCancel_WhenTargetIsOutsideCurrentResultSet()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var session = new AssistantChatSession
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            LastResultSetId = Guid.NewGuid()
+        };
+        var action = new AssistantChatPendingAction
+        {
+            Id = Guid.NewGuid(),
+            SessionId = session.Id,
+            OwnerUserId = ownerUserId,
+            ActionType = AssistantChatActionType.DeleteCaptures,
+            Status = AssistantChatActionStatus.PendingConfirmation,
+            TargetResultSetId = Guid.NewGuid(),
+            CaptureIdsJson = "[]",
+            CaptureCount = 0
+        };
+
+        _assistantChatRepository.GetByOwnerAsync(ownerUserId).Returns(session);
+        _assistantChatRepository.GetPendingActionAsync(ownerUserId, action.Id).Returns(action);
+
+        var response = await _service.ConfirmActionAsync(ownerUserId, action.Id);
+
+        response.Should().NotBeNull();
+        response!.Action.Status.Should().Be(AssistantChatActionStatus.Cancelled);
+        action.Status.Should().Be(AssistantChatActionStatus.Cancelled);
+        await _captureBulkActionService.DidNotReceive().DeleteCapturesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>());
+    }
+}

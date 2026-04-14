@@ -16,3 +16,21 @@ public enum ContentType
     Note,
     Other
 }
+
+public enum AssistantChatMessageRole
+{
+    User,
+    Assistant
+}
+
+public enum AssistantChatActionType
+{
+    DeleteCaptures
+}
+
+public enum AssistantChatActionStatus
+{
+    PendingConfirmation,
+    Cancelled,
+    Executed
+}

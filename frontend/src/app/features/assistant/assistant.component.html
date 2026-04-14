@@ -1,0 +1,84 @@
+<section class="assistant-page">
+  <header class="page-header">
+    <h1>Assistant</h1>
+    <p>Chat with capture operations and confirm destructive actions explicitly.</p>
+  </header>
+
+  @if (assistantState.error()) {
+    <div class="error-banner">{{ assistantState.error() }}</div>
+  }
+
+  @if (pendingDeleteAction(); as pending) {
+    <article class="pending-card">
+      <h2>Delete Confirmation Required</h2>
+      <p>
+        Pending deletion for <strong>{{ pending.captureCount }}</strong>
+        {{ pending.captureCount === 1 ? 'capture' : 'captures' }} from the current result set.
+      </p>
+      <div class="pending-actions">
+        <button type="button" class="danger" (click)="confirmPendingDelete()" [disabled]="assistantState.acting()">
+          Confirm Delete
+        </button>
+        <button type="button" class="secondary" (click)="cancelPendingDelete()" [disabled]="assistantState.acting()">
+          Cancel
+        </button>
+      </div>
+    </article>
+  }
+
+  <section class="thread" aria-live="polite">
+    @if (assistantState.loading()) {
+      <p class="placeholder">Loading conversation...</p>
+    } @else if (messages().length === 0) {
+      <p class="placeholder">Start with: <code>Find me all tweets from deleted accounts</code></p>
+    } @else {
+      @for (message of messages(); track message.id) {
+        <article class="message" [class.user]="message.role === 'User'" [class.assistant]="message.role === 'Assistant'">
+          <div class="meta">{{ message.role }}</div>
+          <p class="content">{{ message.content }}</p>
+
+          @if (message.resultSet; as resultSet) {
+            <section class="result-set">
+              <p class="summary">{{ resultSet.summary }}</p>
+              <p class="count">{{ resultSet.totalCount }} {{ resultSet.totalCount === 1 ? 'result' : 'results' }}</p>
+              @if (resultSet.previewItems.length > 0) {
+                <ul>
+                  @for (item of resultSet.previewItems; track item.captureId) {
+                    <li>
+                      <a [href]="item.sourceUrl" target="_blank" rel="noreferrer">{{ item.sourceUrl }}</a>
+                      @if (item.skipCode) {
+                        <span class="skip-code">{{ item.skipCode }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+          }
+
+          @if (message.action; as action) {
+            <section class="action-state">
+              <span class="pill">{{ action.actionType }}</span>
+              <span class="pill status">{{ action.status }}</span>
+              <span class="pill">{{ action.captureCount }} targets</span>
+            </section>
+          }
+        </article>
+      }
+    }
+  </section>
+
+  <form class="composer" (ngSubmit)="sendMessage()">
+    <label for="assistant-input">Message</label>
+    <textarea
+      id="assistant-input"
+      name="assistant-input"
+      [(ngModel)]="messageText"
+      rows="3"
+      placeholder="Ask for search, tagging, labeling, or safe deletion on the active result set..."
+      [disabled]="assistantState.sending() || assistantState.acting()"></textarea>
+    <button type="submit" [disabled]="assistantState.sending() || assistantState.acting() || !messageText.trim()">
+      {{ assistantState.sending() ? 'Sending...' : 'Send' }}
+    </button>
+  </form>
+</section>

@@ -76,6 +76,56 @@ public class RawCaptureRepository : IRawCaptureRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<RawCapture>> GetByIdsWithGraphAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _context.RawCaptures
+            .Include(capture => capture.Tags)
+            .Include(capture => capture.LabelAssignments)
+                .ThenInclude(assignment => assignment.LabelCategory)
+            .Include(capture => capture.LabelAssignments)
+                .ThenInclude(assignment => assignment.LabelValue)
+            .Include(capture => capture.ProcessedInsight)
+                .ThenInclude(insight => insight!.Tags)
+            .Include(capture => capture.ProcessedInsight)
+                .ThenInclude(insight => insight!.LabelAssignments)
+                    .ThenInclude(assignment => assignment.LabelCategory)
+            .Include(capture => capture.ProcessedInsight)
+                .ThenInclude(insight => insight!.LabelAssignments)
+                    .ThenInclude(assignment => assignment.LabelValue)
+            .Where(capture => capture.OwnerUserId == ownerUserId && ids.Contains(capture.Id))
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<CaptureMetadataRecord>> GetCompletedTweetsWithMetadataAsync(Guid ownerUserId, int take)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 5000);
+
+        return await _context.RawCaptures
+            .AsNoTracking()
+            .Where(capture =>
+                capture.OwnerUserId == ownerUserId &&
+                capture.ContentType == ContentType.Tweet &&
+                capture.Status == CaptureStatus.Completed &&
+                capture.Metadata != null)
+            .OrderByDescending(capture => capture.CreatedAt)
+            .Take(normalizedTake)
+            .Select(capture => new CaptureMetadataRecord
+            {
+                Id = capture.Id,
+                SourceUrl = capture.SourceUrl,
+                RawContent = capture.RawContent,
+                Metadata = capture.Metadata,
+                CreatedAt = capture.CreatedAt,
+                ProcessedAt = capture.ProcessedAt
+            })
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<RawCapture>> GetFailedAsync(Guid ownerUserId, ContentType? contentType = null)
     {
         IQueryable<RawCapture> query = _context.RawCaptures
@@ -225,6 +275,18 @@ public class RawCaptureRepository : IRawCaptureRepository
         {
             _context.RawCaptures.Remove(rawCapture);
         }
+    }
+
+    public async Task<int> DeleteByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        return await _context.RawCaptures
+            .Where(capture => capture.OwnerUserId == ownerUserId && ids.Contains(capture.Id))
+            .ExecuteDeleteAsync();
     }
 
     private static IQueryable<RawCapture> ApplySort(IQueryable<RawCapture> query, CaptureListQueryOptions options)

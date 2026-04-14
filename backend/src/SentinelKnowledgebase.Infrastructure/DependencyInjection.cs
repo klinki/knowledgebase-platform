@@ -120,6 +120,7 @@ public static class DependencyInjection
         services.AddScoped<ILabelValueRepository, LabelValueRepository>();
         services.AddScoped<IEmbeddingVectorRepository, EmbeddingVectorRepository>();
         services.AddScoped<IInsightClusterRepository, InsightClusterRepository>();
+        services.AddScoped<IAssistantChatRepository, AssistantChatRepository>();
         services.AddScoped<TokenService>();
         services.AddScoped<IdentityBootstrapper>();
         services.AddScoped<IUserLanguagePreferencesService, UserLanguagePreferencesService>();

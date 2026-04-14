@@ -13,6 +13,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<ICaptureService, CaptureService>();
+        services.AddScoped<ICaptureBulkActionService, CaptureBulkActionService>();
         services.AddScoped<ICaptureProcessingAdminService, CaptureProcessingAdminService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IInsightClusteringService, InsightClusteringService>();
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<ILabelService, LabelService>();
         services.AddSingleton<IMonitoringService, MonitoringService>();
         services.AddScoped<IContentProcessor, ContentProcessor>();
+        services.AddHttpClient<IAssistantChatService, AssistantChatService>();
         
         services.AddValidatorsFromAssemblyContaining<CaptureRequestValidator>();
         services.AddValidatorsFromAssemblyContaining<SemanticSearchRequestValidator>();

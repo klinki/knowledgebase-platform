@@ -16,6 +16,7 @@
 - [x] Frontend Direct Capture Creation (Ref: [docs/features/15-direct-capture-creation/feature-spec.md](/docs/features/15-direct-capture-creation/feature-spec.md))
 
 ## Backlog
+- [ ] LLM Capture Assistant v1 (Ref: [docs/features/24-llm-capture-assistant-v1/implementation-plan.md](/docs/features/24-llm-capture-assistant-v1/implementation-plan.md))
 - [ ] Topics Site Search and Sorting (Ref: [docs/features/23-topics-search-and-sort/implementation-plan.md](/docs/features/23-topics-search-and-sort/implementation-plan.md))
 - [ ] Search Page (Ref: [docs/features/21-search-page/implementation-plan.md](/docs/features/21-search-page/implementation-plan.md))
 - [ ] Admin Capture Processing Control (Ref: [docs/features/19-admin-processing-control/implementation-plan.md](/docs/features/19-admin-processing-control/implementation-plan.md))

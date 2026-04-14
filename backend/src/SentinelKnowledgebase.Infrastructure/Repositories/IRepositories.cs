@@ -9,6 +9,8 @@ public interface IRawCaptureRepository
     Task<RawCapture?> GetByIdAsync(Guid id);
     Task<RawCapture?> GetByIdAsync(Guid id, Guid ownerUserId);
     Task<IReadOnlyList<RawCapture>> GetByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
+    Task<IReadOnlyList<RawCapture>> GetByIdsWithGraphAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
+    Task<IReadOnlyList<CaptureMetadataRecord>> GetCompletedTweetsWithMetadataAsync(Guid ownerUserId, int take);
     Task<IReadOnlyList<RawCapture>> GetFailedAsync(Guid ownerUserId, ContentType? contentType = null);
     Task<CaptureListQueryResult> GetPagedListAsync(Guid ownerUserId, CaptureListQueryOptions options);
     Task<IEnumerable<RawCapture>> GetAllAsync(Guid ownerUserId);
@@ -19,6 +21,7 @@ public interface IRawCaptureRepository
     Task<int> CountAsync(Guid ownerUserId);
     Task UpdateAsync(RawCapture rawCapture);
     Task DeleteAsync(Guid id, Guid ownerUserId);
+    Task<int> DeleteByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids);
 }
 
 public class CaptureListQueryOptions
@@ -46,6 +49,38 @@ public class CaptureListRecord
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
     public string? Metadata { get; set; }
+}
+
+public class CaptureMetadataRecord
+{
+    public Guid Id { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
+    public string RawContent { get; set; } = string.Empty;
+    public string? Metadata { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+}
+
+public interface IAssistantChatRepository
+{
+    Task<AssistantChatSession> GetOrCreateSessionAsync(Guid ownerUserId);
+    Task<AssistantChatSession?> GetByOwnerAsync(Guid ownerUserId);
+    Task<IReadOnlyList<AssistantChatMessage>> GetMessagesAsync(Guid ownerUserId);
+    Task<AssistantChatResultSet?> GetResultSetByIdAsync(Guid ownerUserId, Guid resultSetId);
+    Task<IReadOnlyDictionary<Guid, AssistantChatResultSet>> GetResultSetsByIdsAsync(
+        Guid ownerUserId,
+        IReadOnlyCollection<Guid> resultSetIds);
+    Task<AssistantChatResultSet?> GetLatestResultSetAsync(Guid ownerUserId);
+    Task<AssistantChatPendingAction?> GetPendingActionAsync(Guid ownerUserId, Guid actionId);
+    Task<IReadOnlyDictionary<Guid, AssistantChatPendingAction>> GetPendingActionsByIdsAsync(
+        Guid ownerUserId,
+        IReadOnlyCollection<Guid> actionIds);
+    Task<AssistantChatPendingAction?> GetLatestPendingActionAsync(Guid ownerUserId);
+    Task AddMessageAsync(AssistantChatMessage message);
+    Task AddResultSetAsync(AssistantChatResultSet resultSet);
+    Task AddPendingActionAsync(AssistantChatPendingAction action);
+    Task UpdateSessionAsync(AssistantChatSession session);
+    Task UpdatePendingActionAsync(AssistantChatPendingAction action);
 }
 
 public interface ICaptureProcessingControlRepository

@@ -244,3 +244,63 @@ export interface CaptureBulkRetryAccepted {
   enqueuedCount: number;
   message: string;
 }
+
+export interface AssistantChatSession {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssistantChatResultSetItem {
+  captureId: string;
+  sourceUrl: string;
+  skipCode: string | null;
+  skipReason: string | null;
+  createdAt: string;
+}
+
+export interface AssistantChatResultSet {
+  id: string;
+  queryType: string;
+  summary: string;
+  totalCount: number;
+  createdAt: string;
+  previewItems: AssistantChatResultSetItem[];
+}
+
+export type AssistantChatActionType = 'DeleteCaptures';
+export type AssistantChatActionStatus = 'PendingConfirmation' | 'Cancelled' | 'Executed';
+
+export interface AssistantChatAction {
+  id: string;
+  actionType: AssistantChatActionType;
+  status: AssistantChatActionStatus;
+  targetResultSetId: string;
+  captureCount: number;
+  executedCount: number | null;
+  createdAt: string;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
+  executedAt: string | null;
+}
+
+export type AssistantChatMessageRole = 'User' | 'Assistant';
+
+export interface AssistantChatMessage {
+  id: string;
+  role: AssistantChatMessageRole;
+  content: string;
+  createdAt: string;
+  resultSet: AssistantChatResultSet | null;
+  action: AssistantChatAction | null;
+}
+
+export interface AssistantChatSendResponse {
+  userMessage: AssistantChatMessage;
+  assistantMessage: AssistantChatMessage;
+}
+
+export interface AssistantChatActionResponse {
+  action: AssistantChatAction;
+  assistantMessage: AssistantChatMessage;
+}

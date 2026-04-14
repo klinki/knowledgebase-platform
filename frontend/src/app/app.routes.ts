@@ -14,6 +14,7 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent) },
       { path: 'search', loadComponent: () => import('./features/search/search.component').then(m => m.SearchComponent) },
+      { path: 'assistant', loadComponent: () => import('./features/assistant/assistant.component').then(m => m.AssistantComponent) },
       { path: 'captures/new', loadComponent: () => import('./features/captures/create-capture.component').then(m => m.CreateCaptureComponent) },
       { path: 'captures', loadComponent: () => import('./features/captures/captures.component').then(m => m.CapturesComponent) },
       { path: 'captures/:id', loadComponent: () => import('./features/captures/capture-detail.component').then(m => m.CaptureDetailComponent) },
