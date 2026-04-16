@@ -910,13 +910,55 @@ Rules:
 
     private static PlannedToolCall BuildFallbackSearchToolCall(string message, string lowerMessage)
     {
+        var normalizedQuery = NormalizeFallbackSearchQuery(message);
         return new PlannedToolCall
         {
             Name = SearchCapturesTool,
-            Query = message.Trim(),
+            Query = normalizedQuery,
             ContentType = InferContentType(lowerMessage),
             Status = InferStatus(lowerMessage)
         };
+    }
+
+    private static string NormalizeFallbackSearchQuery(string message)
+    {
+        var normalized = message.Trim();
+        if (normalized.Length == 0)
+        {
+            return normalized;
+        }
+
+        var prefixes = new[]
+        {
+            "search captures for ",
+            "search capture for ",
+            "search for ",
+            "search captures ",
+            "search capture ",
+            "search ",
+            "find me ",
+            "find ",
+            "show me ",
+            "show ",
+            "list me ",
+            "list "
+        };
+
+        foreach (var prefix in prefixes)
+        {
+            if (!normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var remainder = normalized[prefix.Length..].Trim();
+            if (remainder.Length > 0)
+            {
+                return remainder;
+            }
+        }
+
+        return normalized;
     }
 
     private static ContentType? InferContentType(string lowerMessage)

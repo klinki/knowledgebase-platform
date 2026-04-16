@@ -169,11 +169,42 @@ public class AssistantChatServiceTests
         await _captureBulkActionService.Received(1).SearchCapturesAsync(
             ownerUserId,
             Arg.Is<CaptureSearchCriteria>(criteria =>
-                criteria.Query == "Find failed captures about outage" &&
+                criteria.Query == "failed captures about outage" &&
                 criteria.Status == CaptureStatus.Failed),
             Arg.Any<int>(),
             Arg.Any<int>());
         await _assistantChatRepository.Received(1).AddResultSetAsync(
             Arg.Is<AssistantChatResultSet>(resultSet => resultSet.QueryType == "search_captures" && resultSet.TotalCount == 1));
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_SearchCommandPrefix_ShouldNormalizeQueryForFallbackSearch()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var session = new AssistantChatSession
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId
+        };
+
+        _assistantChatRepository.GetOrCreateSessionAsync(ownerUserId).Returns(session);
+        _assistantChatRepository.GetMessagesAsync(ownerUserId).Returns([]);
+        _captureBulkActionService.SearchCapturesAsync(
+                ownerUserId,
+                Arg.Any<CaptureSearchCriteria>(),
+                Arg.Any<int>(),
+                Arg.Any<int>())
+            .Returns(new CaptureBulkQueryResult());
+
+        await _service.SendMessageAsync(ownerUserId, new AssistantChatMessageSendRequestDto
+        {
+            Message = "Search captures for outage investigation"
+        });
+
+        await _captureBulkActionService.Received(1).SearchCapturesAsync(
+            ownerUserId,
+            Arg.Is<CaptureSearchCriteria>(criteria => criteria.Query == "outage investigation"),
+            Arg.Any<int>(),
+            Arg.Any<int>());
     }
 }
