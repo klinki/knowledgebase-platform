@@ -30,6 +30,40 @@ public class ChatControllerTests
     }
 
     [Fact]
+    public async Task GetSession_ShouldCreateSessionForFirstTimeUser_WithoutServerError()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var memberClient = member.Client;
+        var memberUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.AssistantChatSessions
+                .Count(session => session.OwnerUserId == memberUserId)
+                .Should()
+                .Be(0);
+            await Task.CompletedTask;
+        });
+
+        var response = await memberClient.GetAsync("/api/v1/chat/session");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await response.Content.ReadFromJsonAsync<AssistantChatSessionDto>(ResponseJsonOptions);
+        payload.Should().NotBeNull();
+        payload!.Id.Should().NotBe(Guid.Empty);
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var sessions = dbContext.AssistantChatSessions
+                .Where(session => session.OwnerUserId == memberUserId)
+                .ToList();
+            sessions.Should().HaveCount(1);
+            sessions[0].Id.Should().Be(payload.Id);
+            await Task.CompletedTask;
+        });
+    }
+
+    [Fact]
     public async Task ChatFlow_ShouldFindDeletedTweets_RequireConfirmation_AndEnforceOwnerScope()
     {
         using var ownerClient = await _fixture.CreateAuthenticatedClientAsync();

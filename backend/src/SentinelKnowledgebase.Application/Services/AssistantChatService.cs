@@ -71,6 +71,7 @@ public partial class AssistantChatService : IAssistantChatService
     public async Task<IReadOnlyList<AssistantChatMessageDto>> GetMessagesAsync(Guid ownerUserId)
     {
         var session = await _unitOfWork.AssistantChat.GetOrCreateSessionAsync(ownerUserId);
+        session.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.AssistantChat.UpdateSessionAsync(session);
         await _unitOfWork.SaveChangesAsync();
 

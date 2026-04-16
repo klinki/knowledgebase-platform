@@ -127,13 +127,25 @@ public class AssistantChatRepository : IAssistantChatRepository
 
     public Task UpdateSessionAsync(AssistantChatSession session)
     {
-        _context.AssistantChatSessions.Update(session);
+        var entry = _context.Entry(session);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.AssistantChatSessions.Attach(session);
+            _context.Entry(session).State = EntityState.Modified;
+        }
+
         return Task.CompletedTask;
     }
 
     public Task UpdatePendingActionAsync(AssistantChatPendingAction action)
     {
-        _context.AssistantChatPendingActions.Update(action);
+        var entry = _context.Entry(action);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.AssistantChatPendingActions.Attach(action);
+            _context.Entry(action).State = EntityState.Modified;
+        }
+
         return Task.CompletedTask;
     }
 }
