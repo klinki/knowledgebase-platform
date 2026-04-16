@@ -7,7 +7,11 @@ import { environment } from '../../../environments/environment';
 import { LabelAssignment, SearchResult, SearchResultPage } from '../../shared/models/knowledge.model';
 
 export type SearchMatchMode = 'any' | 'all';
+export type SearchSortField = 'relevance' | 'processedAt' | 'title' | 'sourceUrl';
+export type SearchSortDirection = 'asc' | 'desc';
 export const SEARCH_PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+export const SEARCH_SORT_FIELDS: readonly SearchSortField[] = ['relevance', 'processedAt', 'title', 'sourceUrl'] as const;
+export const SEARCH_SORT_DIRECTIONS: readonly SearchSortDirection[] = ['asc', 'desc'] as const;
 
 interface SearchPaginationState {
   page: number;
@@ -23,6 +27,8 @@ export interface SearchCriteria {
   page: number;
   pageSize: number;
   threshold: number;
+  sortField: SearchSortField;
+  sortDirection: SearchSortDirection;
 }
 
 @Injectable({
@@ -58,7 +64,9 @@ export class SearchStateService {
       labelMatchMode: 'all',
       page: 1,
       pageSize: 20,
-      threshold: 0.3
+      threshold: 0.3,
+      sortField: 'processedAt',
+      sortDirection: 'desc'
     };
   }
 
@@ -78,6 +86,12 @@ export class SearchStateService {
     criteria.labelMatchMode = this.normalizeMatchMode(paramMap.get('labelMode'), 'all');
     criteria.page = this.parsePositiveInt(paramMap.get('page'), 1);
     criteria.pageSize = this.normalizePageSize(this.parsePositiveInt(paramMap.get('pageSize'), 20));
+    criteria.sortField = paramMap.has('sortField')
+      ? this.normalizeSortField(paramMap.get('sortField'))
+      : (criteria.query.length > 0 ? 'relevance' : 'processedAt');
+    criteria.sortDirection = paramMap.has('sortDirection')
+      ? this.normalizeSortDirection(paramMap.get('sortDirection'))
+      : 'desc';
     return criteria;
   }
 
@@ -92,7 +106,9 @@ export class SearchStateService {
       tagMode: normalized.tagMatchMode !== 'any' ? normalized.tagMatchMode : null,
       labelMode: normalized.labelMatchMode !== 'all' ? normalized.labelMatchMode : null,
       page: normalized.page > 1 ? String(normalized.page) : null,
-      pageSize: normalized.pageSize !== 20 ? String(normalized.pageSize) : null
+      pageSize: normalized.pageSize !== 20 ? String(normalized.pageSize) : null,
+      sortField: normalized.sortField,
+      sortDirection: normalized.sortDirection
     };
   }
 
@@ -125,7 +141,9 @@ export class SearchStateService {
           labelMatchMode: normalized.labelMatchMode,
           page: normalized.page,
           pageSize: normalized.pageSize,
-          threshold: normalized.threshold
+          threshold: normalized.threshold,
+          sortField: normalized.sortField,
+          sortDirection: normalized.sortDirection
         })
       );
 
@@ -163,7 +181,8 @@ export class SearchStateService {
       labelMatchMode: this.normalizeMatchMode(criteria.labelMatchMode, 'all'),
       page: criteria.page > 0 ? Math.floor(criteria.page) : 1,
       pageSize: this.normalizePageSize(criteria.pageSize),
-      threshold: criteria.threshold >= 0 ? criteria.threshold : 0.3
+      threshold: criteria.threshold >= 0 ? criteria.threshold : 0.3,
+      ...this.normalizeSort(criteria.query.trim(), criteria.sortField, criteria.sortDirection)
     };
   }
 
@@ -215,6 +234,45 @@ export class SearchStateService {
 
   private normalizePageSize(value: number): number {
     return SEARCH_PAGE_SIZE_OPTIONS.includes(value as 20 | 50 | 100) ? value : 20;
+  }
+
+  private normalizeSort(
+    query: string,
+    sortField: SearchSortField | string | null | undefined,
+    sortDirection: SearchSortDirection | string | null | undefined
+  ): Pick<SearchCriteria, 'sortField' | 'sortDirection'> {
+    const hasQuery = query.length > 0;
+    let normalizedSortField = this.normalizeSortField(sortField);
+    if (!normalizedSortField) {
+      normalizedSortField = hasQuery ? 'relevance' : 'processedAt';
+    }
+
+    if (!hasQuery && normalizedSortField === 'relevance') {
+      normalizedSortField = 'processedAt';
+    }
+
+    const normalizedSortDirection = this.normalizeSortDirection(sortDirection);
+    return {
+      sortField: normalizedSortField,
+      sortDirection: normalizedSortDirection
+    };
+  }
+
+  private normalizeSortField(value: string | null | undefined): SearchSortField {
+    const normalized = value?.trim();
+    if (normalized && SEARCH_SORT_FIELDS.includes(normalized as SearchSortField)) {
+      return normalized as SearchSortField;
+    }
+
+    return 'processedAt';
+  }
+
+  private normalizeSortDirection(value: string | null | undefined): SearchSortDirection {
+    if (value?.toLowerCase() === 'asc') {
+      return 'asc';
+    }
+
+    return 'desc';
   }
 
   private parsePositiveInt(value: string | null, fallback: number): number {

@@ -8,6 +8,11 @@ namespace SentinelKnowledgebase.Infrastructure.Repositories;
 
 public class ProcessedInsightRepository : IProcessedInsightRepository
 {
+    private const string SortDirectionDesc = "desc";
+    private const string SortFieldRelevance = "relevance";
+    private const string SortFieldProcessedAt = "processedAt";
+    private const string SortFieldTitle = "title";
+    private const string SortFieldSourceUrl = "sourceUrl";
     private readonly ApplicationDbContext _context;
     
     public ProcessedInsightRepository(ApplicationDbContext context)
@@ -75,7 +80,9 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         IReadOnlyCollection<string> tags,
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
-        bool matchAllLabels)
+        bool matchAllLabels,
+        string sortField,
+        string sortDirection)
     {
         var skip = (page - 1) * pageSize;
         var query = ApplyTagAndLabelFilters(
@@ -95,7 +102,7 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                 .Where(p => 1 - p.EmbeddingVector!.Vector.CosineDistance(queryVector) >= threshold);
             var totalCount = await filteredQuery.CountAsync();
 
-            var items = await filteredQuery
+            var projectedQuery = filteredQuery
                 .Select(p => new SearchRecord
                 {
                     Id = p.Id,
@@ -115,9 +122,10 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                             Value = a.LabelValue.Value
                     })
                     .ToList()
-                })
-                .OrderByDescending(result => result.Similarity)
-                .ThenBy(result => result.Id)
+                });
+
+            var orderedQuery = ApplySearchSort(projectedQuery, sortField, sortDirection, hasQuery: true);
+            var items = await orderedQuery
                 .Skip(skip)
                 .Take(pageSize)
                 .ToListAsync();
@@ -130,7 +138,7 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         }
 
         var totalStructuredCount = await query.CountAsync();
-        var structuredItems = await query
+        var projectedStructuredQuery = query
             .Select(p => new SearchRecord
             {
                 Id = p.Id,
@@ -150,9 +158,10 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
                         Value = a.LabelValue.Value
                     })
                     .ToList()
-            })
-            .OrderByDescending(result => result.ProcessedAt)
-            .ThenBy(result => result.Id)
+            });
+
+        var orderedStructuredQuery = ApplySearchSort(projectedStructuredQuery, sortField, sortDirection, hasQuery: false);
+        var structuredItems = await orderedStructuredQuery
             .Skip(skip)
             .Take(pageSize)
             .ToListAsync();
@@ -382,5 +391,39 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         }
 
         return query;
+    }
+
+    private static IOrderedQueryable<SearchRecord> ApplySearchSort(
+        IQueryable<SearchRecord> query,
+        string sortField,
+        string sortDirection,
+        bool hasQuery)
+    {
+        var descending = string.Equals(sortDirection, SortDirectionDesc, StringComparison.OrdinalIgnoreCase);
+        var normalizedSortField = sortField.Trim();
+
+        if (!hasQuery && string.Equals(normalizedSortField, SortFieldRelevance, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedSortField = SortFieldProcessedAt;
+        }
+
+        return normalizedSortField switch
+        {
+            _ when string.Equals(normalizedSortField, SortFieldRelevance, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(result => result.Similarity ?? -1d).ThenBy(result => result.Id),
+            _ when string.Equals(normalizedSortField, SortFieldRelevance, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(result => result.Similarity ?? -1d).ThenBy(result => result.Id),
+            _ when string.Equals(normalizedSortField, SortFieldTitle, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(result => result.Title).ThenBy(result => result.Id),
+            _ when string.Equals(normalizedSortField, SortFieldTitle, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(result => result.Title).ThenBy(result => result.Id),
+            _ when string.Equals(normalizedSortField, SortFieldSourceUrl, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(result => result.SourceUrl).ThenBy(result => result.Id),
+            _ when string.Equals(normalizedSortField, SortFieldSourceUrl, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(result => result.SourceUrl).ThenBy(result => result.Id),
+            _ when descending
+                => query.OrderByDescending(result => result.ProcessedAt).ThenBy(result => result.Id),
+            _ => query.OrderBy(result => result.ProcessedAt).ThenBy(result => result.Id)
+        };
     }
 }

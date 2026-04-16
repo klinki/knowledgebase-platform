@@ -9,6 +9,12 @@ namespace SentinelKnowledgebase.Infrastructure.Repositories;
 
 public class RawCaptureRepository : IRawCaptureRepository
 {
+    private const string SortDirectionDesc = "desc";
+    private const string SortFieldRelevance = "relevance";
+    private const string SortFieldCreatedAt = "createdAt";
+    private const string SortFieldStatus = "status";
+    private const string SortFieldContentType = "contentType";
+    private const string SortFieldSourceUrl = "sourceUrl";
     private readonly ApplicationDbContext _context;
     
     public RawCaptureRepository(ApplicationDbContext context)
@@ -185,11 +191,7 @@ public class RawCaptureRepository : IRawCaptureRepository
                                         1 - capture.ProcessedInsight.EmbeddingVector.Vector.CosineDistance(queryVector) >= threshold
                 });
 
-            orderedQuery = rankedQuery
-                .OrderByDescending(record => record.Similarity ?? -1d)
-                .ThenByDescending(record => record.MatchedByText)
-                .ThenByDescending(record => record.CreatedAt)
-                .ThenBy(record => record.CaptureId);
+            orderedQuery = ApplyCaptureSearchSort(rankedQuery, options.SortField, options.SortDirection, hasQuery: true);
         }
         else
         {
@@ -208,9 +210,7 @@ public class RawCaptureRepository : IRawCaptureRepository
                     MatchedBySemantic = false
                 });
 
-            orderedQuery = unrankedQuery
-                .OrderByDescending(record => record.CreatedAt)
-                .ThenBy(record => record.CaptureId);
+            orderedQuery = ApplyCaptureSearchSort(unrankedQuery, options.SortField, options.SortDirection, hasQuery: false);
         }
 
         var totalCount = await orderedQuery.CountAsync();
@@ -496,5 +496,49 @@ public class RawCaptureRepository : IRawCaptureRepository
         }
 
         return query;
+    }
+
+    private static IOrderedQueryable<CaptureSearchRecord> ApplyCaptureSearchSort(
+        IQueryable<CaptureSearchRecord> query,
+        string sortField,
+        string sortDirection,
+        bool hasQuery)
+    {
+        var descending = string.Equals(sortDirection, SortDirectionDesc, StringComparison.OrdinalIgnoreCase);
+        var normalizedSortField = sortField.Trim();
+
+        if (!hasQuery && string.Equals(normalizedSortField, SortFieldRelevance, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedSortField = SortFieldCreatedAt;
+        }
+
+        return normalizedSortField switch
+        {
+            _ when string.Equals(normalizedSortField, SortFieldRelevance, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(record => record.Similarity ?? -1d)
+                    .ThenByDescending(record => record.MatchedByText)
+                    .ThenByDescending(record => record.CreatedAt)
+                    .ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldRelevance, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(record => record.Similarity ?? -1d)
+                    .ThenByDescending(record => record.MatchedByText)
+                    .ThenByDescending(record => record.CreatedAt)
+                    .ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldStatus, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(record => record.Status).ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldStatus, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(record => record.Status).ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldContentType, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(record => record.ContentType).ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldContentType, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(record => record.ContentType).ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldSourceUrl, StringComparison.OrdinalIgnoreCase) && descending
+                => query.OrderByDescending(record => record.SourceUrl).ThenBy(record => record.CaptureId),
+            _ when string.Equals(normalizedSortField, SortFieldSourceUrl, StringComparison.OrdinalIgnoreCase)
+                => query.OrderBy(record => record.SourceUrl).ThenBy(record => record.CaptureId),
+            _ when descending
+                => query.OrderByDescending(record => record.CreatedAt).ThenBy(record => record.CaptureId),
+            _ => query.OrderBy(record => record.CreatedAt).ThenBy(record => record.CaptureId)
+        };
     }
 }

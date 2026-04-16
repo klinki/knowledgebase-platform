@@ -212,6 +212,20 @@
         </div>
 
         <div class="page-size-group">
+          <label for="search-sort">Sort</label>
+          <select
+            id="search-sort"
+            [ngModel]="selectedSortOptionValue()"
+            (ngModelChange)="onSortChange($event)"
+            [disabled]="searchState.loading()"
+          >
+            @for (option of sortOptions; track toSortOptionValue(option)) {
+              <option [ngValue]="toSortOptionValue(option)">{{ option.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="page-size-group">
           <label for="search-page-size">Show</label>
           <select
             id="search-page-size"

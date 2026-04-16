@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Labels;
+using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
@@ -259,7 +260,9 @@ public class CaptureBulkActionServiceTests
                 ContentType = ContentType.Article,
                 Status = CaptureStatus.Failed,
                 DateFrom = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-                DateTo = new DateTime(2026, 4, 14, 23, 59, 59, DateTimeKind.Utc)
+                DateTo = new DateTime(2026, 4, 14, 23, 59, 59, DateTimeKind.Utc),
+                SortField = CaptureSearchSortFields.Status,
+                SortDirection = SearchSortDirections.Asc
             },
             maxResultSetSize: 5000,
             previewSize: 10);
@@ -274,12 +277,43 @@ public class CaptureBulkActionServiceTests
         observedOptions.PageSize.Should().Be(10);
         observedOptions.DateFrom.Should().NotBeNull();
         observedOptions.DateTo.Should().NotBeNull();
+        observedOptions.SortField.Should().Be(CaptureSearchSortFields.Status);
+        observedOptions.SortDirection.Should().Be(SearchSortDirections.Asc);
 
         result.TotalCount.Should().Be(1);
         result.CaptureIds.Should().ContainSingle().Which.Should().Be(captureId);
         result.PreviewItems.Should().ContainSingle();
         result.PreviewItems[0].MatchReason.Should().Be("semantic+text");
         result.PreviewItems[0].SkipCode.Should().Be("twitter_post_unavailable");
+        result.NormalizedCriteria.Should().NotBeNull();
+        result.NormalizedCriteria!.SortField.Should().Be(CaptureSearchSortFields.Status);
+        result.NormalizedCriteria.SortDirection.Should().Be(SearchSortDirections.Asc);
         await _contentProcessor.Received(1).GenerateEmbeddingAsync("critical outage");
+    }
+
+    [Fact]
+    public async Task SearchCapturesAsync_ShouldDefaultToCreatedAt_WhenSortByRelevanceHasNoQuery()
+    {
+        var ownerUserId = Guid.NewGuid();
+        CaptureSearchQueryOptions? observedOptions = null;
+
+        _rawCaptureRepository.SearchCapturesAsync(
+                ownerUserId,
+                Arg.Do<CaptureSearchQueryOptions>(options => observedOptions = options))
+            .Returns(new CaptureSearchQueryResult());
+
+        await _service.SearchCapturesAsync(
+            ownerUserId,
+            new CaptureSearchCriteria
+            {
+                Tags = ["ops"],
+                SortField = CaptureSearchSortFields.Relevance
+            },
+            maxResultSetSize: 5000,
+            previewSize: 20);
+
+        observedOptions.Should().NotBeNull();
+        observedOptions!.SortField.Should().Be(CaptureSearchSortFields.CreatedAt);
+        observedOptions.SortDirection.Should().Be(SearchSortDirections.Desc);
     }
 }

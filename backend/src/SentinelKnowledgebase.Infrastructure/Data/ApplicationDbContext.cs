@@ -274,6 +274,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Summary).HasMaxLength(500).IsRequired();
             entity.Property(e => e.CaptureIdsJson).IsRequired();
             entity.Property(e => e.PreviewJson).IsRequired();
+            entity.Property(e => e.CriteriaJson).IsRequired().HasDefaultValue("{}");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => new { e.SessionId, e.CreatedAt });
             entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAt });

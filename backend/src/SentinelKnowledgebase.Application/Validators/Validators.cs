@@ -163,6 +163,14 @@ public class SearchRequestValidator : AbstractValidator<DTOs.Search.SearchReques
             .GreaterThanOrEqualTo(0)
             .LessThanOrEqualTo(1);
 
+        RuleFor(x => x.SortField)
+            .Must(value => value is null || DTOs.Search.ProcessedInsightSearchSortFields.IsValid(value))
+            .WithMessage("Sort field must be relevance, processedAt, title, or sourceUrl.");
+
+        RuleFor(x => x.SortDirection)
+            .Must(value => value is null || DTOs.Search.SearchSortDirections.IsValid(value))
+            .WithMessage("Sort direction must be asc or desc.");
+
         RuleFor(x => x)
             .Must(HasAtLeastOneCriterion)
             .WithMessage("At least one search criterion is required.");

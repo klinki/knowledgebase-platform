@@ -278,6 +278,19 @@ public class ChatControllerTests
         previewIds.Should().Contain(semanticMatchCaptureId);
         previewIds.Should().Contain(textMatchCaptureId);
 
+        var sortResponse = await ownerClient.PostAsJsonAsync(
+            "/api/v1/chat/session/messages",
+            new AssistantChatMessageSendRequestDto { Message = "Sort these by newest" });
+        sortResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var sortPayload = await sortResponse.Content.ReadFromJsonAsync<AssistantChatMessageSendResponseDto>(ResponseJsonOptions);
+        sortPayload.Should().NotBeNull();
+        sortPayload!.AssistantMessage.ResultSet.Should().NotBeNull();
+        sortPayload.AssistantMessage.ResultSet!.QueryType.Should().Be("search_captures");
+        sortPayload.AssistantMessage.ResultSet.TotalCount.Should().Be(2);
+        sortPayload.AssistantMessage.ResultSet.PreviewItems.Should().NotBeEmpty();
+        sortPayload.AssistantMessage.ResultSet.PreviewItems.First().CaptureId.Should().Be(textMatchCaptureId);
+
         var deleteProposalResponse = await ownerClient.PostAsJsonAsync(
             "/api/v1/chat/session/messages",
             new AssistantChatMessageSendRequestDto { Message = "Now delete all these tweets" });

@@ -78,6 +78,8 @@ public class CaptureSearchQueryOptions
     public bool MatchAllTags { get; set; }
     public IReadOnlyCollection<LabelRecord> Labels { get; set; } = [];
     public bool MatchAllLabels { get; set; }
+    public string SortField { get; set; } = "createdAt";
+    public string SortDirection { get; set; } = "desc";
 }
 
 public class CaptureSearchQueryResult
@@ -147,7 +149,9 @@ public interface IProcessedInsightRepository
         IReadOnlyCollection<string> tags,
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
-        bool matchAllLabels);
+        bool matchAllLabels,
+        string sortField,
+        string sortDirection);
     Task<IReadOnlyList<ProcessedInsightEmbeddingRecord>> GetEmbeddingRecordsAsync(Guid ownerUserId);
     Task<IEnumerable<SemanticSearchRecord>> SemanticSearchAsync(Guid ownerUserId, float[] queryEmbedding, int topK, double threshold);
     Task<IEnumerable<TagSearchRecord>> SearchByTagsAsync(Guid ownerUserId, IReadOnlyCollection<string> tags, bool matchAll);

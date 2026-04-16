@@ -862,6 +862,176 @@ public class SearchControllerTests
         results.Items.Single().CaptureId.Should().NotBeEmpty();
     }
 
+    [Fact]
+    public async Task Search_ShouldSortByTitleAscending_WhenRequested()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        const string query = "title sorted semantic search";
+        var embedding = new Vector(CreateDeterministicEmbedding(query));
+        var alphaInsightId = Guid.NewGuid();
+        var zuluInsightId = Guid.NewGuid();
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var alphaCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/alpha/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Alpha sorted content.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow,
+                ProcessedAt = DateTime.UtcNow
+            };
+            var zuluCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/zulu/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Zulu sorted content.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow,
+                ProcessedAt = DateTime.UtcNow
+            };
+
+            dbContext.RawCaptures.AddRange(alphaCapture, zuluCapture);
+            dbContext.ProcessedInsights.AddRange(
+                new ProcessedInsight
+                {
+                    Id = zuluInsightId,
+                    OwnerUserId = adminUserId,
+                    RawCaptureId = zuluCapture.Id,
+                    Title = "Zulu Insight",
+                    Summary = "Summary",
+                    ProcessedAt = DateTime.UtcNow
+                },
+                new ProcessedInsight
+                {
+                    Id = alphaInsightId,
+                    OwnerUserId = adminUserId,
+                    RawCaptureId = alphaCapture.Id,
+                    Title = "Alpha Insight",
+                    Summary = "Summary",
+                    ProcessedAt = DateTime.UtcNow
+                });
+            dbContext.EmbeddingVectors.AddRange(
+                new EmbeddingVector
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessedInsightId = alphaInsightId,
+                    Vector = embedding
+                },
+                new EmbeddingVector
+                {
+                    Id = Guid.NewGuid(),
+                    ProcessedInsightId = zuluInsightId,
+                    Vector = embedding
+                });
+
+            await Task.CompletedTask;
+        });
+
+        var request = new SearchRequestDto
+        {
+            Query = query,
+            SortField = ProcessedInsightSearchSortFields.Title,
+            SortDirection = SearchSortDirections.Asc
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<SearchResultPageDto>();
+        results.Should().NotBeNull();
+        results!.Items.Select(result => result.Id).Should().ContainInOrder(alphaInsightId, zuluInsightId);
+    }
+
+    [Fact]
+    public async Task Search_ShouldFallbackToProcessedAt_WhenRelevanceRequestedWithoutQuery()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var olderInsightId = Guid.NewGuid();
+        var newerInsightId = Guid.NewGuid();
+        var tagName = $"sort-fallback-{Guid.NewGuid():N}";
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var tag = new Tag
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                Name = tagName,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var olderCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/fallback-old/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Older fallback capture.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-2),
+                ProcessedAt = DateTime.UtcNow.AddDays(-2)
+            };
+            var newerCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/fallback-new/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Newer fallback capture.",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                ProcessedAt = DateTime.UtcNow.AddDays(-1)
+            };
+
+            dbContext.RawCaptures.AddRange(olderCapture, newerCapture);
+            dbContext.ProcessedInsights.AddRange(
+                new ProcessedInsight
+                {
+                    Id = olderInsightId,
+                    OwnerUserId = adminUserId,
+                    RawCaptureId = olderCapture.Id,
+                    Title = "Older Fallback Insight",
+                    Summary = "Older",
+                    ProcessedAt = DateTime.UtcNow.AddDays(-2),
+                    Tags = [tag]
+                },
+                new ProcessedInsight
+                {
+                    Id = newerInsightId,
+                    OwnerUserId = adminUserId,
+                    RawCaptureId = newerCapture.Id,
+                    Title = "Newer Fallback Insight",
+                    Summary = "Newer",
+                    ProcessedAt = DateTime.UtcNow.AddDays(-1),
+                    Tags = [tag]
+                });
+
+            await Task.CompletedTask;
+        });
+
+        var request = new SearchRequestDto
+        {
+            Tags = [tagName],
+            SortField = ProcessedInsightSearchSortFields.Relevance,
+            SortDirection = SearchSortDirections.Asc
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<SearchResultPageDto>();
+        results.Should().NotBeNull();
+        results!.Items.Select(result => result.Id).Should().ContainInOrder(newerInsightId, olderInsightId);
+    }
+
     private static float[] CreateDeterministicEmbedding(string text)
     {
         var seed = text.Aggregate(17, (current, character) => unchecked(current * 31 + character));

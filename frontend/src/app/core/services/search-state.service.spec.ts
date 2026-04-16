@@ -34,7 +34,9 @@ describe('SearchStateService', () => {
       tagMode: 'all',
       labelMode: 'any',
       page: '3',
-      pageSize: '50'
+      pageSize: '50',
+      sortField: 'title',
+      sortDirection: 'asc'
     }));
 
     expect(criteria).toEqual({
@@ -48,7 +50,9 @@ describe('SearchStateService', () => {
       labelMatchMode: 'any',
       page: 3,
       pageSize: 50,
-      threshold: 0.3
+      threshold: 0.3,
+      sortField: 'title',
+      sortDirection: 'asc'
     });
   });
 
@@ -64,7 +68,9 @@ describe('SearchStateService', () => {
       labelMatchMode: 'all',
       page: 2,
       pageSize: 50,
-      threshold: 0.3
+      threshold: 0.3,
+      sortField: 'sourceUrl',
+      sortDirection: 'asc'
     };
 
     expect(service.buildQueryParams(criteria)).toEqual({
@@ -74,7 +80,9 @@ describe('SearchStateService', () => {
       tagMode: 'all',
       labelMode: null,
       page: '2',
-      pageSize: '50'
+      pageSize: '50',
+      sortField: 'sourceUrl',
+      sortDirection: 'asc'
     });
   });
 
@@ -87,7 +95,9 @@ describe('SearchStateService', () => {
       labelMatchMode: 'any',
       page: 2,
       pageSize: 50,
-      threshold: 0.3
+      threshold: 0.3,
+      sortField: 'title',
+      sortDirection: 'desc'
     };
 
     const searchPromise = service.search(criteria);
@@ -102,7 +112,9 @@ describe('SearchStateService', () => {
       labelMatchMode: 'any',
       page: 2,
       pageSize: 50,
-      threshold: 0.3
+      threshold: 0.3,
+      sortField: 'title',
+      sortDirection: 'desc'
     });
     request.flush({
       items: [
@@ -141,5 +153,14 @@ describe('SearchStateService', () => {
     expect(service.totalCount()).toBe(71);
     expect(service.currentPagination()).toEqual({ page: 2, pageSize: 50 });
     expect(service.totalPages()).toBe(2);
+  });
+
+  it('defaults to relevance when query exists and no sort params are provided', () => {
+    const criteria = service.parseQueryParams(convertToParamMap({
+      q: 'semantic ranking'
+    }));
+
+    expect(criteria.sortField).toBe('relevance');
+    expect(criteria.sortDirection).toBe('desc');
   });
 });

@@ -63,6 +63,8 @@ public class CaptureBulkActionService : ICaptureBulkActionService
         var page = criteria.Page > 0 ? criteria.Page : 1;
         var pageSize = Math.Clamp(criteria.PageSize > 0 ? criteria.PageSize : 20, 1, 100);
         var threshold = Math.Clamp(criteria.Threshold, 0, 1);
+        var hasQuery = normalizedQuery is not null;
+        var (sortField, sortDirection) = NormalizeSort(criteria.SortField, criteria.SortDirection, hasQuery);
         float[]? queryEmbedding = null;
 
         if (normalizedQuery is not null)
@@ -85,10 +87,30 @@ public class CaptureBulkActionService : ICaptureBulkActionService
             Tags = normalizedTags,
             MatchAllTags = SearchMatchModes.IsAll(criteria.TagMatchMode),
             Labels = normalizedLabels,
-            MatchAllLabels = SearchMatchModes.IsAll(criteria.LabelMatchMode)
+            MatchAllLabels = SearchMatchModes.IsAll(criteria.LabelMatchMode),
+            SortField = sortField,
+            SortDirection = sortDirection
         });
 
         var normalizedPreviewSize = Math.Clamp(previewSize, 1, 100);
+        var normalizedCriteria = new CaptureSearchCriteria
+        {
+            Query = normalizedQuery,
+            Tags = normalizedTags,
+            TagMatchMode = SearchMatchModes.IsAll(criteria.TagMatchMode) ? SearchMatchModes.All : SearchMatchModes.Any,
+            Labels = NormalizeLabels(criteria.Labels),
+            LabelMatchMode = SearchMatchModes.IsAll(criteria.LabelMatchMode) ? SearchMatchModes.All : SearchMatchModes.Any,
+            Page = page,
+            PageSize = pageSize,
+            Threshold = threshold,
+            ContentType = criteria.ContentType,
+            Status = criteria.Status,
+            DateFrom = criteria.DateFrom,
+            DateTo = criteria.DateTo,
+            SortField = sortField,
+            SortDirection = sortDirection
+        };
+
         return new CaptureBulkQueryResult
         {
             CaptureIds = result.CaptureIds,
@@ -103,7 +125,8 @@ public class CaptureBulkActionService : ICaptureBulkActionService
                 result.Page,
                 result.PageSize,
                 result.CaptureIds.Count,
-                normalizedQuery)
+                normalizedQuery),
+            NormalizedCriteria = normalizedCriteria
         };
     }
 
@@ -531,6 +554,54 @@ public class CaptureBulkActionService : ICaptureBulkActionService
                || status.HasValue
                || dateFrom.HasValue
                || dateTo.HasValue;
+    }
+
+    private static (string sortField, string sortDirection) NormalizeSort(
+        string? requestedSortField,
+        string? requestedSortDirection,
+        bool hasQuery)
+    {
+        var normalizedSortField = NormalizeSortField(requestedSortField);
+        if (normalizedSortField == null)
+        {
+            normalizedSortField = hasQuery
+                ? CaptureSearchSortFields.Relevance
+                : CaptureSearchSortFields.CreatedAt;
+        }
+
+        if (!hasQuery && string.Equals(normalizedSortField, CaptureSearchSortFields.Relevance, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedSortField = CaptureSearchSortFields.CreatedAt;
+            return (normalizedSortField, SearchSortDirections.Desc);
+        }
+
+        var normalizedSortDirection = SearchSortDirections.IsValid(requestedSortDirection)
+            ? requestedSortDirection!.Trim().ToLowerInvariant()
+            : SearchSortDirections.Desc;
+
+        return (normalizedSortField, normalizedSortDirection);
+    }
+
+    private static string? NormalizeSortField(string? requestedSortField)
+    {
+        if (!CaptureSearchSortFields.IsValid(requestedSortField))
+        {
+            return null;
+        }
+
+        var normalized = requestedSortField!.Trim();
+        return normalized switch
+        {
+            _ when string.Equals(normalized, CaptureSearchSortFields.Relevance, StringComparison.OrdinalIgnoreCase) =>
+                CaptureSearchSortFields.Relevance,
+            _ when string.Equals(normalized, CaptureSearchSortFields.CreatedAt, StringComparison.OrdinalIgnoreCase) =>
+                CaptureSearchSortFields.CreatedAt,
+            _ when string.Equals(normalized, CaptureSearchSortFields.Status, StringComparison.OrdinalIgnoreCase) =>
+                CaptureSearchSortFields.Status,
+            _ when string.Equals(normalized, CaptureSearchSortFields.ContentType, StringComparison.OrdinalIgnoreCase) =>
+                CaptureSearchSortFields.ContentType,
+            _ => CaptureSearchSortFields.SourceUrl
+        };
     }
 
     private static bool UpsertRawCaptureLabel(RawCapture capture, LabelCategory category, LabelValue value)

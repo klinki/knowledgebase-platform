@@ -7,6 +7,8 @@ import {
   SEARCH_PAGE_SIZE_OPTIONS,
   SearchCriteria,
   SearchMatchMode,
+  SearchSortDirection,
+  SearchSortField,
   SearchStateService
 } from '../../core/services/search-state.service';
 import { TagsStateService } from '../../core/services/tags-state.service';
@@ -16,6 +18,12 @@ interface LabelRow {
   id: string;
   category: string;
   value: string;
+}
+
+interface SortOption {
+  label: string;
+  sortField: SearchSortField;
+  sortDirection: SearchSortDirection;
 }
 
 @Component({
@@ -29,6 +37,15 @@ export class SearchComponent implements OnInit {
   private static rowSeed = 0;
 
   readonly pageSizeOptions = SEARCH_PAGE_SIZE_OPTIONS;
+  readonly sortOptions: SortOption[] = [
+    { label: 'Relevance (best match)', sortField: 'relevance', sortDirection: 'desc' },
+    { label: 'Newest processed', sortField: 'processedAt', sortDirection: 'desc' },
+    { label: 'Oldest processed', sortField: 'processedAt', sortDirection: 'asc' },
+    { label: 'Title A-Z', sortField: 'title', sortDirection: 'asc' },
+    { label: 'Title Z-A', sortField: 'title', sortDirection: 'desc' },
+    { label: 'Source A-Z', sortField: 'sourceUrl', sortDirection: 'asc' },
+    { label: 'Source Z-A', sortField: 'sourceUrl', sortDirection: 'desc' }
+  ];
   searchState = inject(SearchStateService);
   tagsState = inject(TagsStateService);
   labelsState = inject(LabelsStateService);
@@ -41,6 +58,9 @@ export class SearchComponent implements OnInit {
   selectedTags: string[] = [];
   tagMatchMode: SearchMatchMode = 'any';
   labelMatchMode: SearchMatchMode = 'all';
+  sortField: SearchSortField = 'processedAt';
+  sortDirection: SearchSortDirection = 'desc';
+  sortOverridden = false;
   labelRows: LabelRow[] = [SearchComponent.createLabelRow()];
   advancedFiltersOpen = false;
   currentPagination = computed(() => this.searchState.currentPagination());
@@ -80,6 +100,8 @@ export class SearchComponent implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
+    this.sortOverridden = this.route.snapshot.queryParamMap.has('sortField')
+      || this.route.snapshot.queryParamMap.has('sortDirection');
     const criteria = this.searchState.parseQueryParams(this.route.snapshot.queryParamMap);
     this.applyCriteria(criteria);
 
@@ -192,6 +214,7 @@ export class SearchComponent implements OnInit {
     this.selectedTags = [];
     this.tagMatchMode = 'any';
     this.labelMatchMode = 'all';
+    this.sortOverridden = false;
     this.labelRows = [SearchComponent.createLabelRow()];
     this.advancedFiltersOpen = false;
     this.searchState.clear();
@@ -200,6 +223,21 @@ export class SearchComponent implements OnInit {
 
   async onPageSizeChange(size: number): Promise<void> {
     const criteria = this.buildCriteria({ page: 1, pageSize: size });
+    await this.searchState.syncUrl(this.router, this.route, criteria);
+    await this.searchState.search(criteria);
+  }
+
+  async onSortChange(value: string): Promise<void> {
+    const option = this.sortOptions.find(candidate => this.toSortOptionValue(candidate) === value);
+    if (!option) {
+      return;
+    }
+
+    this.sortField = option.sortField;
+    this.sortDirection = option.sortDirection;
+    this.sortOverridden = true;
+
+    const criteria = this.buildCriteria({ page: 1 });
     await this.searchState.syncUrl(this.router, this.route, criteria);
     await this.searchState.search(criteria);
   }
@@ -219,6 +257,8 @@ export class SearchComponent implements OnInit {
     this.selectedTags = [...criteria.tags];
     this.tagMatchMode = criteria.tagMatchMode;
     this.labelMatchMode = criteria.labelMatchMode;
+    this.sortField = criteria.sortField;
+    this.sortDirection = criteria.sortDirection;
     this.labelRows = criteria.labels.length > 0
       ? criteria.labels.map(label => SearchComponent.createLabelRow(label.category, label.value))
       : [SearchComponent.createLabelRow()];
@@ -231,6 +271,10 @@ export class SearchComponent implements OnInit {
 
   private buildCriteria(pagination: Partial<Pick<SearchCriteria, 'page' | 'pageSize'>> = {}): SearchCriteria {
     const currentPagination = this.currentPagination();
+    const hasQuery = this.searchQuery.trim().length > 0;
+    const defaultSortField: SearchSortField = hasQuery ? 'relevance' : 'processedAt';
+    const sortField = this.sortOverridden ? this.sortField : defaultSortField;
+    const sortDirection: SearchSortDirection = this.sortOverridden ? this.sortDirection : 'desc';
 
     return {
       query: this.searchQuery,
@@ -243,8 +287,18 @@ export class SearchComponent implements OnInit {
       labelMatchMode: this.labelMatchMode,
       page: pagination.page ?? currentPagination.page,
       pageSize: pagination.pageSize ?? currentPagination.pageSize,
-      threshold: 0.3
+      threshold: 0.3,
+      sortField,
+      sortDirection
     };
+  }
+
+  toSortOptionValue(option: SortOption): string {
+    return `${option.sortField}:${option.sortDirection}`;
+  }
+
+  selectedSortOptionValue(): string {
+    return `${this.sortField}:${this.sortDirection}`;
   }
 
   private static createLabelRow(category = '', value = ''): LabelRow {

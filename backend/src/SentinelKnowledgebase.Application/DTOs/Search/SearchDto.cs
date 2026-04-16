@@ -71,6 +71,52 @@ public static class SearchMatchModes
     }
 }
 
+public static class SearchSortDirections
+{
+    public const string Asc = "asc";
+    public const string Desc = "desc";
+
+    public static bool IsValid(string? value)
+    {
+        return string.Equals(value, Asc, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Desc, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public static class ProcessedInsightSearchSortFields
+{
+    public const string Relevance = "relevance";
+    public const string ProcessedAt = "processedAt";
+    public const string Title = "title";
+    public const string SourceUrl = "sourceUrl";
+
+    public static bool IsValid(string? value)
+    {
+        return string.Equals(value, Relevance, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, ProcessedAt, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Title, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, SourceUrl, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public static class CaptureSearchSortFields
+{
+    public const string Relevance = "relevance";
+    public const string CreatedAt = "createdAt";
+    public const string Status = "status";
+    public const string ContentType = "contentType";
+    public const string SourceUrl = "sourceUrl";
+
+    public static bool IsValid(string? value)
+    {
+        return string.Equals(value, Relevance, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, CreatedAt, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Status, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, ContentType, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, SourceUrl, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
 public class SearchRequestDto
 {
     public string? Query { get; set; }
@@ -81,6 +127,8 @@ public class SearchRequestDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
     public double Threshold { get; set; } = 0.3;
+    public string? SortField { get; set; }
+    public string? SortDirection { get; set; }
 }
 
 public class SearchResultDto

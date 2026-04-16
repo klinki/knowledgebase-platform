@@ -292,8 +292,45 @@ public partial class AssistantChatService : IAssistantChatService
             ContentType = toolCall.ContentType,
             Status = toolCall.Status,
             DateFrom = toolCall.DateFrom,
-            DateTo = toolCall.DateTo
+            DateTo = toolCall.DateTo,
+            SortField = toolCall.SortField,
+            SortDirection = toolCall.SortDirection
         };
+
+        if (!HasAtLeastOneSearchCriterion(criteria) && HasSortCriterion(criteria))
+        {
+            var currentResultSet = await TryGetCurrentResultSetAsync(ownerUserId, session);
+            if (currentResultSet == null)
+            {
+                return new ToolExecutionOutcome
+                {
+                    AssistantContent = "There is no active search result set to sort yet. Run a search first."
+                };
+            }
+
+            if (!string.Equals(currentResultSet.QueryType, SearchCapturesTool, StringComparison.OrdinalIgnoreCase))
+            {
+                return new ToolExecutionOutcome
+                {
+                    AssistantContent = "Sorting is available only for results from search_captures. Run a sortable search first."
+                };
+            }
+
+            var storedCriteria = ParseResultSetCriteria(currentResultSet.CriteriaJson);
+            if (storedCriteria == null || !HasAtLeastOneSearchCriterion(storedCriteria))
+            {
+                return new ToolExecutionOutcome
+                {
+                    AssistantContent = "I could not read criteria for the current result set. Run a new search before sorting."
+                };
+            }
+
+            criteria = storedCriteria;
+            criteria.SortField = toolCall.SortField;
+            criteria.SortDirection = toolCall.SortDirection;
+            criteria.Page = toolCall.Page ?? criteria.Page;
+            criteria.PageSize = toolCall.PageSize ?? criteria.PageSize;
+        }
 
         if (!HasAtLeastOneSearchCriterion(criteria))
         {
@@ -327,6 +364,7 @@ public partial class AssistantChatService : IAssistantChatService
             Summary = result.Summary,
             CaptureIdsJson = JsonSerializer.Serialize(result.CaptureIds),
             PreviewJson = JsonSerializer.Serialize(result.PreviewItems),
+            CriteriaJson = JsonSerializer.Serialize(result.NormalizedCriteria ?? criteria),
             TotalCount = result.TotalCount,
             CreatedAt = DateTime.UtcNow
         };
@@ -358,6 +396,7 @@ public partial class AssistantChatService : IAssistantChatService
             Summary = result.Summary,
             CaptureIdsJson = JsonSerializer.Serialize(result.CaptureIds),
             PreviewJson = JsonSerializer.Serialize(result.PreviewItems),
+            CriteriaJson = "{}",
             TotalCount = result.TotalCount,
             CreatedAt = DateTime.UtcNow
         };
@@ -617,7 +656,9 @@ Rules:
 - Use {SearchCapturesTool} for generic capture lookup. Arguments can include:
   query, tags, tagMatchMode(any|all), labels(array of category/value pairs), labelMatchMode(any|all),
   page, pageSize, threshold, contentType(Tweet|Article|Code|Note|Other),
-  status(Pending|Processing|Completed|Failed), dateFrom, dateTo.
+  status(Pending|Processing|Completed|Failed), dateFrom, dateTo,
+  sortField(relevance|createdAt|status|contentType|sourceUrl), sortDirection(asc|desc).
+- For follow-up sort requests like "sort these by newest", call {SearchCapturesTool} with just sortField/sortDirection.
 - Delete must only target the active result set and should be proposed, not executed.
 - For deleted twitter accounts, always use deterministic skip-code matching.
 - Output JSON object with fields:
@@ -693,6 +734,17 @@ Rules:
         if (lower.Contains("delete all these") || lower.Contains("delete these") || lower.Contains("delete them"))
         {
             plan.ToolCalls.Add(new PlannedToolCall { Name = DeleteCurrentResultSetTool });
+            return plan;
+        }
+
+        if (TryParseFallbackSortIntent(lower, out var sortField, out var sortDirection))
+        {
+            plan.ToolCalls.Add(new PlannedToolCall
+            {
+                Name = SearchCapturesTool,
+                SortField = sortField,
+                SortDirection = sortDirection
+            });
             return plan;
         }
 
@@ -900,6 +952,12 @@ Rules:
                || criteria.DateTo.HasValue;
     }
 
+    private static bool HasSortCriterion(CaptureSearchCriteria criteria)
+    {
+        return !string.IsNullOrWhiteSpace(criteria.SortField)
+               || !string.IsNullOrWhiteSpace(criteria.SortDirection);
+    }
+
     private static bool LooksLikeSearchIntent(string lowerMessage)
     {
         return lowerMessage.Contains("find ")
@@ -919,6 +977,94 @@ Rules:
             ContentType = InferContentType(lowerMessage),
             Status = InferStatus(lowerMessage)
         };
+    }
+
+    private static bool TryParseFallbackSortIntent(string lowerMessage, out string sortField, out string sortDirection)
+    {
+        sortField = string.Empty;
+        sortDirection = SearchSortDirections.Desc;
+
+        if (!lowerMessage.Contains("sort", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (lowerMessage.Contains("newest", StringComparison.Ordinal)
+            || lowerMessage.Contains("latest", StringComparison.Ordinal)
+            || lowerMessage.Contains("most recent", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.CreatedAt;
+            sortDirection = SearchSortDirections.Desc;
+            return true;
+        }
+
+        if (lowerMessage.Contains("oldest", StringComparison.Ordinal)
+            || lowerMessage.Contains("earliest", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.CreatedAt;
+            sortDirection = SearchSortDirections.Asc;
+            return true;
+        }
+
+        if (lowerMessage.Contains("relevance", StringComparison.Ordinal)
+            || lowerMessage.Contains("best match", StringComparison.Ordinal)
+            || lowerMessage.Contains("most relevant", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.Relevance;
+            sortDirection = SearchSortDirections.Desc;
+            return true;
+        }
+
+        if (lowerMessage.Contains("source", StringComparison.Ordinal)
+            || lowerMessage.Contains("url", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.SourceUrl;
+            sortDirection = lowerMessage.Contains("z-a", StringComparison.Ordinal) ? SearchSortDirections.Desc : SearchSortDirections.Asc;
+            return true;
+        }
+
+        if (lowerMessage.Contains("status", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.Status;
+            sortDirection = SearchSortDirections.Asc;
+            return true;
+        }
+
+        if (lowerMessage.Contains("type", StringComparison.Ordinal)
+            || lowerMessage.Contains("content type", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.ContentType;
+            sortDirection = SearchSortDirections.Asc;
+            return true;
+        }
+
+        if (lowerMessage.Contains("created", StringComparison.Ordinal)
+            || lowerMessage.Contains("date", StringComparison.Ordinal)
+            || lowerMessage.Contains("time", StringComparison.Ordinal))
+        {
+            sortField = CaptureSearchSortFields.CreatedAt;
+            sortDirection = lowerMessage.Contains("asc", StringComparison.Ordinal) ? SearchSortDirections.Asc : SearchSortDirections.Desc;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static CaptureSearchCriteria? ParseResultSetCriteria(string criteriaJson)
+    {
+        if (string.IsNullOrWhiteSpace(criteriaJson) || criteriaJson == "{}")
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<CaptureSearchCriteria>(criteriaJson);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static string NormalizeFallbackSearchQuery(string message)
@@ -1050,6 +1196,8 @@ Rules:
         public CaptureStatus? Status { get; set; }
         public DateTime? DateFrom { get; set; }
         public DateTime? DateTo { get; set; }
+        public string? SortField { get; set; }
+        public string? SortDirection { get; set; }
 
         public static PlannedToolCall From(string name, JsonElement? arguments)
         {
@@ -1071,6 +1219,8 @@ Rules:
             call.Status = ReadEnum<CaptureStatus>(json, "status");
             call.DateFrom = ReadDateTime(json, "dateFrom", endOfDay: false);
             call.DateTo = ReadDateTime(json, "dateTo", endOfDay: true);
+            call.SortField = ParseSortField(ReadString(json, "sortField"));
+            call.SortDirection = ParseSortDirection(ReadString(json, "sortDirection"));
 
             return call;
         }
@@ -1127,6 +1277,38 @@ Rules:
         private static string ParseMatchMode(string? value, string fallback)
         {
             return SearchMatchModes.IsValid(value) ? value!.ToLowerInvariant() : fallback;
+        }
+
+        private static string? ParseSortField(string? value)
+        {
+            if (!CaptureSearchSortFields.IsValid(value))
+            {
+                return null;
+            }
+
+            var normalized = value!.Trim();
+            return normalized switch
+            {
+                _ when string.Equals(normalized, CaptureSearchSortFields.Relevance, StringComparison.OrdinalIgnoreCase) =>
+                    CaptureSearchSortFields.Relevance,
+                _ when string.Equals(normalized, CaptureSearchSortFields.CreatedAt, StringComparison.OrdinalIgnoreCase) =>
+                    CaptureSearchSortFields.CreatedAt,
+                _ when string.Equals(normalized, CaptureSearchSortFields.Status, StringComparison.OrdinalIgnoreCase) =>
+                    CaptureSearchSortFields.Status,
+                _ when string.Equals(normalized, CaptureSearchSortFields.ContentType, StringComparison.OrdinalIgnoreCase) =>
+                    CaptureSearchSortFields.ContentType,
+                _ => CaptureSearchSortFields.SourceUrl
+            };
+        }
+
+        private static string? ParseSortDirection(string? value)
+        {
+            if (!SearchSortDirections.IsValid(value))
+            {
+                return null;
+            }
+
+            return value!.Trim().ToLowerInvariant();
         }
 
         private static int? ReadInt(JsonElement json, string propertyName)

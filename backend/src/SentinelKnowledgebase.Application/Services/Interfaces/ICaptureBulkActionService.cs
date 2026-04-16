@@ -54,6 +54,8 @@ public class CaptureSearchCriteria
     public CaptureStatus? Status { get; set; }
     public DateTime? DateFrom { get; set; }
     public DateTime? DateTo { get; set; }
+    public string? SortField { get; set; }
+    public string? SortDirection { get; set; }
 }
 
 public class CaptureBulkQueryResult
@@ -62,6 +64,7 @@ public class CaptureBulkQueryResult
     public List<CaptureBulkPreviewItem> PreviewItems { get; set; } = new();
     public int TotalCount { get; set; }
     public string Summary { get; set; } = string.Empty;
+    public CaptureSearchCriteria? NormalizedCriteria { get; set; }
 }
 
 public class CaptureBulkPreviewItem

@@ -24,6 +24,7 @@ public class SearchService : ISearchService
         var normalizedQuery = NormalizeQuery(request.Query);
         var normalizedTags = NormalizeTags(request.Tags);
         var normalizedLabels = NormalizeLabels(request.Labels);
+        var hasQuery = normalizedQuery is not null;
 
         if (normalizedQuery is null && normalizedTags.Count == 0 && normalizedLabels.Count == 0)
         {
@@ -33,6 +34,7 @@ public class SearchService : ISearchService
         var page = request.Page > 0 ? request.Page : DefaultPage;
         var pageSize = request.PageSize > 0 ? request.PageSize : DefaultPageSize;
         var threshold = request.Threshold >= 0 ? request.Threshold : DefaultThreshold;
+        var (sortField, sortDirection) = NormalizeSort(request.SortField, request.SortDirection, hasQuery);
         float[]? queryEmbedding = null;
 
         if (normalizedQuery is not null)
@@ -49,7 +51,9 @@ public class SearchService : ISearchService
             normalizedTags,
             SearchMatchModes.IsAll(request.TagMatchMode),
             normalizedLabels,
-            SearchMatchModes.IsAll(request.LabelMatchMode));
+            SearchMatchModes.IsAll(request.LabelMatchMode),
+            sortField,
+            sortDirection);
 
         return new SearchResultPageDto
         {
@@ -175,5 +179,51 @@ public class SearchService : ISearchService
             .GroupBy(label => $"{label.Category}\u001f{label.Value}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
+    }
+
+    private static (string sortField, string sortDirection) NormalizeSort(
+        string? requestedSortField,
+        string? requestedSortDirection,
+        bool hasQuery)
+    {
+        var sortField = NormalizeSortField(requestedSortField);
+        if (sortField == null)
+        {
+            sortField = hasQuery
+                ? ProcessedInsightSearchSortFields.Relevance
+                : ProcessedInsightSearchSortFields.ProcessedAt;
+        }
+
+        if (!hasQuery && string.Equals(sortField, ProcessedInsightSearchSortFields.Relevance, StringComparison.OrdinalIgnoreCase))
+        {
+            sortField = ProcessedInsightSearchSortFields.ProcessedAt;
+            return (sortField, SearchSortDirections.Desc);
+        }
+
+        var sortDirection = SearchSortDirections.IsValid(requestedSortDirection)
+            ? requestedSortDirection!.Trim().ToLowerInvariant()
+            : SearchSortDirections.Desc;
+
+        return (sortField, sortDirection);
+    }
+
+    private static string? NormalizeSortField(string? sortField)
+    {
+        if (!ProcessedInsightSearchSortFields.IsValid(sortField))
+        {
+            return null;
+        }
+
+        var normalized = sortField!.Trim();
+        return normalized switch
+        {
+            _ when string.Equals(normalized, ProcessedInsightSearchSortFields.Relevance, StringComparison.OrdinalIgnoreCase) =>
+                ProcessedInsightSearchSortFields.Relevance,
+            _ when string.Equals(normalized, ProcessedInsightSearchSortFields.ProcessedAt, StringComparison.OrdinalIgnoreCase) =>
+                ProcessedInsightSearchSortFields.ProcessedAt,
+            _ when string.Equals(normalized, ProcessedInsightSearchSortFields.Title, StringComparison.OrdinalIgnoreCase) =>
+                ProcessedInsightSearchSortFields.Title,
+            _ => ProcessedInsightSearchSortFields.SourceUrl
+        };
     }
 }

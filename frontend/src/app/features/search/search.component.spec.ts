@@ -36,7 +36,9 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 2,
         pageSize: 50,
-        threshold: 0.3
+        threshold: 0.3,
+        sortField: 'relevance',
+        sortDirection: 'desc'
       }),
       buildQueryParams: vi.fn(),
       syncUrl: vi.fn().mockResolvedValue(undefined),
@@ -118,7 +120,9 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 1,
         pageSize: 20,
-        threshold: 0.3
+        threshold: 0.3,
+        sortField: 'processedAt',
+        sortDirection: 'desc'
       }),
       buildQueryParams: vi.fn(),
       syncUrl: vi.fn().mockResolvedValue(undefined),
@@ -182,7 +186,9 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 1,
         pageSize: 20,
-        threshold: 0.3
+        threshold: 0.3,
+        sortField: 'relevance',
+        sortDirection: 'desc'
       }),
       buildQueryParams: vi.fn(),
       syncUrl: vi.fn().mockResolvedValue(undefined),
@@ -261,7 +267,9 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 2,
         pageSize: 50,
-        threshold: 0.3
+        threshold: 0.3,
+        sortField: 'title',
+        sortDirection: 'asc'
       }),
       buildQueryParams: vi.fn(),
       syncUrl: vi.fn().mockResolvedValue(undefined),
@@ -279,7 +287,13 @@ describe('SearchComponent', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: convertToParamMap({ q: 'angular', page: '2', pageSize: '50' })
+              queryParamMap: convertToParamMap({
+                q: 'angular',
+                page: '2',
+                pageSize: '50',
+                sortField: 'title',
+                sortDirection: 'asc'
+              })
             }
           }
         },
@@ -329,7 +343,9 @@ describe('SearchComponent', () => {
         tags: ['frontend'],
         labels: [{ category: 'Language', value: 'English' }],
         page: 1,
-        pageSize: 100
+        pageSize: 100,
+        sortField: 'title',
+        sortDirection: 'asc'
       })
     );
     expect(searchStateStub.search).toHaveBeenLastCalledWith(
@@ -337,7 +353,120 @@ describe('SearchComponent', () => {
         query: 'angular',
         tags: ['frontend'],
         page: 1,
-        pageSize: 100
+        pageSize: 100,
+        sortField: 'title',
+        sortDirection: 'asc'
+      })
+    );
+  });
+
+  it('resets to page 1 when sort changes and keeps active filters', async () => {
+    const searchStateStub = {
+      results: signal([
+        {
+          id: 'insight-1',
+          captureId: 'capture-1',
+          title: 'Angular result',
+          summary: 'Summary',
+          sourceUrl: 'https://example.com/angular',
+          processedAt: '2026-04-09T09:00:00Z',
+          tags: ['frontend'],
+          labels: [{ category: 'Language', value: 'English' }],
+          similarity: 0.88
+        }
+      ]),
+      loading: signal(false),
+      error: signal<string | null>(null),
+      clear: vi.fn(),
+      createEmptyCriteria: vi.fn(),
+      hasCriteria: vi.fn().mockReturnValue(true),
+      parseQueryParams: vi.fn().mockReturnValue({
+        query: 'angular',
+        tags: ['frontend'],
+        tagMatchMode: 'any',
+        labels: [{ category: 'Language', value: 'English' }],
+        labelMatchMode: 'all',
+        page: 3,
+        pageSize: 50,
+        threshold: 0.3,
+        sortField: 'title',
+        sortDirection: 'asc'
+      }),
+      buildQueryParams: vi.fn(),
+      syncUrl: vi.fn().mockResolvedValue(undefined),
+      search: vi.fn().mockResolvedValue(undefined),
+      totalCount: signal(71),
+      totalPages: vi.fn().mockReturnValue(4),
+      currentPagination: signal({ page: 3, pageSize: 50 })
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [SearchComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({ q: 'angular', page: '3', pageSize: '50' })
+            }
+          }
+        },
+        { provide: SearchStateService, useValue: searchStateStub },
+        {
+          provide: TagsStateService,
+          useValue: {
+            tags: signal([{ id: 'tag-1', name: 'frontend', count: 1, lastUsedAt: null }]),
+            loadTags: vi.fn().mockResolvedValue(undefined)
+          }
+        },
+        {
+          provide: LabelsStateService,
+          useValue: {
+            categories: signal([
+              {
+                id: 'category-1',
+                name: 'Language',
+                count: 1,
+                lastUsedAt: null,
+                values: [{ id: 'value-1', value: 'English', count: 1, lastUsedAt: null }]
+              }
+            ]),
+            loadLabels: vi.fn().mockResolvedValue(undefined)
+          }
+        }
+      ]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SearchComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const component = fixture.componentInstance;
+    component.searchQuery = 'angular';
+    component.selectedTags = ['frontend'];
+    component.labelRows = [{ id: 'label-row-1', category: 'Language', value: 'English' }];
+
+    await component.onSortChange('sourceUrl:desc');
+
+    expect(searchStateStub.syncUrl).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        query: 'angular',
+        tags: ['frontend'],
+        page: 1,
+        pageSize: 50,
+        sortField: 'sourceUrl',
+        sortDirection: 'desc'
+      })
+    );
+    expect(searchStateStub.search).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'angular',
+        page: 1,
+        sortField: 'sourceUrl',
+        sortDirection: 'desc'
       })
     );
   });

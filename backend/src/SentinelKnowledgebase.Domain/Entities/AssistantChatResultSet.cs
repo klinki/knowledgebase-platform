@@ -29,6 +29,9 @@ public class AssistantChatResultSet
     [Required]
     public string PreviewJson { get; set; } = "[]";
 
+    [Required]
+    public string CriteriaJson { get; set; } = "{}";
+
     public int TotalCount { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

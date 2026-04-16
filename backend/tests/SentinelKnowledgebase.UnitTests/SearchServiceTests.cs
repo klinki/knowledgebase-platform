@@ -222,7 +222,9 @@ public class SearchServiceTests
                     labels.Count == 1 &&
                     labels.Single().Category == "Language" &&
                     labels.Single().Value == "English"),
-                false)
+                false,
+                ProcessedInsightSearchSortFields.Relevance,
+                SearchSortDirections.Desc)
             .Returns(new SearchQueryResult
             {
                 TotalCount = 31,
@@ -271,7 +273,9 @@ public class SearchServiceTests
                 Arg.Any<IReadOnlyCollection<string>>(),
                 false,
                 Arg.Any<IReadOnlyCollection<LabelRecord>>(),
-                true)
+                true,
+                ProcessedInsightSearchSortFields.ProcessedAt,
+                SearchSortDirections.Desc)
             .Returns(new SearchQueryResult());
 
         var result = await _service.SearchAsync(ownerUserId, request);
@@ -294,5 +298,34 @@ public class SearchServiceTests
         var act = () => _service.SearchAsync(ownerUserId, request);
 
         await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldDefaultToProcessedAt_WhenQueryIsEmptyAndSortIsRelevance()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var request = new SearchRequestDto
+        {
+            Tags = ["alpha"],
+            SortField = ProcessedInsightSearchSortFields.Relevance
+        };
+
+        _unitOfWork.ProcessedInsights.SearchAsync(
+                ownerUserId,
+                null,
+                request.Threshold,
+                request.Page,
+                request.PageSize,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                false,
+                Arg.Any<IReadOnlyCollection<LabelRecord>>(),
+                true,
+                ProcessedInsightSearchSortFields.ProcessedAt,
+                SearchSortDirections.Desc)
+            .Returns(new SearchQueryResult());
+
+        await _service.SearchAsync(ownerUserId, request);
+
+        await _contentProcessor.DidNotReceive().GenerateEmbeddingAsync(Arg.Any<string>());
     }
 }

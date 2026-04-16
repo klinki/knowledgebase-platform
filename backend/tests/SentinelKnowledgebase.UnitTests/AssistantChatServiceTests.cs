@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using SentinelKnowledgebase.Application.DTOs.Assistant;
+using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
@@ -175,7 +176,11 @@ public class AssistantChatServiceTests
             Arg.Any<int>(),
             Arg.Any<int>());
         await _assistantChatRepository.Received(1).AddResultSetAsync(
-            Arg.Is<AssistantChatResultSet>(resultSet => resultSet.QueryType == "search_captures" && resultSet.TotalCount == 1));
+            Arg.Is<AssistantChatResultSet>(resultSet =>
+                resultSet.QueryType == "search_captures"
+                && resultSet.TotalCount == 1
+                && !string.IsNullOrWhiteSpace(resultSet.CriteriaJson)
+                && resultSet.CriteriaJson != "{}"));
     }
 
     [Fact]
@@ -205,6 +210,120 @@ public class AssistantChatServiceTests
         await _captureBulkActionService.Received(1).SearchCapturesAsync(
             ownerUserId,
             Arg.Is<CaptureSearchCriteria>(criteria => criteria.Query == "outage investigation"),
+            Arg.Any<int>(),
+            Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_SortFollowUp_ShouldReuseStoredSearchCriteria()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var session = new AssistantChatSession
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            LastResultSetId = Guid.NewGuid()
+        };
+        var storedCriteria = new CaptureSearchCriteria
+        {
+            Query = "incident timeline",
+            Tags = ["ops"],
+            TagMatchMode = SearchMatchModes.All,
+            Page = 1,
+            PageSize = 20,
+            Threshold = 0.6,
+            SortField = CaptureSearchSortFields.Relevance,
+            SortDirection = SearchSortDirections.Desc
+        };
+        var previousResultSet = new AssistantChatResultSet
+        {
+            Id = session.LastResultSetId.Value,
+            SessionId = session.Id,
+            OwnerUserId = ownerUserId,
+            QueryType = "search_captures",
+            Summary = "Found 3 captures.",
+            CaptureIdsJson = "[]",
+            PreviewJson = "[]",
+            CriteriaJson = System.Text.Json.JsonSerializer.Serialize(storedCriteria),
+            TotalCount = 3
+        };
+
+        _assistantChatRepository.GetOrCreateSessionAsync(ownerUserId).Returns(session);
+        _assistantChatRepository.GetMessagesAsync(ownerUserId).Returns([]);
+        _assistantChatRepository.GetResultSetByIdAsync(ownerUserId, session.LastResultSetId.Value).Returns(previousResultSet);
+        _captureBulkActionService.SearchCapturesAsync(
+                ownerUserId,
+                Arg.Any<CaptureSearchCriteria>(),
+                Arg.Any<int>(),
+                Arg.Any<int>())
+            .Returns(new CaptureBulkQueryResult
+            {
+                CaptureIds = [Guid.NewGuid()],
+                TotalCount = 1,
+                Summary = "Found 1 capture.",
+                PreviewItems = [],
+                NormalizedCriteria = new CaptureSearchCriteria
+                {
+                    Query = "incident timeline",
+                    Tags = ["ops"],
+                    SortField = CaptureSearchSortFields.CreatedAt,
+                    SortDirection = SearchSortDirections.Asc
+                }
+            });
+
+        var response = await _service.SendMessageAsync(ownerUserId, new AssistantChatMessageSendRequestDto
+        {
+            Message = "Sort these by oldest"
+        });
+
+        response.AssistantMessage.Content.Should().Contain("Found 1 capture");
+        await _captureBulkActionService.Received(1).SearchCapturesAsync(
+            ownerUserId,
+            Arg.Is<CaptureSearchCriteria>(criteria =>
+                criteria.Query == "incident timeline"
+                && criteria.Tags.SequenceEqual(new[] { "ops" })
+                && criteria.SortField == CaptureSearchSortFields.CreatedAt
+                && criteria.SortDirection == SearchSortDirections.Asc),
+            Arg.Any<int>(),
+            Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_SortFollowUpOnNonSearchResultSet_ShouldReturnGuidance()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var session = new AssistantChatSession
+        {
+            Id = Guid.NewGuid(),
+            OwnerUserId = ownerUserId,
+            LastResultSetId = Guid.NewGuid()
+        };
+        var previousResultSet = new AssistantChatResultSet
+        {
+            Id = session.LastResultSetId.Value,
+            SessionId = session.Id,
+            OwnerUserId = ownerUserId,
+            QueryType = "deleted_twitter_accounts",
+            Summary = "Found 3 tweets.",
+            CaptureIdsJson = "[]",
+            PreviewJson = "[]",
+            CriteriaJson = "{}",
+            TotalCount = 3
+        };
+
+        _assistantChatRepository.GetOrCreateSessionAsync(ownerUserId).Returns(session);
+        _assistantChatRepository.GetMessagesAsync(ownerUserId).Returns([]);
+        _assistantChatRepository.GetResultSetByIdAsync(ownerUserId, session.LastResultSetId.Value).Returns(previousResultSet);
+
+        var response = await _service.SendMessageAsync(ownerUserId, new AssistantChatMessageSendRequestDto
+        {
+            Message = "Sort these by newest"
+        });
+
+        response.AssistantMessage.Content.Should().Contain("Sorting is available only for results from search_captures");
+        await _captureBulkActionService.DidNotReceive().SearchCapturesAsync(
+            Arg.Any<Guid>(),
+            Arg.Any<CaptureSearchCriteria>(),
             Arg.Any<int>(),
             Arg.Any<int>());
     }
