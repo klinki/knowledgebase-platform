@@ -170,7 +170,8 @@ public class AssistantChatServiceTests
             ownerUserId,
             Arg.Is<CaptureSearchCriteria>(criteria =>
                 criteria.Query == "failed captures about outage" &&
-                criteria.Status == CaptureStatus.Failed),
+                criteria.Status == CaptureStatus.Failed &&
+                criteria.Threshold == 0.6),
             Arg.Any<int>(),
             Arg.Any<int>());
         await _assistantChatRepository.Received(1).AddResultSetAsync(

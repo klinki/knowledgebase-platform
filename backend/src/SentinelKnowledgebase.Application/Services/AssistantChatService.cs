@@ -20,6 +20,7 @@ public partial class AssistantChatService : IAssistantChatService
 {
     private const int MaxResultSetSize = 5000;
     private const int PreviewSize = 20;
+    private const double DefaultAssistantSearchThreshold = 0.6;
     private const string SearchCapturesTool = "search_captures";
     private const string FindDeletedTweetsTool = "find_deleted_tweets";
     private const string DeleteCurrentResultSetTool = "delete_current_result_set";
@@ -287,7 +288,7 @@ public partial class AssistantChatService : IAssistantChatService
             LabelMatchMode = toolCall.LabelMatchMode,
             Page = toolCall.Page ?? 1,
             PageSize = toolCall.PageSize ?? PreviewSize,
-            Threshold = toolCall.Threshold ?? 0.3,
+            Threshold = toolCall.Threshold ?? DefaultAssistantSearchThreshold,
             ContentType = toolCall.ContentType,
             Status = toolCall.Status,
             DateFrom = toolCall.DateFrom,
