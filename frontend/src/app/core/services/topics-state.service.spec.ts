@@ -29,7 +29,12 @@ describe('TopicsStateService', () => {
   it('normalizes topic detail payloads', async () => {
     const loadPromise = service.loadTopic('topic-1');
 
-    const request = http.expectOne('http://localhost:5000/api/v1/clusters/topic-1');
+    const request = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/clusters/topic-1' &&
+      req.params.get('page') === '1' &&
+      req.params.get('pageSize') === '20' &&
+      req.params.get('sortField') === 'rank' &&
+      req.params.get('sortDirection') === 'asc');
     expect(request.request.method).toBe('GET');
     request.flush({
       id: 'topic-1',
@@ -39,6 +44,11 @@ describe('TopicsStateService', () => {
       memberCount: 3,
       updatedAt: '2026-03-16T10:00:00Z',
       suggestedLabel: { category: ' Topic ', value: ' Topic Alpha ' },
+      membersPage: 1,
+      membersPageSize: 20,
+      membersTotalCount: 3,
+      membersSortField: 'rank',
+      membersSortDirection: 'asc',
       members: [
         {
           captureId: 'capture-1',
@@ -64,6 +74,11 @@ describe('TopicsStateService', () => {
       memberCount: 3,
       updatedAt: '2026-03-16T10:00:00Z',
       suggestedLabel: { category: 'Topic', value: 'Topic Alpha' },
+      membersPage: 1,
+      membersPageSize: 20,
+      membersTotalCount: 3,
+      membersSortField: 'rank',
+      membersSortDirection: 'asc',
       members: [
         {
           captureId: 'capture-1',
@@ -198,6 +213,43 @@ describe('TopicsStateService', () => {
     });
   });
 
+  it('parses URL query params into normalized topic detail criteria', () => {
+    const criteria = service.parseTopicDetailQueryParams(convertToParamMap({
+      page: '3',
+      pageSize: '50',
+      sortField: 'sourceUrl',
+      sortDirection: 'desc'
+    }));
+
+    expect(criteria).toEqual({
+      page: 3,
+      pageSize: 50,
+      sortField: 'sourceUrl',
+      sortDirection: 'desc'
+    });
+  });
+
+  it('builds canonical topic detail query params and omits defaults', () => {
+    expect(service.buildTopicDetailQueryParams(service.createDefaultTopicDetailCriteria())).toEqual({
+      page: null,
+      pageSize: null,
+      sortField: null,
+      sortDirection: null
+    });
+
+    expect(service.buildTopicDetailQueryParams({
+      page: 2,
+      pageSize: 50,
+      sortField: 'title',
+      sortDirection: 'asc'
+    })).toEqual({
+      page: '2',
+      pageSize: '50',
+      sortField: 'title',
+      sortDirection: 'asc'
+    });
+  });
+
   it('falls back to default criteria when URL params are invalid', () => {
     const criteria = service.parseQueryParams(convertToParamMap({
       q: '  ',
@@ -212,7 +264,12 @@ describe('TopicsStateService', () => {
   it('sets notFound for missing topics', async () => {
     const loadPromise = service.loadTopic('missing-topic');
 
-    const request = http.expectOne('http://localhost:5000/api/v1/clusters/missing-topic');
+    const request = http.expectOne(req =>
+      req.url === 'http://localhost:5000/api/v1/clusters/missing-topic' &&
+      req.params.get('page') === '1' &&
+      req.params.get('pageSize') === '20' &&
+      req.params.get('sortField') === 'rank' &&
+      req.params.get('sortDirection') === 'asc');
     request.flush({}, { status: 404, statusText: 'Not Found' });
 
     await loadPromise;

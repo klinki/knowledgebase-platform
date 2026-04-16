@@ -8,5 +8,5 @@ public interface IInsightClusteringService
     Task RebuildStaleOwnerClustersAsync();
     Task<IReadOnlyList<TopicClusterSummaryDto>> GetClusterSummariesAsync(Guid ownerUserId, int take = 5);
     Task<TopicClusterListPageDto> GetClusterListPageAsync(Guid ownerUserId, TopicClusterListQueryDto query);
-    Task<TopicClusterDetailDto?> GetClusterDetailAsync(Guid ownerUserId, Guid clusterId);
+    Task<TopicClusterDetailDto?> GetClusterDetailAsync(Guid ownerUserId, Guid clusterId, TopicClusterDetailQueryDto query);
 }

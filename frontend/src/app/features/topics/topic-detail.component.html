@@ -45,34 +45,92 @@
     </section>
 
     <section class="glass-card">
-      <h2>Insights</h2>
-      <div class="member-list">
-        @for (member of topic()!.members; track member.processedInsightId) {
-          <a class="member-card" [routerLink]="['/captures', member.captureId]">
-            <div class="member-head">
-              <span class="member-rank">#{{ member.rank }}</span>
-              <span class="member-score">{{ member.similarityToCentroid | number:'1.2-2' }}</span>
-            </div>
-            <div class="member-title">{{ member.title }}</div>
-            <div class="member-summary">{{ member.summary }}</div>
-            <div class="member-meta">{{ member.sourceUrl }}</div>
-            @if (member.tags.length > 0) {
-              <div class="tag-row">
-                @for (tag of member.tags; track tag) {
-                  <span class="tag-chip">{{ tag }}</span>
-                }
-              </div>
-            }
-            @if (member.labels.length > 0) {
-              <div class="label-row">
-                @for (label of member.labels; track label.category + ':' + label.value) {
-                  <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
-                }
-              </div>
-            }
-          </a>
-        }
+      <div class="members-head">
+        <h2>Insights</h2>
+        <span>{{ totalMembers() }} total</span>
       </div>
+
+      <div class="members-toolbar">
+        <label for="topic-members-sort">Sort</label>
+        <select
+          id="topic-members-sort"
+          [ngModel]="selectedSort"
+          (ngModelChange)="onSortChange($event)"
+          [disabled]="topicsState.loading()"
+        >
+          @for (option of sortOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+
+        <label for="topic-members-page-size">Show</label>
+        <select
+          id="topic-members-page-size"
+          [ngModel]="pageSize()"
+          (ngModelChange)="onPageSizeChange($event)"
+          [disabled]="topicsState.loading()"
+        >
+          @for (size of pageSizeOptions; track size) {
+            <option [ngValue]="size">{{ size }}</option>
+          }
+        </select>
+      </div>
+
+      @if (topic()!.members.length === 0) {
+        <div class="empty-state">
+          <p>No insights found for this page.</p>
+        </div>
+      } @else {
+        <div class="member-list">
+          @for (member of topic()!.members; track member.processedInsightId) {
+            <a class="member-card" [routerLink]="['/captures', member.captureId]">
+              <div class="member-head">
+                <span class="member-rank">#{{ member.rank }}</span>
+                <span class="member-score">{{ member.similarityToCentroid | number:'1.2-2' }}</span>
+              </div>
+              <div class="member-title">{{ member.title }}</div>
+              <div class="member-summary">{{ member.summary }}</div>
+              <div class="member-meta">{{ member.sourceUrl }}</div>
+              @if (member.tags.length > 0) {
+                <div class="tag-row">
+                  @for (tag of member.tags; track tag) {
+                    <span class="tag-chip">{{ tag }}</span>
+                  }
+                </div>
+              }
+              @if (member.labels.length > 0) {
+                <div class="label-row">
+                  @for (label of member.labels; track label.category + ':' + label.value) {
+                    <span class="label-chip">{{ label.category }}: {{ label.value }}</span>
+                  }
+                </div>
+              }
+            </a>
+          }
+        </div>
+      }
+
+      @if (totalPages() > 1) {
+        <nav class="pagination-bar" aria-label="Topic insights pagination">
+          <button
+            type="button"
+            class="pagination-btn"
+            (click)="goToPage(currentPage() - 1)"
+            [disabled]="currentPage() <= 1 || topicsState.loading()"
+          >
+            Previous
+          </button>
+          <span class="pagination-status">Page {{ currentPage() }} of {{ totalPages() }}</span>
+          <button
+            type="button"
+            class="pagination-btn"
+            (click)="goToPage(currentPage() + 1)"
+            [disabled]="currentPage() >= totalPages() || topicsState.loading()"
+          >
+            Next
+          </button>
+        </nav>
+      }
     </section>
   }
 </div>

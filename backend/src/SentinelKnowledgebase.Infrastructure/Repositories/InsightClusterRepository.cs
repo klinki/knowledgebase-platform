@@ -6,6 +6,11 @@ namespace SentinelKnowledgebase.Infrastructure.Repositories;
 
 public class InsightClusterRepository : IInsightClusterRepository
 {
+    private const string MemberSortFieldRank = "rank";
+    private const string MemberSortFieldSimilarity = "similarity";
+    private const string MemberSortFieldTitle = "title";
+    private const string MemberSortFieldSourceUrl = "sourceUrl";
+    private const string SortDirectionAsc = "asc";
     private readonly ApplicationDbContext _context;
 
     public InsightClusterRepository(ApplicationDbContext context)
@@ -44,6 +49,76 @@ public class InsightClusterRepository : IInsightClusterRepository
                     .ThenInclude(insight => insight.LabelAssignments)
                         .ThenInclude(assignment => assignment.LabelValue)
             .FirstOrDefaultAsync(cluster => cluster.OwnerUserId == ownerUserId && cluster.Id == clusterId);
+    }
+
+    public async Task<TopicClusterDetailQueryResult?> GetDetailPagedAsync(
+        Guid ownerUserId,
+        Guid clusterId,
+        TopicClusterDetailQueryOptions options)
+    {
+        var cluster = await _context.InsightClusters
+            .AsNoTracking()
+            .Where(item => item.OwnerUserId == ownerUserId && item.Id == clusterId)
+            .Select(item => new TopicClusterDetailQueryResult
+            {
+                Id = item.Id,
+                Title = item.Title,
+                Description = item.Description,
+                KeywordsJson = item.KeywordsJson,
+                MemberCount = item.MemberCount,
+                UpdatedAt = item.UpdatedAt
+            })
+            .FirstOrDefaultAsync();
+        if (cluster == null)
+        {
+            return null;
+        }
+
+        var page = Math.Max(1, options.Page);
+        var pageSize = Math.Clamp(options.PageSize, 1, 100);
+        var sortField = options.SortField?.Trim() ?? MemberSortFieldRank;
+        var sortDirection = options.SortDirection?.Trim().ToLowerInvariant() ?? SortDirectionAsc;
+
+        var membersQuery = _context.InsightClusterMemberships
+            .AsNoTracking()
+            .Where(membership =>
+                membership.InsightClusterId == clusterId &&
+                membership.InsightCluster.OwnerUserId == ownerUserId);
+        var totalCount = await membersQuery.CountAsync();
+
+        var sortedMembersQuery = ApplyMemberSorting(membersQuery, sortField, sortDirection);
+        var members = await sortedMembersQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(membership => new TopicClusterMemberRecord
+            {
+                CaptureId = membership.ProcessedInsight.RawCaptureId,
+                ProcessedInsightId = membership.ProcessedInsightId,
+                Title = membership.ProcessedInsight.Title,
+                Summary = membership.ProcessedInsight.Summary,
+                SourceUrl = membership.ProcessedInsight.RawCapture.SourceUrl,
+                Rank = membership.Rank,
+                SimilarityToCentroid = membership.SimilarityToCentroid,
+                Tags = membership.ProcessedInsight.Tags.Select(tag => tag.Name).ToList(),
+                Labels = membership.ProcessedInsight.LabelAssignments
+                    .OrderBy(assignment => assignment.LabelCategory.Name)
+                    .ThenBy(assignment => assignment.LabelValue.Value)
+                    .Select(assignment => new LabelRecord
+                    {
+                        Category = assignment.LabelCategory.Name,
+                        Value = assignment.LabelValue.Value
+                    })
+                    .ToList()
+            })
+            .ToListAsync();
+
+        cluster.MembersPage = page;
+        cluster.MembersPageSize = pageSize;
+        cluster.MembersTotalCount = totalCount;
+        cluster.MembersSortField = sortField;
+        cluster.MembersSortDirection = sortDirection;
+        cluster.Members = members;
+        return cluster;
     }
 
     public async Task<IReadOnlyList<InsightCluster>> GetTopAsync(Guid ownerUserId, int take)
@@ -124,6 +199,38 @@ public class InsightClusterRepository : IInsightClusterRepository
                 : query.OrderByDescending(cluster => cluster.MemberCount)
                     .ThenByDescending(cluster => cluster.UpdatedAt)
                     .ThenBy(cluster => cluster.Title)
+        };
+    }
+
+    private static IOrderedQueryable<InsightClusterMembership> ApplyMemberSorting(
+        IQueryable<InsightClusterMembership> query,
+        string sortField,
+        string sortDirection)
+    {
+        var ascending = string.Equals(sortDirection, SortDirectionAsc, StringComparison.OrdinalIgnoreCase);
+
+        return sortField switch
+        {
+            MemberSortFieldSimilarity => ascending
+                ? query.OrderBy(membership => membership.SimilarityToCentroid)
+                    .ThenBy(membership => membership.ProcessedInsightId)
+                : query.OrderByDescending(membership => membership.SimilarityToCentroid)
+                    .ThenBy(membership => membership.ProcessedInsightId),
+            MemberSortFieldTitle => ascending
+                ? query.OrderBy(membership => membership.ProcessedInsight.Title)
+                    .ThenBy(membership => membership.ProcessedInsightId)
+                : query.OrderByDescending(membership => membership.ProcessedInsight.Title)
+                    .ThenBy(membership => membership.ProcessedInsightId),
+            MemberSortFieldSourceUrl => ascending
+                ? query.OrderBy(membership => membership.ProcessedInsight.RawCapture.SourceUrl)
+                    .ThenBy(membership => membership.ProcessedInsightId)
+                : query.OrderByDescending(membership => membership.ProcessedInsight.RawCapture.SourceUrl)
+                    .ThenBy(membership => membership.ProcessedInsightId),
+            _ => ascending
+                ? query.OrderBy(membership => membership.Rank)
+                    .ThenBy(membership => membership.ProcessedInsightId)
+                : query.OrderByDescending(membership => membership.Rank)
+                    .ThenBy(membership => membership.ProcessedInsightId)
         };
     }
 

@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using SentinelKnowledgebase.Application.DTOs.Clusters;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
 using SentinelKnowledgebase.Domain.Entities;
@@ -159,6 +160,93 @@ public class InsightClusteringServiceTests
         addedClusters[0].Title.Should().NotBeNullOrWhiteSpace();
         addedClusters[0].Description.Should().BeNull();
         addedClusters[0].KeywordsJson.Should().Contain("markets");
+    }
+
+    [Fact]
+    public async Task GetClusterDetailAsync_ShouldNormalizeInvalidDetailCriteria()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var clusterId = Guid.NewGuid();
+        _insightClusterRepository.GetDetailPagedAsync(
+                ownerUserId,
+                clusterId,
+                Arg.Any<TopicClusterDetailQueryOptions>())
+            .Returns(new TopicClusterDetailQueryResult
+            {
+                Id = clusterId,
+                Title = "Topic",
+                Description = "Description",
+                KeywordsJson = "[\"topic\"]",
+                MemberCount = 0,
+                UpdatedAt = DateTime.UtcNow,
+                MembersPage = 1,
+                MembersPageSize = 100,
+                MembersTotalCount = 0,
+                MembersSortField = TopicClusterMemberSortFields.Rank,
+                MembersSortDirection = SortDirections.Asc,
+                Members = []
+            });
+
+        var result = await _service.GetClusterDetailAsync(ownerUserId, clusterId, new TopicClusterDetailQueryDto
+        {
+            Page = -5,
+            PageSize = 5000,
+            SortField = "unsupported",
+            SortDirection = "sideways"
+        });
+
+        result.Should().NotBeNull();
+        await _insightClusterRepository.Received(1).GetDetailPagedAsync(
+            ownerUserId,
+            clusterId,
+            Arg.Is<TopicClusterDetailQueryOptions>(options =>
+                options.Page == 1 &&
+                options.PageSize == 100 &&
+                options.SortField == TopicClusterMemberSortFields.Rank &&
+                options.SortDirection == SortDirections.Asc));
+    }
+
+    [Fact]
+    public async Task GetClusterDetailAsync_ShouldForwardValidDetailCriteria()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var clusterId = Guid.NewGuid();
+        _insightClusterRepository.GetDetailPagedAsync(
+                ownerUserId,
+                clusterId,
+                Arg.Any<TopicClusterDetailQueryOptions>())
+            .Returns(new TopicClusterDetailQueryResult
+            {
+                Id = clusterId,
+                Title = "Topic",
+                Description = "Description",
+                KeywordsJson = "[\"topic\"]",
+                MemberCount = 0,
+                UpdatedAt = DateTime.UtcNow,
+                MembersPage = 2,
+                MembersPageSize = 50,
+                MembersTotalCount = 0,
+                MembersSortField = TopicClusterMemberSortFields.Similarity,
+                MembersSortDirection = SortDirections.Desc,
+                Members = []
+            });
+
+        await _service.GetClusterDetailAsync(ownerUserId, clusterId, new TopicClusterDetailQueryDto
+        {
+            Page = 2,
+            PageSize = 50,
+            SortField = TopicClusterMemberSortFields.Similarity,
+            SortDirection = SortDirections.Desc
+        });
+
+        await _insightClusterRepository.Received(1).GetDetailPagedAsync(
+            ownerUserId,
+            clusterId,
+            Arg.Is<TopicClusterDetailQueryOptions>(options =>
+                options.Page == 2 &&
+                options.PageSize == 50 &&
+                options.SortField == TopicClusterMemberSortFields.Similarity &&
+                options.SortDirection == SortDirections.Desc));
     }
 
     private static ProcessedInsightEmbeddingRecord CreateRecord(

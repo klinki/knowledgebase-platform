@@ -16,9 +16,12 @@ public class InsightClusteringService : IInsightClusteringService
     private const int NeighborLimit = 5;
     private const int SummarySampleSize = 5;
     private const double SimilarityThreshold = 0.72d;
+    private const int DefaultDetailPageSize = 20;
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> OwnerLocks = new();
     private const string DefaultSortField = "memberCount";
     private const string DefaultSortDirection = "desc";
+    private const string DefaultDetailSortField = TopicClusterMemberSortFields.Rank;
+    private const string DefaultDetailSortDirection = SortDirections.Asc;
     private static readonly HashSet<string> StopWords =
     [
         "about", "after", "before", "between", "could", "from", "have", "into", "just", "like",
@@ -180,9 +183,29 @@ public class InsightClusteringService : IInsightClusteringService
         };
     }
 
-    public async Task<TopicClusterDetailDto?> GetClusterDetailAsync(Guid ownerUserId, Guid clusterId)
+    public async Task<TopicClusterDetailDto?> GetClusterDetailAsync(
+        Guid ownerUserId,
+        Guid clusterId,
+        TopicClusterDetailQueryDto query)
     {
-        var cluster = await _unitOfWork.InsightClusters.GetByIdAsync(ownerUserId, clusterId);
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        if (pageSize <= 0)
+        {
+            pageSize = DefaultDetailPageSize;
+        }
+
+        var sortField = NormalizeDetailSortField(query.SortField);
+        var sortDirection = NormalizeDetailSortDirection(query.SortDirection);
+
+        var cluster = await _unitOfWork.InsightClusters.GetDetailPagedAsync(ownerUserId, clusterId, new TopicClusterDetailQueryOptions
+        {
+            Page = page,
+            PageSize = pageSize,
+            SortField = sortField,
+            SortDirection = sortDirection
+        });
+
         return cluster == null ? null : MapDetail(cluster);
     }
 
@@ -439,7 +462,37 @@ public class InsightClusteringService : IInsightClusteringService
         };
     }
 
-    private static TopicClusterDetailDto MapDetail(InsightCluster cluster)
+    private static string NormalizeDetailSortField(string? sortField)
+    {
+        if (!TopicClusterMemberSortFields.IsValid(sortField))
+        {
+            return DefaultDetailSortField;
+        }
+
+        var normalized = sortField!.Trim();
+        return normalized switch
+        {
+            _ when string.Equals(normalized, TopicClusterMemberSortFields.Rank, StringComparison.OrdinalIgnoreCase) =>
+                TopicClusterMemberSortFields.Rank,
+            _ when string.Equals(normalized, TopicClusterMemberSortFields.Similarity, StringComparison.OrdinalIgnoreCase) =>
+                TopicClusterMemberSortFields.Similarity,
+            _ when string.Equals(normalized, TopicClusterMemberSortFields.Title, StringComparison.OrdinalIgnoreCase) =>
+                TopicClusterMemberSortFields.Title,
+            _ => TopicClusterMemberSortFields.SourceUrl
+        };
+    }
+
+    private static string NormalizeDetailSortDirection(string? sortDirection)
+    {
+        if (!SortDirections.IsValid(sortDirection))
+        {
+            return DefaultDetailSortDirection;
+        }
+
+        return sortDirection!.Trim().ToLowerInvariant();
+    }
+
+    private static TopicClusterDetailDto MapDetail(TopicClusterDetailQueryResult cluster)
     {
         return new TopicClusterDetailDto
         {
@@ -450,25 +503,27 @@ public class InsightClusteringService : IInsightClusteringService
             MemberCount = cluster.MemberCount,
             UpdatedAt = cluster.UpdatedAt,
             SuggestedLabel = BuildSuggestedLabel(cluster.Title),
-            Members = cluster.Memberships
-                .OrderBy(membership => membership.Rank)
-                .Select(membership => new TopicClusterMembershipDto
+            MembersPage = cluster.MembersPage,
+            MembersPageSize = cluster.MembersPageSize,
+            MembersTotalCount = cluster.MembersTotalCount,
+            MembersSortField = cluster.MembersSortField,
+            MembersSortDirection = cluster.MembersSortDirection,
+            Members = cluster.Members
+                .Select(member => new TopicClusterMembershipDto
                 {
-                    CaptureId = membership.ProcessedInsight.RawCaptureId,
-                    ProcessedInsightId = membership.ProcessedInsightId,
-                    Title = membership.ProcessedInsight.Title,
-                    Summary = membership.ProcessedInsight.Summary,
-                    SourceUrl = membership.ProcessedInsight.RawCapture.SourceUrl,
-                    Rank = membership.Rank,
-                    SimilarityToCentroid = membership.SimilarityToCentroid,
-                    Tags = membership.ProcessedInsight.Tags.Select(tag => tag.Name).ToList(),
-                    Labels = membership.ProcessedInsight.LabelAssignments
-                        .OrderBy(assignment => assignment.LabelCategory.Name)
-                        .ThenBy(assignment => assignment.LabelValue.Value)
-                        .Select(assignment => new LabelAssignmentDto
+                    CaptureId = member.CaptureId,
+                    ProcessedInsightId = member.ProcessedInsightId,
+                    Title = member.Title,
+                    Summary = member.Summary,
+                    SourceUrl = member.SourceUrl,
+                    Rank = member.Rank,
+                    SimilarityToCentroid = member.SimilarityToCentroid,
+                    Tags = member.Tags,
+                    Labels = member.Labels
+                        .Select(label => new LabelAssignmentDto
                         {
-                            Category = assignment.LabelCategory.Name,
-                            Value = assignment.LabelValue.Value
+                            Category = label.Category,
+                            Value = label.Value
                         })
                         .ToList()
                 })

@@ -43,6 +43,8 @@ export interface TopicClusterSummary {
 
 export type TopicClusterSortField = 'memberCount' | 'updatedAt' | 'title';
 export type TopicClusterSortDirection = 'asc' | 'desc';
+export type TopicClusterDetailSortField = 'rank' | 'similarity' | 'title' | 'sourceUrl';
+export type TopicClusterDetailSortDirection = 'asc' | 'desc';
 
 export interface TopicClusterListCriteria {
   query: string;
@@ -79,6 +81,11 @@ export interface TopicClusterDetail {
   memberCount: number;
   updatedAt: string;
   suggestedLabel: LabelAssignment;
+  membersPage: number;
+  membersPageSize: number;
+  membersTotalCount: number;
+  membersSortField: TopicClusterDetailSortField;
+  membersSortDirection: TopicClusterDetailSortDirection;
   members: TopicClusterMember[];
 }
 

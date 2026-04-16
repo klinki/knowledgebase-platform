@@ -71,14 +71,26 @@ public class ClustersController : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(TopicClusterDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetCluster(Guid id)
+    public async Task<IActionResult> GetCluster(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string sortField = TopicClusterMemberSortFields.Rank,
+        [FromQuery] string sortDirection = SortDirections.Asc)
     {
         if (!User.TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var cluster = await _insightClusteringService.GetClusterDetailAsync(userId, id);
+        var query = new TopicClusterDetailQueryDto
+        {
+            Page = page,
+            PageSize = pageSize,
+            SortField = sortField,
+            SortDirection = sortDirection
+        };
+        var cluster = await _insightClusteringService.GetClusterDetailAsync(userId, id, query);
         return cluster == null ? NotFound() : Ok(cluster);
     }
 

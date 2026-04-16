@@ -80,11 +80,53 @@ public class ClustersControllerTests
         var cluster = await response.Content.ReadFromJsonAsync<TopicClusterDetailDto>(ResponseJsonOptions);
         cluster.Should().NotBeNull();
         cluster!.SuggestedLabel.Category.Should().Be("Topic");
+        cluster.MembersPage.Should().Be(1);
+        cluster.MembersPageSize.Should().Be(20);
+        cluster.MembersTotalCount.Should().Be(3);
+        cluster.MembersSortField.Should().Be(TopicClusterMemberSortFields.Rank);
+        cluster.MembersSortDirection.Should().Be(SortDirections.Asc);
         cluster.Members.Select(memberDto => memberDto.Rank).Should().ContainInOrder(1, 2, 3);
         cluster.Members[0].SimilarityToCentroid.Should().BeGreaterThan(cluster.Members[2].SimilarityToCentroid);
 
         var foreignResponse = await memberClient.GetAsync($"/api/v1/clusters/{clusterId}");
         foreignResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetCluster_ShouldPageMembers_WhenPagingRequested()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var clusterId = await SeedClusterAsync(ownerUserId, "Paged Topic", memberCount: 6);
+
+        var response = await client.GetAsync($"/api/v1/clusters/{clusterId}?page=2&pageSize=2&sortField=rank&sortDirection=asc");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var cluster = await response.Content.ReadFromJsonAsync<TopicClusterDetailDto>(ResponseJsonOptions);
+        cluster.Should().NotBeNull();
+        cluster!.MembersPage.Should().Be(2);
+        cluster.MembersPageSize.Should().Be(2);
+        cluster.MembersTotalCount.Should().Be(6);
+        cluster.Members.Select(item => item.Rank).Should().ContainInOrder(3, 4);
+    }
+
+    [Fact]
+    public async Task GetCluster_ShouldSortMembersBySimilarity_WhenRequested()
+    {
+        var member = await _fixture.CreateMemberClientAsync();
+        using var client = member.Client;
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(member.Email);
+        var clusterId = await SeedClusterAsync(ownerUserId, "Similarity Topic", memberCount: 4);
+
+        var response = await client.GetAsync($"/api/v1/clusters/{clusterId}?sortField=similarity&sortDirection=asc&pageSize=10");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var cluster = await response.Content.ReadFromJsonAsync<TopicClusterDetailDto>(ResponseJsonOptions);
+        cluster.Should().NotBeNull();
+        cluster!.MembersSortField.Should().Be(TopicClusterMemberSortFields.Similarity);
+        cluster.MembersSortDirection.Should().Be(SortDirections.Asc);
+        cluster.Members.Select(item => item.SimilarityToCentroid).Should().BeInAscendingOrder();
     }
 
     [Fact]

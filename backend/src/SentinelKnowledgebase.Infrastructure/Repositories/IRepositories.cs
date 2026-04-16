@@ -281,6 +281,10 @@ public interface IInsightClusterRepository
     Task<InsightCluster> AddAsync(InsightCluster cluster);
     Task AddMembershipsAsync(IEnumerable<InsightClusterMembership> memberships);
     Task<InsightCluster?> GetByIdAsync(Guid ownerUserId, Guid clusterId);
+    Task<TopicClusterDetailQueryResult?> GetDetailPagedAsync(
+        Guid ownerUserId,
+        Guid clusterId,
+        TopicClusterDetailQueryOptions options);
     Task<IReadOnlyList<InsightCluster>> GetTopAsync(Guid ownerUserId, int take);
     Task<TopicClusterQueryResult> GetPagedAsync(Guid ownerUserId, TopicClusterQueryOptions options);
     Task<IReadOnlyList<Guid>> GetStaleOwnerIdsAsync(DateTime staleBefore, int take);
@@ -300,4 +304,41 @@ public class TopicClusterQueryResult
 {
     public List<InsightCluster> Items { get; set; } = new();
     public int TotalCount { get; set; }
+}
+
+public class TopicClusterDetailQueryOptions
+{
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public string SortField { get; set; } = "rank";
+    public string SortDirection { get; set; } = "asc";
+}
+
+public class TopicClusterDetailQueryResult
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string KeywordsJson { get; set; } = "[]";
+    public int MemberCount { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int MembersPage { get; set; }
+    public int MembersPageSize { get; set; }
+    public int MembersTotalCount { get; set; }
+    public string MembersSortField { get; set; } = "rank";
+    public string MembersSortDirection { get; set; } = "asc";
+    public List<TopicClusterMemberRecord> Members { get; set; } = new();
+}
+
+public class TopicClusterMemberRecord
+{
+    public Guid CaptureId { get; set; }
+    public Guid ProcessedInsightId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public int Rank { get; set; }
+    public double SimilarityToCentroid { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public List<LabelRecord> Labels { get; set; } = new();
 }

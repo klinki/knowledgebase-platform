@@ -23,6 +23,42 @@ public class TopicClusterListQueryDto
   public string SortDirection { get; set; } = "desc";
 }
 
+public static class TopicClusterMemberSortFields
+{
+    public const string Rank = "rank";
+    public const string Similarity = "similarity";
+    public const string Title = "title";
+    public const string SourceUrl = "sourceUrl";
+
+    public static bool IsValid(string? value)
+    {
+        return string.Equals(value, Rank, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Similarity, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Title, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, SourceUrl, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public static class SortDirections
+{
+    public const string Asc = "asc";
+    public const string Desc = "desc";
+
+    public static bool IsValid(string? value)
+    {
+        return string.Equals(value, Asc, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, Desc, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class TopicClusterDetailQueryDto
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public string SortField { get; set; } = TopicClusterMemberSortFields.Rank;
+    public string SortDirection { get; set; } = SortDirections.Asc;
+}
+
 public class TopicClusterListPageDto
 {
   public List<TopicClusterSummaryDto> Items { get; set; } = new();
@@ -57,6 +93,11 @@ public class TopicClusterDetailDto
     public int MemberCount { get; set; }
     public DateTime UpdatedAt { get; set; }
     public LabelAssignmentDto SuggestedLabel { get; set; } = new();
+    public int MembersPage { get; set; }
+    public int MembersPageSize { get; set; }
+    public int MembersTotalCount { get; set; }
+    public string MembersSortField { get; set; } = TopicClusterMemberSortFields.Rank;
+    public string MembersSortDirection { get; set; } = SortDirections.Asc;
     public List<TopicClusterMembershipDto> Members { get; set; } = new();
 }
 
