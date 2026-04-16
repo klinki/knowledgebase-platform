@@ -120,6 +120,7 @@ public static class CaptureSearchSortFields
 public class SearchRequestDto
 {
     public string? Query { get; set; }
+    public Guid? TopicClusterId { get; set; }
     public List<string> Tags { get; set; } = new();
     public string TagMatchMode { get; set; } = SearchMatchModes.Any;
     public List<LabelAssignmentDto> Labels { get; set; } = new();

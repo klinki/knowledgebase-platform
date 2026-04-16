@@ -150,6 +150,7 @@ public interface IProcessedInsightRepository
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
         bool matchAllLabels,
+        Guid? topicClusterId,
         string sortField,
         string sortDirection);
     Task<IReadOnlyList<ProcessedInsightEmbeddingRecord>> GetEmbeddingRecordsAsync(Guid ownerUserId);

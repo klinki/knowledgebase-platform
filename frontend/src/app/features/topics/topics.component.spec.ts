@@ -42,6 +42,9 @@ describe('TopicsComponent', () => {
     expect(compiled.textContent).toContain('Page 2 of 2');
     expect(searchInput?.value).toBe('infra');
     expect(sortSelect?.value).toBe('title-asc');
+    const topicSearchLink = Array.from(compiled.querySelectorAll('a.topic-link'))
+      .find(link => link.textContent?.includes('Search on topic')) as HTMLAnchorElement | undefined;
+    expect(topicSearchLink?.getAttribute('href')).toContain('/search?topicId=topic-1');
   });
 
   it('submitting search syncs URL state and resets page to 1', async () => {

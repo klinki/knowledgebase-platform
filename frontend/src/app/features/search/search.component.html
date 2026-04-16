@@ -86,6 +86,21 @@
         <div id="search-advanced-filters" class="advanced-filters">
           <div class="field-block">
             <div class="field-head">
+              <label for="search-topic-id">Topic cluster ID</label>
+            </div>
+            <input
+              id="search-topic-id"
+              type="text"
+              name="topicClusterId"
+              [(ngModel)]="topicClusterId"
+              placeholder="Filter by a specific topic cluster UUID"
+              autocomplete="off"
+            >
+            <p class="hint">Use this to limit search results to one topic cluster.</p>
+          </div>
+
+          <div class="field-block">
+            <div class="field-head">
               <label for="search-tag-input">Tags</label>
               <select
                 name="tagMatchMode"

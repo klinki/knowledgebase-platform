@@ -158,6 +158,15 @@
   color: #c7d2fe;
   text-decoration: none;
 }
+.topic-actions {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+.topic-link.secondary-action {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
 .secondary-link {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
@@ -202,4 +211,5 @@
   .topics-controls { grid-template-columns: 1fr; }
   .control-actions { width: 100%; }
   .overview-metrics { justify-content: flex-start; }
+  .topic-actions { justify-items: start; }
 }

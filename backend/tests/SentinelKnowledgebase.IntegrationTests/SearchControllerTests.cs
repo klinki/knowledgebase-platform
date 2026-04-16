@@ -1032,6 +1032,101 @@ public class SearchControllerTests
         results!.Items.Select(result => result.Id).Should().ContainInOrder(newerInsightId, olderInsightId);
     }
 
+    [Fact]
+    public async Task Search_ShouldFilterByTopicClusterId_WhenProvided()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var adminUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var clusterId = Guid.NewGuid();
+        var includedInsightId = Guid.NewGuid();
+        var excludedInsightId = Guid.NewGuid();
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var includedCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/cluster-include/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "In-cluster capture",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-2),
+                ProcessedAt = DateTime.UtcNow.AddDays(-2)
+            };
+            var excludedCapture = new RawCapture
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = adminUserId,
+                SourceUrl = $"https://example.com/cluster-exclude/{Guid.NewGuid():N}",
+                ContentType = Domain.Enums.ContentType.Article,
+                RawContent = "Out-of-cluster capture",
+                Status = Domain.Enums.CaptureStatus.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                ProcessedAt = DateTime.UtcNow.AddDays(-1)
+            };
+
+            var includedInsight = new ProcessedInsight
+            {
+                Id = includedInsightId,
+                OwnerUserId = adminUserId,
+                RawCaptureId = includedCapture.Id,
+                Title = "Included Insight",
+                Summary = "Included",
+                ProcessedAt = DateTime.UtcNow.AddDays(-2)
+            };
+            var excludedInsight = new ProcessedInsight
+            {
+                Id = excludedInsightId,
+                OwnerUserId = adminUserId,
+                RawCaptureId = excludedCapture.Id,
+                Title = "Excluded Insight",
+                Summary = "Excluded",
+                ProcessedAt = DateTime.UtcNow.AddDays(-1)
+            };
+
+            dbContext.RawCaptures.AddRange(includedCapture, excludedCapture);
+            dbContext.ProcessedInsights.AddRange(includedInsight, excludedInsight);
+            dbContext.InsightClusters.Add(new InsightCluster
+            {
+                Id = clusterId,
+                OwnerUserId = adminUserId,
+                Title = "Topic Cluster",
+                Description = "Search filter cluster",
+                KeywordsJson = "[\"topic\"]",
+                MemberCount = 1,
+                RepresentativeProcessedInsightId = includedInsightId,
+                LastComputedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+            dbContext.InsightClusterMemberships.Add(new InsightClusterMembership
+            {
+                InsightClusterId = clusterId,
+                ProcessedInsightId = includedInsightId,
+                Rank = 1,
+                SimilarityToCentroid = 0.99,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await Task.CompletedTask;
+        });
+
+        var request = new SearchRequestDto
+        {
+            TopicClusterId = clusterId
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/search", request);
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<SearchResultPageDto>();
+        results.Should().NotBeNull();
+        results!.TotalCount.Should().Be(1);
+        results.Items.Should().ContainSingle(result => result.Id == includedInsightId);
+        results.Items.Should().NotContain(result => result.Id == excludedInsightId);
+    }
+
     private static float[] CreateDeterministicEmbedding(string text)
     {
         var seed = text.Aggregate(17, (current, character) => unchecked(current * 31 + character));

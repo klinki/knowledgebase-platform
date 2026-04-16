@@ -20,6 +20,7 @@ interface SearchPaginationState {
 
 export interface SearchCriteria {
   query: string;
+  topicId: string;
   tags: string[];
   tagMatchMode: SearchMatchMode;
   labels: LabelAssignment[];
@@ -58,6 +59,7 @@ export class SearchStateService {
   createEmptyCriteria(): SearchCriteria {
     return {
       query: '',
+      topicId: '',
       tags: [],
       tagMatchMode: 'any',
       labels: [],
@@ -72,12 +74,13 @@ export class SearchStateService {
 
   hasCriteria(criteria: SearchCriteria): boolean {
     const normalized = this.normalizeCriteria(criteria);
-    return normalized.query.length > 0 || normalized.tags.length > 0 || normalized.labels.length > 0;
+    return normalized.query.length > 0 || normalized.topicId.length > 0 || normalized.tags.length > 0 || normalized.labels.length > 0;
   }
 
   parseQueryParams(paramMap: ParamMap): SearchCriteria {
     const criteria = this.createEmptyCriteria();
     criteria.query = paramMap.get('q')?.trim() ?? '';
+    criteria.topicId = this.normalizeTopicId(paramMap.get('topicId'));
     criteria.tags = this.normalizeTags(paramMap.getAll('tag'));
     criteria.labels = paramMap.getAll('label')
       .map(value => this.parseLabelParam(value))
@@ -99,6 +102,7 @@ export class SearchStateService {
     const normalized = this.normalizeCriteria(criteria);
     return {
       q: normalized.query || null,
+      topicId: normalized.topicId || null,
       tag: normalized.tags.length > 0 ? normalized.tags : null,
       label: normalized.labels.length > 0
         ? normalized.labels.map(label => `${label.category}::${label.value}`)
@@ -135,6 +139,7 @@ export class SearchStateService {
       const results = await firstValueFrom(
         this.http.post<SearchResultPage>(this.apiUrl, {
           query: normalized.query || null,
+          topicClusterId: normalized.topicId || null,
           tags: normalized.tags,
           tagMatchMode: normalized.tagMatchMode,
           labels: normalized.labels,
@@ -166,6 +171,7 @@ export class SearchStateService {
     return {
       ...criteria,
       query: criteria.query.trim(),
+      topicId: this.normalizeTopicId(criteria.topicId),
       tags: this.normalizeTags(criteria.tags),
       labels: criteria.labels
         .map(label => ({
@@ -230,6 +236,15 @@ export class SearchStateService {
     }
 
     return fallback;
+  }
+
+  private normalizeTopicId(value: string | null | undefined): string {
+    const trimmed = value?.trim() ?? '';
+    if (!trimmed) {
+      return '';
+    }
+
+    return this.isGuid(trimmed) ? trimmed : '';
   }
 
   private normalizePageSize(value: number): number {
@@ -300,5 +315,9 @@ export class SearchStateService {
       category,
       value: labelValue
     };
+  }
+
+  private isGuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   }
 }

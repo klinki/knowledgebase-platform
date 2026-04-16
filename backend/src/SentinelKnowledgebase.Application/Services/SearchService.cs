@@ -24,9 +24,10 @@ public class SearchService : ISearchService
         var normalizedQuery = NormalizeQuery(request.Query);
         var normalizedTags = NormalizeTags(request.Tags);
         var normalizedLabels = NormalizeLabels(request.Labels);
+        var topicClusterId = request.TopicClusterId;
         var hasQuery = normalizedQuery is not null;
 
-        if (normalizedQuery is null && normalizedTags.Count == 0 && normalizedLabels.Count == 0)
+        if (normalizedQuery is null && topicClusterId is null && normalizedTags.Count == 0 && normalizedLabels.Count == 0)
         {
             throw new ArgumentException("At least one search criterion is required.", nameof(request));
         }
@@ -52,6 +53,7 @@ public class SearchService : ISearchService
             SearchMatchModes.IsAll(request.TagMatchMode),
             normalizedLabels,
             SearchMatchModes.IsAll(request.LabelMatchMode),
+            topicClusterId,
             sortField,
             sortDirection);
 

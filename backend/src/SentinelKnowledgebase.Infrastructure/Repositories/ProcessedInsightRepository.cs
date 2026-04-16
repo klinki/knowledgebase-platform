@@ -81,14 +81,24 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
         bool matchAllTags,
         IReadOnlyCollection<LabelRecord> labels,
         bool matchAllLabels,
+        Guid? topicClusterId,
         string sortField,
         string sortDirection)
     {
         var skip = (page - 1) * pageSize;
+        var baseQuery = _context.ProcessedInsights
+            .AsNoTracking()
+            .Where(p => p.OwnerUserId == ownerUserId);
+        if (topicClusterId.HasValue)
+        {
+            baseQuery = baseQuery.Where(p =>
+                p.ClusterMembership != null &&
+                p.ClusterMembership.InsightClusterId == topicClusterId.Value &&
+                p.ClusterMembership.InsightCluster.OwnerUserId == ownerUserId);
+        }
+
         var query = ApplyTagAndLabelFilters(
-            _context.ProcessedInsights
-                .AsNoTracking()
-                .Where(p => p.OwnerUserId == ownerUserId),
+            baseQuery,
             tags,
             matchAllTags,
             labels,

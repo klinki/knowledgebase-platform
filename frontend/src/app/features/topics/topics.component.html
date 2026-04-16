@@ -114,7 +114,12 @@
 
           <div class="topic-footer">
             <span class="label-chip">{{ topic.suggestedLabel.category }}: {{ topic.suggestedLabel.value }}</span>
-            <a class="topic-link" [routerLink]="['/topics', topic.id]">Open topic</a>
+            <div class="topic-actions">
+              <a class="topic-link" [routerLink]="['/topics', topic.id]">Open topic</a>
+              <a class="topic-link secondary-action" [routerLink]="['/search']" [queryParams]="{ topicId: topic.id }">
+                Search on topic
+              </a>
+            </div>
           </div>
         </article>
       }

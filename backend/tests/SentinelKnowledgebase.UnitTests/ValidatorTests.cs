@@ -307,6 +307,19 @@ public class ValidatorTests
     }
 
     [Fact]
+    public void SearchRequest_WithTopicClusterOnly_ShouldPassValidation()
+    {
+        var request = new SearchRequestDto
+        {
+            TopicClusterId = Guid.NewGuid()
+        };
+
+        var result = _searchRequestValidator.Validate(request);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
     public void SearchRequest_WithEmptyCriteria_ShouldFailValidation()
     {
         var request = new SearchRequestDto

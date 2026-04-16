@@ -41,6 +41,7 @@ describe('SearchStateService', () => {
 
     expect(criteria).toEqual({
       query: 'angular',
+      topicId: '',
       tags: ['frontend', 'angular'],
       tagMatchMode: 'all',
       labels: [
@@ -59,6 +60,7 @@ describe('SearchStateService', () => {
   it('builds URL query params from normalized search criteria', () => {
     const criteria: SearchCriteria = {
       query: '  angular  ',
+      topicId: '',
       tags: ['frontend', 'Frontend', 'angular'],
       tagMatchMode: 'all',
       labels: [
@@ -75,6 +77,7 @@ describe('SearchStateService', () => {
 
     expect(service.buildQueryParams(criteria)).toEqual({
       q: 'angular',
+      topicId: null,
       tag: ['frontend', 'angular'],
       label: ['Language::English'],
       tagMode: 'all',
@@ -89,6 +92,7 @@ describe('SearchStateService', () => {
   it('posts combined search payloads and normalizes results', async () => {
     const criteria: SearchCriteria = {
       query: 'angular',
+      topicId: '048fda43-2e0b-4392-aa06-99833f5eaf80',
       tags: ['frontend'],
       tagMatchMode: 'all',
       labels: [{ category: 'Language', value: 'English' }],
@@ -106,6 +110,7 @@ describe('SearchStateService', () => {
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({
       query: 'angular',
+      topicClusterId: '048fda43-2e0b-4392-aa06-99833f5eaf80',
       tags: ['frontend'],
       tagMatchMode: 'all',
       labels: [{ category: 'Language', value: 'English' }],
@@ -162,5 +167,14 @@ describe('SearchStateService', () => {
 
     expect(criteria.sortField).toBe('relevance');
     expect(criteria.sortDirection).toBe('desc');
+  });
+
+  it('parses and normalizes topicId query param', () => {
+    const criteria = service.parseQueryParams(convertToParamMap({
+      topicId: '048fda43-2e0b-4392-aa06-99833f5eaf80'
+    }));
+
+    expect(criteria.topicId).toBe('048fda43-2e0b-4392-aa06-99833f5eaf80');
+    expect(service.hasCriteria(criteria)).toBe(true);
   });
 });

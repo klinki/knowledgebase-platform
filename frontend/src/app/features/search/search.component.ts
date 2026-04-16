@@ -54,6 +54,7 @@ export class SearchComponent implements OnInit {
   private router = inject(Router);
 
   searchQuery = '';
+  topicClusterId = '';
   tagInput = '';
   selectedTags: string[] = [];
   tagMatchMode: SearchMatchMode = 'any';
@@ -65,7 +66,10 @@ export class SearchComponent implements OnInit {
   advancedFiltersOpen = false;
   currentPagination = computed(() => this.searchState.currentPagination());
   totalCount = computed(() => this.searchState.totalCount());
-  activeAdvancedFilterCount = computed(() => this.selectedTags.length + this.countActiveLabelRows());
+  activeAdvancedFilterCount = computed(() =>
+    this.selectedTags.length +
+    this.countActiveLabelRows() +
+    (this.topicClusterId.trim().length > 0 ? 1 : 0));
   visiblePages = computed(() => {
     const total = this.searchState.totalPages();
     const current = this.currentPagination().page;
@@ -210,6 +214,7 @@ export class SearchComponent implements OnInit {
 
   async clearSearch(): Promise<void> {
     this.searchQuery = '';
+    this.topicClusterId = '';
     this.tagInput = '';
     this.selectedTags = [];
     this.tagMatchMode = 'any';
@@ -254,6 +259,7 @@ export class SearchComponent implements OnInit {
 
   private applyCriteria(criteria: SearchCriteria): void {
     this.searchQuery = criteria.query;
+    this.topicClusterId = criteria.topicId;
     this.selectedTags = [...criteria.tags];
     this.tagMatchMode = criteria.tagMatchMode;
     this.labelMatchMode = criteria.labelMatchMode;
@@ -262,7 +268,7 @@ export class SearchComponent implements OnInit {
     this.labelRows = criteria.labels.length > 0
       ? criteria.labels.map(label => SearchComponent.createLabelRow(label.category, label.value))
       : [SearchComponent.createLabelRow()];
-    this.advancedFiltersOpen = criteria.tags.length > 0 || criteria.labels.length > 0;
+    this.advancedFiltersOpen = criteria.tags.length > 0 || criteria.labels.length > 0 || criteria.topicId.length > 0;
   }
 
   private countActiveLabelRows(): number {
@@ -278,6 +284,7 @@ export class SearchComponent implements OnInit {
 
     return {
       query: this.searchQuery,
+      topicId: this.topicClusterId,
       tags: this.selectedTags,
       tagMatchMode: this.tagMatchMode,
       labels: this.labelRows.map(row => ({

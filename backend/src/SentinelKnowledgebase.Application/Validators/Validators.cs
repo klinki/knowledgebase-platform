@@ -183,6 +183,11 @@ public class SearchRequestValidator : AbstractValidator<DTOs.Search.SearchReques
             return true;
         }
 
+        if (request.TopicClusterId.HasValue)
+        {
+            return true;
+        }
+
         if (request.Tags.Any(tag => !string.IsNullOrWhiteSpace(tag)))
         {
             return true;

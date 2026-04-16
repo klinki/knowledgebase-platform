@@ -223,6 +223,7 @@ public class SearchServiceTests
                     labels.Single().Category == "Language" &&
                     labels.Single().Value == "English"),
                 false,
+                null,
                 ProcessedInsightSearchSortFields.Relevance,
                 SearchSortDirections.Desc)
             .Returns(new SearchQueryResult
@@ -274,6 +275,38 @@ public class SearchServiceTests
                 false,
                 Arg.Any<IReadOnlyCollection<LabelRecord>>(),
                 true,
+                null,
+                ProcessedInsightSearchSortFields.ProcessedAt,
+                SearchSortDirections.Desc)
+            .Returns(new SearchQueryResult());
+
+        var result = await _service.SearchAsync(ownerUserId, request);
+
+        result.Items.Should().BeEmpty();
+        await _contentProcessor.DidNotReceive().GenerateEmbeddingAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldAllowTopicClusterOnlyCriteria()
+    {
+        var ownerUserId = Guid.NewGuid();
+        var topicClusterId = Guid.NewGuid();
+        var request = new SearchRequestDto
+        {
+            TopicClusterId = topicClusterId
+        };
+
+        _unitOfWork.ProcessedInsights.SearchAsync(
+                ownerUserId,
+                null,
+                request.Threshold,
+                request.Page,
+                request.PageSize,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                false,
+                Arg.Any<IReadOnlyCollection<LabelRecord>>(),
+                true,
+                topicClusterId,
                 ProcessedInsightSearchSortFields.ProcessedAt,
                 SearchSortDirections.Desc)
             .Returns(new SearchQueryResult());
@@ -320,6 +353,7 @@ public class SearchServiceTests
                 false,
                 Arg.Any<IReadOnlyCollection<LabelRecord>>(),
                 true,
+                null,
                 ProcessedInsightSearchSortFields.ProcessedAt,
                 SearchSortDirections.Desc)
             .Returns(new SearchQueryResult());
