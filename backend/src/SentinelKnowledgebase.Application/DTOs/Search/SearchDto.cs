@@ -127,7 +127,7 @@ public class SearchRequestDto
     public string LabelMatchMode { get; set; } = SearchMatchModes.All;
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
-    public double Threshold { get; set; } = 0.3;
+    public double Threshold { get; set; } = 0.6;
     public string? SortField { get; set; }
     public string? SortDirection { get; set; }
 }

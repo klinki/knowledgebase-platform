@@ -12,6 +12,7 @@ export type SearchSortDirection = 'asc' | 'desc';
 export const SEARCH_PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 export const SEARCH_SORT_FIELDS: readonly SearchSortField[] = ['relevance', 'processedAt', 'title', 'sourceUrl'] as const;
 export const SEARCH_SORT_DIRECTIONS: readonly SearchSortDirection[] = ['asc', 'desc'] as const;
+export const DEFAULT_SEARCH_THRESHOLD = 0.6;
 
 interface SearchPaginationState {
   page: number;
@@ -66,7 +67,7 @@ export class SearchStateService {
       labelMatchMode: 'all',
       page: 1,
       pageSize: 20,
-      threshold: 0.3,
+      threshold: DEFAULT_SEARCH_THRESHOLD,
       sortField: 'processedAt',
       sortDirection: 'desc'
     };
@@ -187,7 +188,7 @@ export class SearchStateService {
       labelMatchMode: this.normalizeMatchMode(criteria.labelMatchMode, 'all'),
       page: criteria.page > 0 ? Math.floor(criteria.page) : 1,
       pageSize: this.normalizePageSize(criteria.pageSize),
-      threshold: criteria.threshold >= 0 ? criteria.threshold : 0.3,
+      threshold: criteria.threshold >= 0 ? criteria.threshold : DEFAULT_SEARCH_THRESHOLD,
       ...this.normalizeSort(criteria.query.trim(), criteria.sortField, criteria.sortDirection)
     };
   }

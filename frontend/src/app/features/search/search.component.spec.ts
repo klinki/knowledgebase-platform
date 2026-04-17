@@ -37,7 +37,7 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 2,
         pageSize: 50,
-        threshold: 0.3,
+        threshold: 0.6,
         sortField: 'relevance',
         sortDirection: 'desc'
       }),
@@ -122,7 +122,7 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 1,
         pageSize: 20,
-        threshold: 0.3,
+        threshold: 0.6,
         sortField: 'processedAt',
         sortDirection: 'desc'
       }),
@@ -186,7 +186,7 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 1,
         pageSize: 20,
-        threshold: 0.3,
+        threshold: 0.6,
         sortField: 'processedAt',
         sortDirection: 'desc'
       }),
@@ -253,7 +253,7 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 1,
         pageSize: 20,
-        threshold: 0.3,
+        threshold: 0.6,
         sortField: 'relevance',
         sortDirection: 'desc'
       }),
@@ -335,7 +335,7 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 2,
         pageSize: 50,
-        threshold: 0.3,
+        threshold: 0.6,
         sortField: 'title',
         sortDirection: 'asc'
       }),
@@ -457,7 +457,7 @@ describe('SearchComponent', () => {
         labelMatchMode: 'all',
         page: 3,
         pageSize: 50,
-        threshold: 0.3,
+        threshold: 0.6,
         sortField: 'title',
         sortDirection: 'asc'
       }),

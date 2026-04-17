@@ -9,7 +9,7 @@ public class SearchService : ISearchService
 {
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
-    private const double DefaultThreshold = 0.3;
+    private const double DefaultThreshold = 0.6;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IContentProcessor _contentProcessor;
     

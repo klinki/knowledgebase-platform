@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import {
+  DEFAULT_SEARCH_THRESHOLD,
   SEARCH_PAGE_SIZE_OPTIONS,
   SearchCriteria,
   SearchMatchMode,
@@ -294,7 +295,7 @@ export class SearchComponent implements OnInit {
       labelMatchMode: this.labelMatchMode,
       page: pagination.page ?? currentPagination.page,
       pageSize: pagination.pageSize ?? currentPagination.pageSize,
-      threshold: 0.3,
+      threshold: DEFAULT_SEARCH_THRESHOLD,
       sortField,
       sortDirection
     };

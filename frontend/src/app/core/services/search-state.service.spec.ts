@@ -51,7 +51,7 @@ describe('SearchStateService', () => {
       labelMatchMode: 'any',
       page: 3,
       pageSize: 50,
-      threshold: 0.3,
+      threshold: 0.6,
       sortField: 'title',
       sortDirection: 'asc'
     });
@@ -70,7 +70,7 @@ describe('SearchStateService', () => {
       labelMatchMode: 'all',
       page: 2,
       pageSize: 50,
-      threshold: 0.3,
+      threshold: 0.6,
       sortField: 'sourceUrl',
       sortDirection: 'asc'
     };
@@ -99,7 +99,7 @@ describe('SearchStateService', () => {
       labelMatchMode: 'any',
       page: 2,
       pageSize: 50,
-      threshold: 0.3,
+      threshold: 0.6,
       sortField: 'title',
       sortDirection: 'desc'
     };
@@ -117,7 +117,7 @@ describe('SearchStateService', () => {
       labelMatchMode: 'any',
       page: 2,
       pageSize: 50,
-      threshold: 0.3,
+      threshold: 0.6,
       sortField: 'title',
       sortDirection: 'desc'
     });
