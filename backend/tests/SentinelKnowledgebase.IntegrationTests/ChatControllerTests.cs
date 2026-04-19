@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AwesomeAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pgvector;
 using SentinelKnowledgebase.Application.DTOs.Assistant;
@@ -317,6 +318,164 @@ public class ChatControllerTests
             remainingCaptureIds.Should().Contain(ignoredCaptureId);
             remainingCaptureIds.Should().NotContain(semanticMatchCaptureId);
             remainingCaptureIds.Should().NotContain(textMatchCaptureId);
+
+            await Task.CompletedTask;
+        });
+    }
+
+    [Fact]
+    public async Task ChatFlow_DeleteActionConfirmation_ShouldSoftDeleteCapturesAndLinkedInsights()
+    {
+        using var ownerClient = await _fixture.CreateAuthenticatedClientAsync();
+
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var deletedCaptureA = Guid.NewGuid();
+        var deletedCaptureB = Guid.NewGuid();
+        var retainedCapture = Guid.NewGuid();
+        var deletedInsightA = Guid.NewGuid();
+        var deletedInsightB = Guid.NewGuid();
+        var retainedInsight = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.RawCaptures.AddRange(
+                new RawCapture
+                {
+                    Id = deletedCaptureA,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://twitter.com/soft-delete-a",
+                    ContentType = ContentType.Tweet,
+                    RawContent = "tweet-soft-delete-a",
+                    Status = CaptureStatus.Completed,
+                    Metadata = """{"processingSkipCode":"twitter_suspended_account","processingSkipReason":"Suspended"}""",
+                    CreatedAt = now.AddMinutes(-5),
+                    ProcessedAt = now.AddMinutes(-4)
+                },
+                new RawCapture
+                {
+                    Id = deletedCaptureB,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://twitter.com/soft-delete-b",
+                    ContentType = ContentType.Tweet,
+                    RawContent = "tweet-soft-delete-b",
+                    Status = CaptureStatus.Completed,
+                    Metadata = """{"processingSkipCode":"twitter_post_unavailable","processingSkipReason":"Unavailable"}""",
+                    CreatedAt = now.AddMinutes(-3),
+                    ProcessedAt = now.AddMinutes(-2)
+                },
+                new RawCapture
+                {
+                    Id = retainedCapture,
+                    OwnerUserId = ownerUserId,
+                    SourceUrl = "https://twitter.com/retained",
+                    ContentType = ContentType.Tweet,
+                    RawContent = "tweet-retained",
+                    Status = CaptureStatus.Completed,
+                    Metadata = """{"processingSkipCode":"other_skip","processingSkipReason":"Other"}""",
+                    CreatedAt = now
+                });
+
+            dbContext.ProcessedInsights.AddRange(
+                new ProcessedInsight
+                {
+                    Id = deletedInsightA,
+                    OwnerUserId = ownerUserId,
+                    RawCaptureId = deletedCaptureA,
+                    Title = "Deleted insight A",
+                    Summary = "Insight tied to deleted capture A.",
+                    ProcessedAt = now.AddMinutes(-4)
+                },
+                new ProcessedInsight
+                {
+                    Id = deletedInsightB,
+                    OwnerUserId = ownerUserId,
+                    RawCaptureId = deletedCaptureB,
+                    Title = "Deleted insight B",
+                    Summary = "Insight tied to deleted capture B.",
+                    ProcessedAt = now.AddMinutes(-2)
+                },
+                new ProcessedInsight
+                {
+                    Id = retainedInsight,
+                    OwnerUserId = ownerUserId,
+                    RawCaptureId = retainedCapture,
+                    Title = "Retained insight",
+                    Summary = "Insight tied to retained capture.",
+                    ProcessedAt = now
+                });
+
+            await Task.CompletedTask;
+        });
+
+        var searchResponse = await ownerClient.PostAsJsonAsync(
+            "/api/v1/chat/session/messages",
+            new AssistantChatMessageSendRequestDto { Message = "Find me all tweets from deleted accounts" });
+        searchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var searchPayload = await searchResponse.Content.ReadFromJsonAsync<AssistantChatMessageSendResponseDto>(ResponseJsonOptions);
+        searchPayload.Should().NotBeNull();
+        searchPayload!.AssistantMessage.ResultSet.Should().NotBeNull();
+        searchPayload.AssistantMessage.ResultSet!.TotalCount.Should().Be(2);
+
+        var deleteProposalResponse = await ownerClient.PostAsJsonAsync(
+            "/api/v1/chat/session/messages",
+            new AssistantChatMessageSendRequestDto { Message = "Now delete all these tweets" });
+        deleteProposalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var deleteProposal = await deleteProposalResponse.Content.ReadFromJsonAsync<AssistantChatMessageSendResponseDto>(ResponseJsonOptions);
+        deleteProposal.Should().NotBeNull();
+        deleteProposal!.AssistantMessage.Action.Should().NotBeNull();
+        deleteProposal.AssistantMessage.Action!.Status.Should().Be(AssistantChatActionStatus.PendingConfirmation);
+        deleteProposal.AssistantMessage.Action.CaptureCount.Should().Be(2);
+
+        var confirmResponse = await ownerClient.PostAsync(
+            $"/api/v1/chat/actions/{deleteProposal.AssistantMessage.Action.Id}/confirm",
+            null);
+        confirmResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var confirmPayload = await confirmResponse.Content.ReadFromJsonAsync<AssistantChatActionResponseDto>(ResponseJsonOptions);
+        confirmPayload.Should().NotBeNull();
+        confirmPayload!.Action.Status.Should().Be(AssistantChatActionStatus.Executed);
+        confirmPayload.Action.ExecutedCount.Should().Be(2);
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var visibleCaptureIds = dbContext.RawCaptures
+                .Where(capture => capture.OwnerUserId == ownerUserId)
+                .Select(capture => capture.Id)
+                .ToHashSet();
+            visibleCaptureIds.Should().Contain(retainedCapture);
+            visibleCaptureIds.Should().NotContain(deletedCaptureA);
+            visibleCaptureIds.Should().NotContain(deletedCaptureB);
+
+            var softDeletedCaptures = await dbContext.RawCaptures
+                .IgnoreQueryFilters()
+                .Where(capture => capture.Id == deletedCaptureA || capture.Id == deletedCaptureB)
+                .ToListAsync();
+            softDeletedCaptures.Should().HaveCount(2);
+            softDeletedCaptures.Should().OnlyContain(capture => capture.IsDeleted);
+            softDeletedCaptures.Should().OnlyContain(capture => capture.DeletedAt.HasValue);
+
+            var softDeletedInsights = await dbContext.ProcessedInsights
+                .IgnoreQueryFilters()
+                .Where(insight => insight.Id == deletedInsightA || insight.Id == deletedInsightB)
+                .ToListAsync();
+            softDeletedInsights.Should().HaveCount(2);
+            softDeletedInsights.Should().OnlyContain(insight => insight.IsDeleted);
+            softDeletedInsights.Should().OnlyContain(insight => insight.DeletedAt.HasValue);
+
+            var stillActiveCapture = await dbContext.RawCaptures
+                .IgnoreQueryFilters()
+                .SingleAsync(capture => capture.Id == retainedCapture);
+            stillActiveCapture.IsDeleted.Should().BeFalse();
+            stillActiveCapture.DeletedAt.Should().BeNull();
+
+            var stillActiveInsight = await dbContext.ProcessedInsights
+                .IgnoreQueryFilters()
+                .SingleAsync(insight => insight.Id == retainedInsight);
+            stillActiveInsight.IsDeleted.Should().BeFalse();
+            stillActiveInsight.DeletedAt.Should().BeNull();
 
             await Task.CompletedTask;
         });
