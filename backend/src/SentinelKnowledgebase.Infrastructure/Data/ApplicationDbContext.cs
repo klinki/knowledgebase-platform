@@ -47,7 +47,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.RawContent).IsRequired();
             entity.Property(e => e.Status).HasDefaultValue(CaptureStatus.Pending);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAt });
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt);
+            entity.HasIndex(e => new { e.OwnerUserId, e.IsDeleted, e.CreatedAt });
+            entity.HasQueryFilter(e => !e.IsDeleted);
 
             entity.HasOne<ApplicationUser>()
                 .WithMany()
@@ -74,7 +77,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Title).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Summary).IsRequired();
             entity.Property(e => e.ProcessedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => new { e.OwnerUserId, e.ProcessedAt });
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt);
+            entity.HasIndex(e => new { e.OwnerUserId, e.IsDeleted, e.ProcessedAt });
+            entity.HasQueryFilter(e => !e.IsDeleted);
 
             entity.HasOne<ApplicationUser>()
                 .WithMany()

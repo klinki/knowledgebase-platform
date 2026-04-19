@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Microsoft.EntityFrameworkCore;
 using SentinelKnowledgebase.Domain.Entities;
 using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.DTOs.Labels;
@@ -443,6 +444,66 @@ public class CaptureControllerTests
         var ownerCapture = await ownerGetResponse.Content.ReadFromJsonAsync<CaptureResponseDto>(ResponseJsonOptions);
         ownerCapture.Should().NotBeNull();
         ownerCapture!.RawContent.Should().Be("Owner scoped capture content.");
+    }
+
+    [Fact]
+    public async Task DeleteCapture_ShouldSoftDeleteCaptureAndProcessedInsight()
+    {
+        using var client = await _fixture.CreateAuthenticatedClientAsync();
+        var ownerUserId = await _fixture.GetUserIdByEmailAsync(IntegrationTestFixture.BootstrapAdminEmail);
+        var captureId = Guid.NewGuid();
+        var insightId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            dbContext.RawCaptures.Add(new RawCapture
+            {
+                Id = captureId,
+                OwnerUserId = ownerUserId,
+                SourceUrl = "https://example.com/deletable-capture",
+                ContentType = ContentType.Article,
+                RawContent = "Capture that will be soft-deleted",
+                Status = CaptureStatus.Completed,
+                CreatedAt = now,
+                ProcessedAt = now
+            });
+
+            dbContext.ProcessedInsights.Add(new ProcessedInsight
+            {
+                Id = insightId,
+                OwnerUserId = ownerUserId,
+                RawCaptureId = captureId,
+                Title = "Soft-delete insight",
+                Summary = "Insight paired with the capture",
+                ProcessedAt = now
+            });
+
+            await Task.CompletedTask;
+        });
+
+        var deleteResponse = await client.DeleteAsync($"/api/v1/capture/{captureId}");
+        deleteResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+
+        var getResponse = await client.GetAsync($"/api/v1/capture/{captureId}");
+        getResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+
+        await _fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var deletedCapture = await dbContext.RawCaptures
+                .IgnoreQueryFilters()
+                .SingleAsync(capture => capture.Id == captureId);
+            var deletedInsight = await dbContext.ProcessedInsights
+                .IgnoreQueryFilters()
+                .SingleAsync(insight => insight.Id == insightId);
+
+            deletedCapture.IsDeleted.Should().BeTrue();
+            deletedCapture.DeletedAt.Should().NotBeNull();
+            deletedInsight.IsDeleted.Should().BeTrue();
+            deletedInsight.DeletedAt.Should().NotBeNull();
+
+            await Task.CompletedTask;
+        });
     }
 
     [Fact]

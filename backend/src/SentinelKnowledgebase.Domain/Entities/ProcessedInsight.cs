@@ -35,6 +35,10 @@ public class ProcessedInsight
     public string? Author { get; set; }
     
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
     
     public List<Tag> Tags { get; set; } = new();
 

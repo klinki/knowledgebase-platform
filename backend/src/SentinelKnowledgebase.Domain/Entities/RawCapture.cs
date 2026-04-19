@@ -32,6 +32,10 @@ public class RawCapture
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public DateTime? ProcessedAt { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
     
     public List<Tag> Tags { get; set; } = new();
 

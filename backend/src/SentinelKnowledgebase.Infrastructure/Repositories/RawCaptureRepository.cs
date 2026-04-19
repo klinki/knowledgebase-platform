@@ -376,12 +376,23 @@ public class RawCaptureRepository : IRawCaptureRepository
     
     public async Task DeleteAsync(Guid id, Guid ownerUserId)
     {
-        var rawCapture = await _context.RawCaptures
-            .FirstOrDefaultAsync(r => r.Id == id && r.OwnerUserId == ownerUserId);
-        if (rawCapture != null)
+        var deletedAt = DateTime.UtcNow;
+        var deletedCaptureCount = await _context.RawCaptures
+            .Where(capture => capture.Id == id && capture.OwnerUserId == ownerUserId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(capture => capture.IsDeleted, true)
+                .SetProperty(capture => capture.DeletedAt, deletedAt));
+
+        if (deletedCaptureCount == 0)
         {
-            _context.RawCaptures.Remove(rawCapture);
+            return;
         }
+
+        await _context.ProcessedInsights
+            .Where(insight => insight.RawCaptureId == id && insight.OwnerUserId == ownerUserId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(insight => insight.IsDeleted, true)
+                .SetProperty(insight => insight.DeletedAt, deletedAt));
     }
 
     public async Task<int> DeleteByIdsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> ids)
@@ -391,9 +402,20 @@ public class RawCaptureRepository : IRawCaptureRepository
             return 0;
         }
 
-        return await _context.RawCaptures
+        var deletedAt = DateTime.UtcNow;
+        var deletedCaptureCount = await _context.RawCaptures
             .Where(capture => capture.OwnerUserId == ownerUserId && ids.Contains(capture.Id))
-            .ExecuteDeleteAsync();
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(capture => capture.IsDeleted, true)
+                .SetProperty(capture => capture.DeletedAt, deletedAt));
+
+        await _context.ProcessedInsights
+            .Where(insight => insight.OwnerUserId == ownerUserId && ids.Contains(insight.RawCaptureId))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(insight => insight.IsDeleted, true)
+                .SetProperty(insight => insight.DeletedAt, deletedAt));
+
+        return deletedCaptureCount;
     }
 
     private static IQueryable<RawCapture> ApplySort(IQueryable<RawCapture> query, CaptureListQueryOptions options)

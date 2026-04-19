@@ -332,11 +332,12 @@ public class ProcessedInsightRepository : IProcessedInsightRepository
     
     public async Task DeleteAsync(Guid id)
     {
-        var processedInsight = await _context.ProcessedInsights.FindAsync(id);
-        if (processedInsight != null)
-        {
-            _context.ProcessedInsights.Remove(processedInsight);
-        }
+        var deletedAt = DateTime.UtcNow;
+        await _context.ProcessedInsights
+            .Where(insight => insight.Id == id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(insight => insight.IsDeleted, true)
+                .SetProperty(insight => insight.DeletedAt, deletedAt));
     }
 
     private static IQueryable<ProcessedInsight> ApplyTagAndLabelFilters(
