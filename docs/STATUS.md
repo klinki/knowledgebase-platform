@@ -16,6 +16,7 @@
 - [x] Frontend Direct Capture Creation (Ref: [docs/features/15-direct-capture-creation/feature-spec.md](/docs/features/15-direct-capture-creation/feature-spec.md))
 
 ## Backlog
+- [ ] Messaging Ingestion v1 (Telegram First) (Ref: [docs/features/26-messaging-ingestion-v1/feature-spec.md](/docs/features/26-messaging-ingestion-v1/feature-spec.md))
 - [ ] Topic Cluster Search Launch (Ref: [docs/features/25-topic-cluster-search/implementation-plan.md](/docs/features/25-topic-cluster-search/implementation-plan.md))
 - [ ] LLM Capture Assistant v1 (Ref: [docs/features/24-llm-capture-assistant-v1/implementation-plan.md](/docs/features/24-llm-capture-assistant-v1/implementation-plan.md))
 - [ ] Topics Site Search and Sorting (Ref: [docs/features/23-topics-search-and-sort/implementation-plan.md](/docs/features/23-topics-search-and-sort/implementation-plan.md))
