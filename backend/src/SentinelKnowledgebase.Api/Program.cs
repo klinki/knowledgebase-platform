@@ -7,6 +7,7 @@ using Scalar.AspNetCore;
 using SentinelKnowledgebase.Api.HealthChecks;
 using SentinelKnowledgebase.Application;
 using SentinelKnowledgebase.Application.Services;
+using SentinelKnowledgebase.Application.Services.Telegram;
 using SentinelKnowledgebase.Infrastructure.Authentication;
 using SentinelKnowledgebase.Infrastructure.Data;
 using SentinelKnowledgebase.Infrastructure;
@@ -83,6 +84,7 @@ builder.Services
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.Configure<TelegramIntegrationOptions>(builder.Configuration.GetSection(TelegramIntegrationOptions.SectionName));
 var hangfireRetryAttempts = builder.Configuration.GetValue<int?>("Hangfire:RetryAttempts") ?? 10;
 var hangfireRetryDelays = builder.Configuration.GetSection("Hangfire:RetryDelaysInSeconds").Get<int[]>();
 var retryFilter = new AutomaticRetryAttribute

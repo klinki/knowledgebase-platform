@@ -44,7 +44,12 @@ describe('SettingsComponent', () => {
           { code: 'fr', displayName: 'French' }
         ]
       }),
-      updatePreferences
+      updatePreferences,
+      getTelegramStatus: vi.fn().mockResolvedValue({
+        isLinked: false
+      }),
+      issueTelegramLinkCode: vi.fn().mockResolvedValue({ code: "SNT-TEST", expiresAt: new Date(Date.now() + 60000).toISOString() }),
+      unlinkTelegram: vi.fn().mockResolvedValue(undefined)
     };
 
     await TestBed.configureTestingModule({

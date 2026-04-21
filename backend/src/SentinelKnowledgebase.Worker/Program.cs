@@ -18,6 +18,7 @@ builder.Services.AddSerilog((services, loggerConfiguration) =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.Configure<TelegramIntegrationOptions>(builder.Configuration.GetSection(TelegramIntegrationOptions.SectionName));
 builder.Services.AddSingleton<CaptureProcessingStateFilter>();
 
 var hangfireRetryAttempts = builder.Configuration.GetValue<int?>("Hangfire:RetryAttempts") ?? 10;
@@ -42,6 +43,7 @@ builder.Services.AddHangfire(configuration => configuration
     .UsePostgreSqlStorage(options =>
         options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
 builder.Services.AddHangfireServer(options => options.Queues = hangfireQueues);
+builder.Services.AddHostedService<TelegramPollingHostedService>();
 
 var host = builder.Build();
 GlobalJobFilters.Filters.Add(host.Services.GetRequiredService<CaptureProcessingStateFilter>());

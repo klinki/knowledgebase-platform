@@ -4,6 +4,7 @@ using SentinelKnowledgebase.Application.DTOs.Capture;
 using SentinelKnowledgebase.Application.DTOs.Search;
 using SentinelKnowledgebase.Application.Services;
 using SentinelKnowledgebase.Application.Services.Interfaces;
+using SentinelKnowledgebase.Application.Services.Telegram;
 using SentinelKnowledgebase.Application.Validators;
 
 namespace SentinelKnowledgebase.Application;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddSingleton<IMonitoringService, MonitoringService>();
         services.AddScoped<IContentProcessor, ContentProcessor>();
         services.AddHttpClient<IAssistantChatService, AssistantChatService>();
+        services.AddScoped<ITelegramIntegrationService, TelegramIntegrationService>();
         
         services.AddValidatorsFromAssemblyContaining<CaptureRequestValidator>();
         services.AddValidatorsFromAssemblyContaining<SemanticSearchRequestValidator>();
