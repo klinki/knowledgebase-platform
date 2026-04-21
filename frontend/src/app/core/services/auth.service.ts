@@ -52,6 +52,21 @@ export interface InvitationPreview {
   expiresAt: string;
 }
 
+
+export interface TelegramLinkCodeResponse {
+  code: string;
+  expiresAt: string;
+}
+
+export interface TelegramLinkStatus {
+  isLinked: boolean;
+  telegramChatId?: number;
+  chatDisplayName?: string;
+  senderDisplayName?: string;
+  linkedAt?: string;
+  pendingCode?: TelegramLinkCodeResponse;
+}
+
 export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous';
 
 @Injectable({
@@ -120,6 +135,25 @@ export class AuthService {
     }
 
     return preferences;
+  }
+
+
+  async getTelegramStatus(): Promise<TelegramLinkStatus> {
+    return await firstValueFrom(
+      this.http.get<TelegramLinkStatus>(`${environment.apiBaseUrl}/v1/integrations/telegram/status`)
+    );
+  }
+
+  async issueTelegramLinkCode(): Promise<TelegramLinkCodeResponse> {
+    return await firstValueFrom(
+      this.http.post<TelegramLinkCodeResponse>(`${environment.apiBaseUrl}/v1/integrations/telegram/link-code`, {})
+    );
+  }
+
+  async unlinkTelegram(): Promise<void> {
+    await firstValueFrom(
+      this.http.delete(`${environment.apiBaseUrl}/v1/integrations/telegram/link`)
+    );
   }
 
   async createInvitation(request: InvitationRequest): Promise<InvitationResponse> {

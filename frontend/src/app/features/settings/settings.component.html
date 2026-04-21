@@ -52,6 +52,43 @@
     </div>
   </div>
 
+  <section class="settings-card telegram-card">
+    <div class="telegram-header">
+      <div>
+        <p class="eyebrow">Messaging Ingestion</p>
+        <h2>Telegram bot</h2>
+      </div>
+      <button class="secondary-btn" (click)="refreshTelegramStatus()" [disabled]="telegramLoading()">Refresh</button>
+    </div>
+
+    <p class="status error" *ngIf="telegramError()">{{ telegramError() }}</p>
+
+    <ng-container *ngIf="telegramStatus() as telegram">
+      <p *ngIf="telegram.isLinked; else unlinkedState">
+        Linked to chat <strong>{{ telegram.chatDisplayName || telegram.telegramChatId }}</strong>
+        <span *ngIf="telegram.linkedAt">since {{ telegram.linkedAt | date: 'medium' }}</span>.
+      </p>
+
+      <ng-template #unlinkedState>
+        <p>Telegram is not linked. Request a one-time link code and send it to the Sentinel bot in a private chat.</p>
+      </ng-template>
+
+      <div class="telegram-code" *ngIf="telegram.pendingCode as pendingCode">
+        <p><strong>Link code:</strong> <code>{{ pendingCode.code }}</code></p>
+        <p class="hint">Expires in {{ telegramCodeSecondsRemaining() }}s.</p>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="secondary-btn" (click)="issueTelegramCode()" [disabled]="telegramLoading()">
+          {{ telegramLoading() ? 'Working...' : 'Issue link code' }}
+        </button>
+        <button type="button" class="danger-btn" (click)="unlinkTelegram()" [disabled]="telegramLoading() || !telegram.isLinked">
+          Unlink Telegram
+        </button>
+      </div>
+    </ng-container>
+  </section>
+
   <ng-template #loadingState>
     <div class="settings-card loading-state">Loading language preferences...</div>
   </ng-template>

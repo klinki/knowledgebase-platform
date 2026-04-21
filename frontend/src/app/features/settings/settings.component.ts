@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import {
   AuthService,
   SupportedLanguage,
+  TelegramLinkStatus,
   UserLanguagePreferences
 } from '../../core/services/auth.service';
 
@@ -15,8 +16,9 @@ import {
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss'
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
+  private countdownTimer: ReturnType<typeof setInterval> | null = null;
 
   loading = signal(true);
   saving = signal(false);
@@ -26,8 +28,18 @@ export class SettingsComponent implements OnInit {
   preservedLanguageCodes = signal<string[]>([]);
   supportedLanguages = signal<SupportedLanguage[]>([]);
 
+  telegramLoading = signal(false);
+  telegramStatus = signal<TelegramLinkStatus | null>(null);
+  telegramError = signal<string | null>(null);
+  telegramCodeSecondsRemaining = signal(0);
+
   async ngOnInit(): Promise<void> {
     await this.loadPreferences();
+    await this.loadTelegramStatus();
+  }
+
+  ngOnDestroy(): void {
+    this.stopCountdown();
   }
 
   isPreserved(languageCode: string): boolean {
@@ -73,6 +85,38 @@ export class SettingsComponent implements OnInit {
     }
   }
 
+  async issueTelegramCode(): Promise<void> {
+    this.telegramLoading.set(true);
+    this.telegramError.set(null);
+
+    try {
+      await this.authService.issueTelegramLinkCode();
+      await this.loadTelegramStatus();
+    } catch {
+      this.telegramError.set('Unable to issue Telegram link code.');
+    } finally {
+      this.telegramLoading.set(false);
+    }
+  }
+
+  async unlinkTelegram(): Promise<void> {
+    this.telegramLoading.set(true);
+    this.telegramError.set(null);
+
+    try {
+      await this.authService.unlinkTelegram();
+      await this.loadTelegramStatus();
+    } catch {
+      this.telegramError.set('Unable to unlink Telegram chat.');
+    } finally {
+      this.telegramLoading.set(false);
+    }
+  }
+
+  async refreshTelegramStatus(): Promise<void> {
+    await this.loadTelegramStatus();
+  }
+
   private async loadPreferences(): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -87,9 +131,48 @@ export class SettingsComponent implements OnInit {
     }
   }
 
+  private async loadTelegramStatus(): Promise<void> {
+    this.telegramLoading.set(true);
+    this.telegramError.set(null);
+
+    try {
+      const status = await this.authService.getTelegramStatus();
+      this.telegramStatus.set(status);
+      this.startCountdown(status);
+    } catch {
+      this.telegramError.set('Unable to load Telegram status.');
+    } finally {
+      this.telegramLoading.set(false);
+    }
+  }
+
   private applyPreferences(preferences: UserLanguagePreferences): void {
     this.defaultLanguageCode.set(preferences.defaultLanguageCode);
     this.preservedLanguageCodes.set([...preferences.preservedLanguageCodes]);
     this.supportedLanguages.set([...preferences.supportedLanguages]);
+  }
+
+  private startCountdown(status: TelegramLinkStatus): void {
+    this.stopCountdown();
+    const expiresAt = status.pendingCode?.expiresAt;
+    if (!expiresAt) {
+      this.telegramCodeSecondsRemaining.set(0);
+      return;
+    }
+
+    const update = (): void => {
+      const ms = new Date(expiresAt).getTime() - Date.now();
+      this.telegramCodeSecondsRemaining.set(Math.max(0, Math.floor(ms / 1000)));
+    };
+
+    update();
+    this.countdownTimer = setInterval(update, 1000);
+  }
+
+  private stopCountdown(): void {
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
   }
 }

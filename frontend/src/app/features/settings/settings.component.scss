@@ -161,3 +161,42 @@ select {
     width: 100%;
   }
 }
+
+
+.telegram-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+h2 {
+  margin: 0;
+}
+
+.telegram-code code {
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.4rem;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.secondary-btn,
+.danger-btn {
+  border-radius: 999px;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.danger-btn {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+}
+
+.secondary-btn[disabled],
+.danger-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

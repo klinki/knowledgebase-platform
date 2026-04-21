@@ -32,6 +32,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<DeviceAuthorization> DeviceAuthorizations { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<UserPreservedLanguage> UserPreservedLanguages { get; set; }
+    public DbSet<TelegramChatLink> TelegramChatLinks { get; set; }
+    public DbSet<TelegramLinkCode> TelegramLinkCodes { get; set; }
+    public DbSet<TelegramIngestionState> TelegramIngestionStates { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -243,6 +246,51 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 IsPaused = false,
                 ChangedAt = null,
                 ChangedByUserId = null
+            });
+        });
+
+
+        modelBuilder.Entity<TelegramChatLink>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
+            entity.Property(e => e.LinkedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.OwnerUserId, e.UnlinkedAt });
+            entity.HasIndex(e => new { e.TelegramChatId, e.UnlinkedAt });
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TelegramLinkCode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OwnerUserId).IsRequired();
+            entity.Property(e => e.Code).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => new { e.OwnerUserId, e.ExpiresAt });
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TelegramIngestionState>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.LastProcessedUpdateId).HasDefaultValue(0L);
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasData(new TelegramIngestionState
+            {
+                Id = TelegramIngestionState.SingletonId,
+                LastProcessedUpdateId = 0L,
+                UpdatedAt = DateTimeOffset.UtcNow
             });
         });
 

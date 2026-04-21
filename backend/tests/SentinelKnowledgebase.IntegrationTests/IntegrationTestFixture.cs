@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Collections.Concurrent;
 using SentinelKnowledgebase.Application.DTOs.Auth;
 using SentinelKnowledgebase.Application.Services.Interfaces;
@@ -71,7 +72,13 @@ public class IntegrationTestFixture : IAsyncLifetime
                         ["Authentication:JwtSigningKey"] = "integration-tests-signing-key-integration-tests-signing-key",
                         ["Authentication:BootstrapAdminEmail"] = BootstrapAdminEmail,
                         ["Authentication:BootstrapAdminPassword"] = BootstrapAdminPassword,
-                        ["Authentication:BootstrapAdminDisplayName"] = "Integration Admin"
+                        ["Authentication:BootstrapAdminDisplayName"] = "Integration Admin",
+                        ["Telegram:BotToken"] = "test-bot-token",
+                        ["Telegram:PollTimeoutSeconds"] = "1",
+                        ["Telegram:PollLimit"] = "25",
+                        ["Telegram:PollCadenceSeconds"] = "1",
+                        ["Telegram:LinkCodeTtlMinutes"] = "10",
+                        ["Telegram:MaxRawContentLength"] = "8000"
                     });
                 });
 
@@ -90,6 +97,9 @@ public class IntegrationTestFixture : IAsyncLifetime
                     });
 
                     services.AddScoped<IContentProcessor, FakeContentProcessor>();
+                    services.RemoveAll<IHttpClientFactory>();
+                    services.AddSingleton<FakeTelegramApiHttpClientFactory>();
+                    services.AddSingleton<IHttpClientFactory>(sp => sp.GetRequiredService<FakeTelegramApiHttpClientFactory>());
                 });
             });
     }
@@ -172,6 +182,11 @@ public class IntegrationTestFixture : IAsyncLifetime
     public IServiceScope CreateScope()
     {
         return _factory.Services.CreateScope();
+    }
+
+    public FakeTelegramApiHttpClientFactory GetFakeTelegramApi()
+    {
+        return _factory.Services.GetRequiredService<FakeTelegramApiHttpClientFactory>();
     }
 
     public async Task DisposeAsync()
@@ -268,5 +283,53 @@ internal sealed class FakeContentProcessor : IContentProcessor
                 .Take(3)
                 .ToList()
         });
+    }
+}
+
+
+internal sealed class FakeTelegramApiHttpClientFactory : IHttpClientFactory
+{
+    private readonly ConcurrentQueue<string> _responses = new();
+
+    public void Reset()
+    {
+        while (_responses.TryDequeue(out _))
+        {
+        }
+    }
+
+    public void EnqueueGetUpdatesResponse(string jsonPayload)
+    {
+        _responses.Enqueue(jsonPayload);
+    }
+
+    public HttpClient CreateClient(string name)
+    {
+        return new HttpClient(new QueueMessageHandler(_responses));
+    }
+
+    private sealed class QueueMessageHandler : HttpMessageHandler
+    {
+        private readonly ConcurrentQueue<string> _responses;
+
+        public QueueMessageHandler(ConcurrentQueue<string> responses)
+        {
+            _responses = responses;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (!_responses.TryDequeue(out var payload))
+            {
+                payload = "{\"ok\":true,\"result\":[]}";
+            }
+
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(payload)
+            };
+
+            return Task.FromResult(response);
+        }
     }
 }
